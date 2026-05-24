@@ -130,15 +130,15 @@
         </div>
         <div class="col-md-6">
           <label class="form-label">Kompositör</label>
-          <input type="text" name="composer" id="composer" class="form-control" value="{{ extracted.composer or '' }}">
+          <input type="text" name="composer" id="composer" class="form-control" value="{{ extracted.composer or '' }}" list="people-options">
         </div>
         <div class="col-md-6">
           <label class="form-label">Arrangör</label>
-          <input type="text" name="arranger" class="form-control" value="{{ extracted.arranger or '' }}">
+          <input type="text" name="arranger" class="form-control" value="{{ extracted.arranger or '' }}" list="people-options">
         </div>
         <div class="col-md-6">
           <label class="form-label">Textförfattare</label>
-          <input type="text" name="lyricist" class="form-control" value="{{ extracted.lyricist or '' }}">
+          <input type="text" name="lyricist" class="form-control" value="{{ extracted.lyricist or '' }}" list="people-options">
         </div>
         <div class="col-md-3">
           <label class="form-label">Språk</label>
@@ -270,6 +270,10 @@ function applyMbSuggestion(mbid, title, composer, btn) {
   }
 }
 </script>
+<datalist id="people-options">
+  {% for name in people_names %}<option value="{{ name }}">{% endfor %}
+</datalist>
+
 <div id="mb-applied-banner"
      class="position-fixed top-0 start-50 translate-middle-x mt-3 alert alert-success shadow d-none"
      style="z-index: 1080"></div>

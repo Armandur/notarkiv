@@ -12,7 +12,7 @@ from app.services.app_settings import get_ocr_provider
 from app.services.duplicates import find_duplicates
 from app.services.inventory import append_log, get_active_session
 from app.services.musicbrainz import get_client, to_suggestions
-from app.services.people import parse_names_field, replace_contributors
+from app.services.people import all_people_names, parse_names_field, replace_contributors
 from app.models import (
     InventorySession,
     Piece,
@@ -387,6 +387,7 @@ async def review_form(
             "duplicates": duplicates,
             "prefill_placement_unit_id": scan.pre_placement_unit_id,
             "prefill_placement_copies": scan.pre_placement_copies,
+            "people_names": all_people_names(session),
         },
         user=user,
     )

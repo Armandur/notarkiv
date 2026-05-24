@@ -124,6 +124,13 @@ def collect_contributors(
     return out
 
 
+def all_people_names(session: Session) -> list[str]:
+    """Returnera alla person-namn alfabetiskt - för autocomplete-datalist."""
+    return [
+        p.name for p in session.exec(select(Person).order_by(Person.sort_name)).all()
+    ]
+
+
 def parse_names_field(value: str | None) -> list[str]:
     """Parsa en text-input som kan innehålla flera namn separerade med ';' eller '&'.
 

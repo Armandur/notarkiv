@@ -25,6 +25,7 @@ from app.models.piece_image import PieceImageKind
 from app.models.tag import TagKind
 from app.services.musicbrainz import get_client, to_suggestions
 from app.services.people import (
+    all_people_names,
     collect_contributors,
     find_or_create_person,
     parse_names_field,
@@ -260,7 +261,10 @@ async def new_piece_form(
     return render(
         request,
         "pieces/new.html",
-        {"unit_options": _unit_path_options(session)},
+        {
+            "unit_options": _unit_path_options(session),
+            "people_names": all_people_names(session),
+        },
         user=user,
     )
 
@@ -465,6 +469,7 @@ async def edit_piece_form(
             "lyricists_str": _format_contributor_list(contributors, ContributorRole.LYRICIST),
             "images": images,
             "image_kinds": [k.value for k in PieceImageKind],
+            "people_names": all_people_names(session),
         },
         user=user,
     )

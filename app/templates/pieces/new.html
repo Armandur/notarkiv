@@ -32,16 +32,16 @@
         </div>
         <div class="col-md-6">
           <label class="form-label">Kompositör</label>
-          <input type="text" name="composer" class="form-control">
+          <input type="text" name="composer" class="form-control" list="people-options">
           <div class="form-text">Flera separeras med <code>;</code> eller <code>&amp;</code></div>
         </div>
         <div class="col-md-6">
           <label class="form-label">Arrangör</label>
-          <input type="text" name="arranger" class="form-control">
+          <input type="text" name="arranger" class="form-control" list="people-options">
         </div>
         <div class="col-md-6">
           <label class="form-label">Textförfattare</label>
-          <input type="text" name="lyricist" class="form-control">
+          <input type="text" name="lyricist" class="form-control" list="people-options">
         </div>
         <div class="col-md-3">
           <label class="form-label">Språk</label>
@@ -122,4 +122,8 @@
     <a href="/pieces" class="btn btn-link">Avbryt</a>
   </div>
 </form>
+
+<datalist id="people-options">
+  {% for name in people_names %}<option value="{{ name }}">{% endfor %}
+</datalist>
 {% endblock %}
