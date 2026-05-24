@@ -25,6 +25,7 @@ from app.models.piece_image import PieceImageKind
 from app.models.tag import TagKind
 from app.services.musicbrainz import (
     extract_wikipedia_url,
+    fetch_wikipedia_summary,
     first_composer_from_work,
     get_client,
     to_suggestions,
@@ -861,11 +862,18 @@ async def apply_musicbrainz(
                     if mb_composer and mb_composer.get("id"):
                         artist = await client.get_artist_with_urls(mb_composer["id"])
                         if artist:
+                            wiki_url = extract_wikipedia_url(artist)
+                            wiki_bio = (
+                                await fetch_wikipedia_summary(wiki_url)
+                                if wiki_url
+                                else None
+                            )
                             enrich_person_from_mb(
                                 session,
                                 person,
                                 mb_artist=artist,
-                                wikipedia_url=extract_wikipedia_url(artist),
+                                wikipedia_url=wiki_url,
+                                biography=wiki_bio,
                             )
             except Exception as exc:
                 # Berikning är best-effort - blockera inte spara
