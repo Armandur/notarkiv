@@ -1,0 +1,48 @@
+# Dev/testmiljö. För Unraid-prod räcker det att köra app + redis som
+# två separata containrar från samma image (med olika CMD).
+services:
+  app:
+    build: .
+    image: notarkiv:dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./app:/app/app                 # hot-reload av kod under utveckling
+      - ./seed_data:/app/seed_data
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_PATH: /app/data/notarkiv.db
+      IMAGES_PATH: /app/data/images
+    depends_on:
+      - redis
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  worker:
+    image: notarkiv:dev
+    depends_on:
+      - app
+      - redis
+    volumes:
+      - ./data:/app/data
+      - ./app:/app/app
+      - ./seed_data:/app/seed_data
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_PATH: /app/data/notarkiv.db
+      IMAGES_PATH: /app/data/images
+    command: ["sh", "-c", "echo 'Worker startas i commit 3 - lägger sig att sova för nu' && sleep infinity"]
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:
