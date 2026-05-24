@@ -11,6 +11,7 @@
       <a href="{{ request.url.include_query_params(view='list') }}"
          class="btn btn-outline-secondary {% if view == 'list' %}active{% endif %}">Lista</a>
     </div>
+    <a href="{{ request.url.replace(path='/pieces/print') }}" class="btn btn-sm btn-outline-secondary">Skriv ut</a>
     {% if user.can_edit %}
     <div class="btn-group btn-group-sm">
       <a href="/scan" class="btn btn-primary">Skanna ny</a>

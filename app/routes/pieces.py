@@ -148,6 +148,83 @@ async def list_pieces(
     )
 
 
+@router.get("/print")
+async def print_list(
+    request: Request,
+    q: str | None = None,
+    tag: list[str] | None = Query(default=None),
+    voicing: str | None = None,
+    language: str | None = None,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Utskriftsvänlig vy med samma filter som /pieces. Användaren utskriver
+    via webbläsarens print (Ctrl+P) - print-CSS gömmer navigation och
+    formaterar för papper."""
+    from sqlalchemy import func as sqlf
+
+    if q:
+        from sqlalchemy import text
+
+        fts_rows = session.exec(
+            text(
+                "SELECT id FROM pieces_fts JOIN pieces ON pieces.id = pieces_fts.rowid "
+                "WHERE pieces_fts MATCH :q ORDER BY rank LIMIT 1000"
+            ),
+            params={"q": q + "*"},
+        ).all()
+        candidate_ids = [r[0] for r in fts_rows]
+        stmt = select(Piece).where(Piece.id.in_(candidate_ids)) if candidate_ids else None
+    else:
+        stmt = select(Piece).order_by(Piece.title)
+
+    if stmt is None:
+        pieces = []
+    else:
+        stmt = _apply_filters(stmt, session, tag, voicing, language)
+        pieces = list(session.exec(stmt.limit(2000)).all())
+
+    # Hämta placeringar grupperade
+    placement_views: dict[int, list[str]] = {}
+    if pieces:
+        placements = session.exec(
+            select(PiecePlacement).where(PiecePlacement.piece_id.in_([p.id for p in pieces]))
+        ).all()
+        units = {u.id: u for u in session.exec(select(StorageUnit)).all()}
+        locations = {loc.id: loc for loc in session.exec(select(StorageLocation)).all()}
+        for pl in placements:
+            unit = units.get(pl.storage_unit_id)
+            if not unit:
+                continue
+            parts = [unit.name]
+            cur = unit
+            while cur.parent_id:
+                cur = units.get(cur.parent_id)
+                if not cur:
+                    break
+                parts.append(cur.name)
+            loc = locations.get(unit.location_id)
+            if loc:
+                parts.append(loc.name)
+            path = " › ".join(reversed(parts))
+            copies = f" ({pl.copies} ex)" if pl.copies else ""
+            placement_views.setdefault(pl.piece_id, []).append(path + copies)
+
+    return render(
+        request,
+        "pieces/print.html",
+        {
+            "pieces": pieces,
+            "placements_by_piece": placement_views,
+            "q": q or "",
+            "active_tags": tag or [],
+            "active_voicing": voicing or "",
+            "active_language": language or "",
+        },
+        user=user,
+    )
+
+
 def _apply_filters(stmt, session, tags, voicing, language):
     if tags:
         tag_ids = list(

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Notkatalog - utskrift{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3 d-print-none">
+  <h1 class="h3 mb-0">Notkatalog för utskrift</h1>
+  <div class="btn-group btn-group-sm">
+    <button class="btn btn-primary" onclick="window.print()">Skriv ut / Spara som PDF</button>
+    <a href="/pieces" class="btn btn-outline-secondary">Tillbaka</a>
+  </div>
+</div>
+
+<div class="print-header d-none d-print-block mb-3">
+  <h1 class="h4 mb-1">Notkatalog</h1>
+  <div class="small text-muted">
+    Utskriven {{ request.session.get('_now', '') }}
+    {% if q %} - sökning "{{ q }}"{% endif %}
+    {% if active_voicing %} - besättning {{ active_voicing }}{% endif %}
+    {% if active_language %} - språk {{ active_language }}{% endif %}
+    {% if active_tags %} - taggar: {% for t in active_tags %}{{ t }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
+    {{ " " }}({{ pieces|length }} {% if pieces|length == 1 %}not{% else %}noter{% endif %})
+  </div>
+</div>
+
+<div class="d-print-none alert alert-light small mb-3">
+  <strong>{{ pieces|length }}</strong> {% if pieces|length == 1 %}not{% else %}noter{% endif %} med aktuella filter.
+  Klicka "Skriv ut" eller använd Ctrl+P i webbläsaren. Välj "Spara som PDF" som mål för att få en fil.
+</div>
+
+{% if not pieces %}
+<p class="text-muted fst-italic">Inga noter med valda filter.</p>
+{% else %}
+<table class="table table-sm print-table">
+  <thead>
+    <tr>
+      <th>Titel</th>
+      <th>Kompositör / arrangör</th>
+      <th>Bes.</th>
+      <th>Spr.</th>
+      <th>Förlag</th>
+      <th>Placering</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in pieces %}
+    <tr>
+      <td>
+        <strong>{{ p.title }}</strong>
+        {% if p.original_title %}<div class="text-muted small">{{ p.original_title }}</div>{% endif %}
+      </td>
+      <td class="small">{{ p.contributors_cache or '' }}</td>
+      <td class="small">{{ p.voicing or '' }}</td>
+      <td class="small">{{ p.language or '' }}</td>
+      <td class="small">{{ p.publisher or '' }}{% if p.edition_number %} / {{ p.edition_number }}{% endif %}</td>
+      <td class="small">
+        {% for path in placements_by_piece.get(p.id, []) %}
+        <div>{{ path }}</div>
+        {% endfor %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<style>
+@media print {
+  nav, footer, .alert, .navbar { display: none !important; }
+  .container { max-width: none !important; padding: 0 !important; }
+  body { font-size: 10pt; }
+  .print-table { font-size: 9pt; }
+  .print-table th { background: #eee !important; -webkit-print-color-adjust: exact; }
+  .print-table td, .print-table th { padding: 2px 4px !important; }
+  h1 { font-size: 14pt; }
+  @page { margin: 1.5cm; size: A4; }
+}
+</style>
+{% endblock %}
