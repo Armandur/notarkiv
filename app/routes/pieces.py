@@ -184,6 +184,7 @@ async def piece_detail(
             "placements": placement_views,
             "contributors": contributors,
             "tags": tag_rows,
+            "unit_options": _unit_path_options(session) if user.can_edit else [],
             "composer_role": ContributorRole.COMPOSER,
             "arranger_role": ContributorRole.ARRANGER,
             "lyricist_role": ContributorRole.LYRICIST,
@@ -432,6 +433,147 @@ async def apply_musicbrainz(
     session.commit()
 
     flash(request, "MusicBrainz-data applicerad", "success")
+    return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+
+def _unit_path_options(session: Session) -> list[dict]:
+    """Flat lista av icke-arkiverade units med full sökväg som label."""
+    locations = {loc.id: loc for loc in session.exec(select(StorageLocation)).all()}
+    units = session.exec(
+        select(StorageUnit).where(StorageUnit.archived == False)  # noqa: E712
+    ).all()
+    units_by_id = {u.id: u for u in units}
+
+    def path_for(unit: StorageUnit) -> str:
+        parts = [unit.name]
+        cur = unit
+        while cur.parent_id:
+            cur = units_by_id.get(cur.parent_id)
+            if not cur:
+                break
+            parts.append(cur.name)
+        loc = locations.get(unit.location_id)
+        if loc:
+            parts.append(loc.name)
+        return " > ".join(reversed(parts))
+
+    options = []
+    for u in units:
+        loc = locations.get(u.location_id)
+        if not loc:
+            continue
+        options.append({"id": u.id, "label": path_for(u), "location_kind": loc.kind})
+    options.sort(key=lambda o: o["label"])
+    return options
+
+
+@router.post("/{piece_id}/placements", dependencies=[Depends(verify_csrf)])
+async def add_placement(
+    request: Request,
+    piece_id: int,
+    storage_unit_id: int = Form(...),
+    copies: str | None = Form(None),
+    notes: str | None = Form(None),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    piece = session.get(Piece, piece_id)
+    unit = session.get(StorageUnit, storage_unit_id)
+    if not piece or not unit:
+        raise HTTPException(404)
+
+    existing = session.exec(
+        select(PiecePlacement)
+        .where(PiecePlacement.piece_id == piece_id)
+        .where(PiecePlacement.storage_unit_id == storage_unit_id)
+    ).first()
+    if existing:
+        flash(request, "Placering på den här platsen finns redan - använd redigera istället", "warning")
+        return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+    copies_int = int(copies) if copies and copies.isdigit() else None
+    session.add(
+        PiecePlacement(
+            piece_id=piece_id,
+            storage_unit_id=storage_unit_id,
+            copies=copies_int,
+            notes=(notes or "").strip() or None,
+        )
+    )
+    session.commit()
+    flash(request, "Placering tillagd", "success")
+    return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+
+@router.post(
+    "/{piece_id}/placements/{placement_id}/update",
+    dependencies=[Depends(verify_csrf)],
+)
+async def update_placement(
+    request: Request,
+    piece_id: int,
+    placement_id: int,
+    storage_unit_id: int = Form(...),
+    copies: str | None = Form(None),
+    notes: str | None = Form(None),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    placement = session.get(PiecePlacement, placement_id)
+    if not placement or placement.piece_id != piece_id:
+        raise HTTPException(404)
+    new_unit = session.get(StorageUnit, storage_unit_id)
+    if not new_unit:
+        raise HTTPException(400, "Ogiltig enhet")
+
+    # Om unit ändras: kolla om en placering redan finns på den nya enheten
+    # (vi slår ihop då - addera copies, ta bort gamla raden)
+    if storage_unit_id != placement.storage_unit_id:
+        other = session.exec(
+            select(PiecePlacement)
+            .where(PiecePlacement.piece_id == piece_id)
+            .where(PiecePlacement.storage_unit_id == storage_unit_id)
+            .where(PiecePlacement.id != placement_id)
+        ).first()
+        if other:
+            new_copies = (
+                int(copies) if copies and copies.isdigit() else placement.copies or 0
+            )
+            other.copies = (other.copies or 0) + new_copies
+            if notes:
+                other.notes = ((other.notes or "") + "\n" + notes.strip()).strip()
+            session.add(other)
+            session.delete(placement)
+            session.commit()
+            flash(request, "Sammanfogad med befintlig placering på den enheten", "success")
+            return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+    placement.storage_unit_id = storage_unit_id
+    placement.copies = int(copies) if copies and copies.isdigit() else None
+    placement.notes = (notes or "").strip() or None
+    session.add(placement)
+    session.commit()
+    flash(request, "Placering uppdaterad", "success")
+    return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+
+@router.post(
+    "/{piece_id}/placements/{placement_id}/delete",
+    dependencies=[Depends(verify_csrf)],
+)
+async def delete_placement(
+    request: Request,
+    piece_id: int,
+    placement_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    placement = session.get(PiecePlacement, placement_id)
+    if not placement or placement.piece_id != piece_id:
+        raise HTTPException(404)
+    session.delete(placement)
+    session.commit()
+    flash(request, "Placering borttagen", "success")
     return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
 
 
