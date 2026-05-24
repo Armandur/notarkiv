@@ -1,0 +1,50 @@
+<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)" id="mb-modal">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5">MusicBrainz-sökning för "{{ piece.title }}"</h2>
+        <button type="button" class="btn-close"
+                onclick="document.getElementById('mb-modal-target').innerHTML=''"></button>
+      </div>
+      <div class="modal-body">
+        {% if error %}
+        <div class="alert alert-danger">
+          MusicBrainz-anrop misslyckades: {{ error }}
+        </div>
+        {% elif not suggestions %}
+        <p class="text-muted fst-italic">Inga matchningar hittade.</p>
+        {% else %}
+        <div class="list-group">
+          {% for s in suggestions %}
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-baseline">
+              <div>
+                <strong>{{ s.title }}</strong>
+                {% if s.composer %}<div class="small text-muted">{{ s.composer }}</div>{% endif %}
+                <div class="small text-muted">
+                  <a href="https://musicbrainz.org/work/{{ s.mbid }}" target="_blank">{{ s.mbid }}</a>
+                </div>
+              </div>
+              <div class="text-end">
+                <span class="badge bg-secondary">{{ s.score }}% match</span>
+                <form method="post" action="/pieces/{{ piece.id }}/apply-musicbrainz" class="mt-2">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="mbid" value="{{ s.mbid }}">
+                  <input type="hidden" name="title" value="{{ s.title }}">
+                  <input type="hidden" name="composer" value="{{ s.composer or '' }}">
+                  <button type="submit" class="btn btn-sm btn-primary">Använd</button>
+                </form>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link"
+                onclick="document.getElementById('mb-modal-target').innerHTML=''">Stäng</button>
+      </div>
+    </div>
+  </div>
+</div>

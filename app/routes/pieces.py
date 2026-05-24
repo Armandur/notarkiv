@@ -2,19 +2,30 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import RedirectResponse, Response
 from sqlmodel import Session, select
 
-from app.deps import get_session, require_auth, require_editor, verify_csrf
+from datetime import datetime
+
+from app.deps import get_session, require_admin, require_auth, require_editor, verify_csrf
 from app.models import (
     ContributorRole,
+    Person,
     Piece,
+    PieceContributor,
     PieceImage,
     PiecePlacement,
+    ScanSession,
     StorageLocation,
     StorageUnit,
     UnitKind,
     User,
 )
 from app.models.piece_image import PieceImageKind
-from app.services.people import collect_contributors
+from app.services.musicbrainz import get_client, to_suggestions
+from app.services.people import (
+    collect_contributors,
+    find_or_create_person,
+    parse_names_field,
+    replace_contributors,
+)
 from app.templates_setup import flash, render
 from app.utils.images import (
     delete_saved_image,
@@ -167,6 +178,220 @@ async def piece_detail(
         },
         user=user,
     )
+
+
+def _format_contributor_list(contributors: dict[ContributorRole, list[Person]], role: ContributorRole) -> str:
+    """Bygg tillbaka en sträng som kan editeras: 'Felix Mendelssohn; Hugo Distler'."""
+    people = contributors.get(role, [])
+    return "; ".join(p.name for p in people)
+
+
+@router.get("/{piece_id}/edit")
+async def edit_piece_form(
+    request: Request,
+    piece_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    piece = session.get(Piece, piece_id)
+    if not piece:
+        raise HTTPException(404)
+    contributors = collect_contributors(session, piece_id)
+    return render(
+        request,
+        "pieces/edit.html",
+        {
+            "piece": piece,
+            "composers_str": _format_contributor_list(contributors, ContributorRole.COMPOSER),
+            "arrangers_str": _format_contributor_list(contributors, ContributorRole.ARRANGER),
+            "lyricists_str": _format_contributor_list(contributors, ContributorRole.LYRICIST),
+        },
+        user=user,
+    )
+
+
+@router.post("/{piece_id}/edit", dependencies=[Depends(verify_csrf)])
+async def edit_piece_save(
+    request: Request,
+    piece_id: int,
+    title: str = Form(...),
+    original_title: str | None = Form(None),
+    composer: str | None = Form(None),
+    arranger: str | None = Form(None),
+    lyricist: str | None = Form(None),
+    language: str | None = Form(None),
+    voicing: str | None = Form(None),
+    accompaniment: str | None = Form(None),
+    publisher: str | None = Form(None),
+    edition_number: str | None = Form(None),
+    psalm_number: str | None = Form(None),
+    notes: str | None = Form(None),
+    musicbrainz_work_id: str | None = Form(None),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    piece = session.get(Piece, piece_id)
+    if not piece:
+        raise HTTPException(404)
+
+    piece.title = title.strip()
+    piece.original_title = (original_title or "").strip() or None
+    piece.language = (language or "").strip() or None
+    piece.voicing = (voicing or "").strip() or None
+    piece.accompaniment = (accompaniment or "").strip() or None
+    piece.publisher = (publisher or "").strip() or None
+    piece.edition_number = (edition_number or "").strip() or None
+    piece.psalm_number = (
+        int(psalm_number) if psalm_number and psalm_number.isdigit() else None
+    )
+    piece.notes = (notes or "").strip() or None
+    piece.musicbrainz_work_id = (musicbrainz_work_id or "").strip() or None
+    piece.updated_at = datetime.utcnow()
+
+    cache = replace_contributors(
+        session,
+        piece_id,
+        composers=parse_names_field(composer),
+        arrangers=parse_names_field(arranger),
+        lyricists=parse_names_field(lyricist),
+    )
+    piece.contributors_cache = cache or None
+    session.add(piece)
+    session.commit()
+
+    flash(request, "Sparat", "success")
+    return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+
+@router.post("/{piece_id}/delete", dependencies=[Depends(verify_csrf)])
+async def delete_piece(
+    request: Request,
+    piece_id: int,
+    user: User = Depends(require_admin),
+    session: Session = Depends(get_session),
+) -> Response:
+    piece = session.get(Piece, piece_id)
+    if not piece:
+        raise HTTPException(404)
+
+    images = session.exec(
+        select(PieceImage).where(PieceImage.piece_id == piece_id)
+    ).all()
+    image_paths = [img.image_path for img in images]
+
+    # Lossa skanningar som pekar på denna piece - sätt FK null
+    scans = session.exec(
+        select(ScanSession).where(ScanSession.resulting_piece_id == piece_id)
+    ).all()
+    for scan in scans:
+        scan.resulting_piece_id = None
+        session.add(scan)
+
+    title = piece.title
+    session.delete(piece)
+    session.commit()
+
+    # Radera bildfiler från disk
+    for path in image_paths:
+        delete_saved_image(path)
+
+    flash(request, f"Raderade '{title}'", "success")
+    return RedirectResponse("/pieces", status.HTTP_302_FOUND)
+
+
+@router.get("/{piece_id}/musicbrainz")
+async def musicbrainz_modal(
+    request: Request,
+    piece_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """HTMX-fragment: anropar MB synkront, returnerar modal med förslag."""
+    piece = session.get(Piece, piece_id)
+    if not piece:
+        raise HTTPException(404)
+
+    composer_str = ""
+    contributors = collect_contributors(session, piece_id)
+    composers = contributors.get(ContributorRole.COMPOSER, [])
+    if composers:
+        composer_str = composers[0].name
+
+    suggestions = []
+    error = None
+    try:
+        client = get_client()
+        works = await client.search_work(piece.title, composer_str or None)
+        suggestions = to_suggestions(works, piece.title, composer_str or None, threshold=40)
+    except Exception as exc:
+        error = str(exc)
+
+    return render(
+        request,
+        "pieces/_musicbrainz_modal.html",
+        {"piece": piece, "suggestions": suggestions, "error": error},
+        user=user,
+    )
+
+
+@router.post("/{piece_id}/apply-musicbrainz", dependencies=[Depends(verify_csrf)])
+async def apply_musicbrainz(
+    request: Request,
+    piece_id: int,
+    mbid: str = Form(...),
+    title: str = Form(...),
+    composer: str | None = Form(None),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    piece = session.get(Piece, piece_id)
+    if not piece:
+        raise HTTPException(404)
+
+    piece.musicbrainz_work_id = mbid
+    if title and title != piece.title:
+        piece.title = title
+
+    if composer:
+        # Hitta första kompositören och uppdatera namn till MB:s kanoniska
+        existing_comp = session.exec(
+            select(PieceContributor)
+            .where(PieceContributor.piece_id == piece_id)
+            .where(PieceContributor.role == ContributorRole.COMPOSER)
+            .order_by(PieceContributor.sort_order)
+        ).first()
+        if existing_comp:
+            person = session.get(Person, existing_comp.person_id)
+            if person and person.name != composer:
+                person.name = composer
+                person.updated_at = datetime.utcnow()
+                session.add(person)
+        else:
+            person = find_or_create_person(session, composer)
+            if person:
+                session.add(
+                    PieceContributor(
+                        piece_id=piece_id,
+                        person_id=person.id,
+                        role=ContributorRole.COMPOSER,
+                    )
+                )
+        # Bygg om cache
+        contributors = collect_contributors(session, piece_id)
+        cache_parts = []
+        for role, people in contributors.items():
+            for p in people:
+                # Använd uppdaterat namn för composer om det är personen vi just bytt
+                name = composer if role == ContributorRole.COMPOSER else p.name
+                cache_parts.append(f"{name} ({role.value})")
+        piece.contributors_cache = "; ".join(cache_parts) or None
+
+    piece.updated_at = datetime.utcnow()
+    session.add(piece)
+    session.commit()
+
+    flash(request, "MusicBrainz-data applicerad", "success")
+    return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
 
 
 @router.post("/{piece_id}/images", dependencies=[Depends(verify_csrf)])

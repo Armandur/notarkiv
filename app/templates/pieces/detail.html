@@ -76,8 +76,29 @@
   </div>
 
   <div class="col-md-7">
-    <h1 class="h3">{{ piece.title }}</h1>
-    {% if piece.original_title %}<div class="text-muted">{{ piece.original_title }}</div>{% endif %}
+    <div class="d-flex justify-content-between align-items-baseline mb-2 gap-2 flex-wrap">
+      <div>
+        <h1 class="h3 mb-0">{{ piece.title }}</h1>
+        {% if piece.original_title %}<div class="text-muted">{{ piece.original_title }}</div>{% endif %}
+      </div>
+      {% if user.can_edit %}
+      <div class="btn-group btn-group-sm">
+        <a href="/pieces/{{ piece.id }}/edit" class="btn btn-outline-secondary">Redigera</a>
+        <button class="btn btn-outline-secondary"
+                hx-get="/pieces/{{ piece.id }}/musicbrainz"
+                hx-target="#mb-modal-target"
+                hx-swap="innerHTML">
+          Sök i MusicBrainz
+        </button>
+        {% if user.is_admin %}
+        <button class="btn btn-outline-danger"
+                onclick="confirmAction('/pieces/{{ piece.id }}/delete', 'Radera \'{{ piece.title|e }}\' permanent? Detta tar bort alla placeringar och bilder.')">
+          Radera
+        </button>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
 
     <dl class="row mt-3">
       {% macro people_links(people) %}
@@ -170,4 +191,6 @@
   </div>
 </div>
 {% endif %}
+
+<div id="mb-modal-target"></div>
 {% endblock %}
