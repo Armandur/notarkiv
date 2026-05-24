@@ -413,10 +413,11 @@ async def apply_musicbrainz(
         contributors = collect_contributors(session, piece_id)
         cache_parts = []
         for role, people in contributors.items():
+            role_str = role.value if hasattr(role, "value") else str(role)
             for p in people:
                 # Använd uppdaterat namn för composer om det är personen vi just bytt
-                name = composer if role == ContributorRole.COMPOSER else p.name
-                cache_parts.append(f"{name} ({role.value})")
+                name = composer if role_str == ContributorRole.COMPOSER.value else p.name
+                cache_parts.append(f"{name} ({role_str})")
         piece.contributors_cache = "; ".join(cache_parts) or None
 
     piece.updated_at = datetime.utcnow()
