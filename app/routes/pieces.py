@@ -62,10 +62,11 @@ def _covers_by_piece(session: Session, piece_ids: list[int]) -> dict[int, PieceI
 async def list_pieces(
     request: Request,
     q: str | None = None,
-    view: str = "grid",
+    view: str = "list",
     tag: list[str] | None = Query(default=None),
     voicing: str | None = None,
     language: str | None = None,
+    unit: int | None = None,
     user: User = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -90,11 +91,11 @@ async def list_pieces(
             pieces = []
         else:
             stmt = select(Piece).where(Piece.id.in_(candidate_ids))
-            stmt = _apply_filters(stmt, session, tag, voicing, language)
+            stmt = _apply_filters(stmt, session, tag, voicing, language, unit)
             pieces = list(session.exec(stmt).all())
     else:
         stmt = select(Piece).order_by(Piece.created_at.desc())
-        stmt = _apply_filters(stmt, session, tag, voicing, language)
+        stmt = _apply_filters(stmt, session, tag, voicing, language, unit)
         pieces = list(session.exec(stmt.limit(200)).all())
 
     covers = _covers_by_piece(session, [p.id for p in pieces])
@@ -132,13 +133,30 @@ async def list_pieces(
         ).all() if lang
     ]
 
+    # Info om unit-filter för banner
+    unit_info = None
+    if unit:
+        unit_obj = session.get(StorageUnit, unit)
+        if unit_obj:
+            parts = [unit_obj.name]
+            cur = unit_obj
+            while cur.parent_id:
+                cur = session.get(StorageUnit, cur.parent_id)
+                if not cur:
+                    break
+                parts.append(cur.name)
+            loc = session.get(StorageLocation, unit_obj.location_id)
+            if loc:
+                parts.append(loc.name)
+            unit_info = {"id": unit, "path": " › ".join(reversed(parts))}
+
     return render(
         request,
         "pieces/list.html",
         {
             "pieces": pieces,
             "q": q or "",
-            "view": "list" if view == "list" else "grid",
+            "view": "grid" if view == "grid" else "list",
             "cover_thumb": cover_thumb,
             "placement_counts": placement_counts,
             "tags_by_kind": tags_by_kind,
@@ -146,6 +164,7 @@ async def list_pieces(
             "voicings": sorted(voicings),
             "active_voicing": voicing or "",
             "languages": sorted(languages),
+            "active_unit": unit_info,
             "active_language": language or "",
         },
         user=user,
@@ -204,6 +223,7 @@ async def print_list(
     tag: list[str] | None = Query(default=None),
     voicing: str | None = None,
     language: str | None = None,
+    unit: int | None = None,
     user: User = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -230,7 +250,7 @@ async def print_list(
     if stmt is None:
         pieces = []
     else:
-        stmt = _apply_filters(stmt, session, tag, voicing, language)
+        stmt = _apply_filters(stmt, session, tag, voicing, language, unit)
         pieces = list(session.exec(stmt.limit(2000)).all())
 
     # Hämta placeringar grupperade
@@ -274,7 +294,7 @@ async def print_list(
     )
 
 
-def _apply_filters(stmt, session, tags, voicing, language):
+def _apply_filters(stmt, session, tags, voicing, language, unit=None):
     if tags:
         tag_ids = list(
             session.exec(select(Tag.id).where(Tag.name.in_(tags))).all()
@@ -297,6 +317,18 @@ def _apply_filters(stmt, session, tags, voicing, language):
         stmt = stmt.where(Piece.voicing == voicing)
     if language:
         stmt = stmt.where(Piece.language == language)
+    if unit:
+        piece_ids_in_unit = list(
+            session.exec(
+                select(PiecePlacement.piece_id)
+                .where(PiecePlacement.storage_unit_id == unit)
+                .distinct()
+            ).all()
+        )
+        if piece_ids_in_unit:
+            stmt = stmt.where(Piece.id.in_(piece_ids_in_unit))
+        else:
+            stmt = stmt.where(Piece.id == -1)
     return stmt
 
 

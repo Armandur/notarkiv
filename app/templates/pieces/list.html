@@ -91,83 +91,20 @@
   {% endfor %}
 </datalist>
 
-{% if not pieces %}
-<p class="text-muted fst-italic">
-  {% if q or active_tags or active_voicing or active_language %}Inga träffar med filtren.{% else %}Inga noter registrerade än.{% endif %}
-</p>
-{% elif view == 'list' %}
-<div class="table-responsive">
-  <table class="table table-hover align-middle">
-    <thead>
-      <tr>
-        <th></th>
-        <th>Titel</th>
-        <th>Kompositör / arrangör</th>
-        <th>Besättning</th>
-        <th>Språk</th>
-        <th>Förlag</th>
-        <th class="text-end">Placeringar</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for p in pieces %}
-      <tr style="cursor: pointer" onclick="window.location='/pieces/{{ p.id }}'">
-        <td>
-          {% set t = cover_thumb(p.id) %}
-          {% if t %}
-          <img src="{{ t }}" style="width: 40px; height: 40px; object-fit: cover" class="rounded">
-          {% else %}
-          <div class="bg-light rounded text-muted small d-flex align-items-center justify-content-center"
-               style="width: 40px; height: 40px">-</div>
-          {% endif %}
-        </td>
-        <td>
-          <strong>{{ p.title }}</strong>
-          {% if p.original_title %}<div class="text-muted small">{{ p.original_title }}</div>{% endif %}
-        </td>
-        <td class="small">{{ p.contributors_cache or '' }}</td>
-        <td class="small">{% if p.voicing %}<span class="badge bg-secondary">{{ p.voicing }}</span>{% endif %}</td>
-        <td class="small">{{ p.language or '' }}</td>
-        <td class="small">{{ p.publisher or '' }}{% if p.edition_number %} <span class="text-muted">/ {{ p.edition_number }}</span>{% endif %}</td>
-        <td class="text-end small">
-          {% set c = placement_counts.get(p.id, 0) %}
-          {% if c %}<span class="badge bg-light text-muted">{{ c }} st</span>{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% else %}
-<div class="row g-3">
-  {% for p in pieces %}
-  <div class="col-md-6 col-lg-4">
-    <a href="/pieces/{{ p.id }}" class="text-decoration-none text-reset">
-      <div class="card h-100">
-        <div class="row g-0">
-          <div class="col-4">
-            {% set t = cover_thumb(p.id) %}
-            {% if t %}
-            <img src="{{ t }}" class="rounded-start h-100 w-100" style="object-fit: cover" alt="{{ p.title }}">
-            {% else %}
-            <div class="bg-light h-100 d-flex align-items-center justify-content-center text-muted small">ingen bild</div>
-            {% endif %}
-          </div>
-          <div class="col-8">
-            <div class="card-body p-2">
-              <div class="fw-bold text-truncate">{{ p.title }}</div>
-              {% if p.contributors_cache %}<div class="small text-muted text-truncate">{{ p.contributors_cache }}</div>{% endif %}
-              <div class="small">
-                {% if p.voicing %}<span class="badge bg-secondary">{{ p.voicing }}</span>{% endif %}
-                {% if p.language %}<span class="badge bg-light text-muted">{{ p.language }}</span>{% endif %}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </a>
+{% if active_unit %}
+<div class="alert alert-info py-2 d-flex justify-content-between align-items-baseline">
+  <div>
+    Visar bara noter i <strong>{{ active_unit.path }}</strong>
   </div>
-  {% endfor %}
+  <a href="?view={{ view }}" class="btn btn-sm btn-link">Visa alla noter</a>
 </div>
+{% endif %}
+
+{% if not pieces and (q or active_tags or active_voicing or active_language or active_unit) %}
+<p class="text-muted fst-italic">Inga träffar med filtren.</p>
+{% elif not pieces %}
+<p class="text-muted fst-italic">Inga noter registrerade än.</p>
+{% else %}
+{% include "pieces/_piece_list.html" %}
 {% endif %}
 {% endblock %}

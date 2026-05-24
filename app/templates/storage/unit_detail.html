@@ -7,13 +7,17 @@
     <h1 class="h3 mb-0">{{ unit.name }}</h1>
     <div class="text-muted small">{{ path }}</div>
   </div>
-  <div class="btn-group btn-group-sm">
-    <a href="/storage/units/{{ unit.id }}/qr.png" target="_blank" class="btn btn-outline-secondary">QR-kod</a>
-    <a href="/storage" class="btn btn-outline-secondary">Tillbaka till trädet</a>
+  <div class="d-flex gap-2 align-items-center">
+    <div class="btn-group btn-group-sm">
+      <a href="?view=grid" class="btn btn-outline-secondary {% if view == 'grid' %}active{% endif %}">Kort</a>
+      <a href="?view=list" class="btn btn-outline-secondary {% if view == 'list' %}active{% endif %}">Lista</a>
+    </div>
+    <a href="/storage/units/{{ unit.id }}/qr.png" target="_blank" class="btn btn-sm btn-outline-secondary">QR-kod</a>
+    <a href="/storage" class="btn btn-sm btn-outline-secondary">Trädet</a>
   </div>
 </div>
 
-<dl class="row mb-3">
+<dl class="row mb-3 small">
   <dt class="col-sm-3">Lagringsplats</dt>
   <dd class="col-sm-9">
     {{ location.name }}
@@ -42,23 +46,14 @@
 </div>
 {% endif %}
 
-<h2 class="h5 mt-4">Innehåll ({{ items|length }} {% if items|length == 1 %}placering{% else %}placeringar{% endif %})</h2>
-{% if not items %}
-<p class="text-muted fst-italic">Inga noter registrerade på den här platsen.</p>
-{% else %}
-<div class="list-group">
-  {% for item in items %}
-  <a href="/pieces/{{ item.piece.id }}" class="list-group-item list-group-item-action d-flex justify-content-between">
-    <div>
-      <strong>{{ item.piece.title }}</strong>
-      {% if item.piece.contributors_cache %}<div class="small text-muted">{{ item.piece.contributors_cache }}</div>{% endif %}
-    </div>
-    <div class="text-end">
-      {% if item.piece.voicing %}<span class="badge bg-secondary">{{ item.piece.voicing }}</span>{% endif %}
-      {% if item.placement.copies %}<span class="badge bg-light text-muted">{{ item.placement.copies }} ex</span>{% endif %}
-    </div>
-  </a>
-  {% endfor %}
+<h2 class="h5 mt-4 mb-2">Innehåll ({{ pieces|length }} {% if pieces|length == 1 %}not{% else %}noter{% endif %})</h2>
+<div class="mb-3">
+  <a href="/pieces?unit={{ unit.id }}&view={{ view }}" class="small">Öppna i /pieces med fler filter →</a>
 </div>
+
+{% if pieces %}
+{% include "pieces/_piece_list.html" %}
+{% else %}
+<p class="text-muted fst-italic">Inga noter registrerade på den här platsen.</p>
 {% endif %}
 {% endblock %}

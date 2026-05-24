@@ -267,10 +267,16 @@ def _unit_full_path(session: Session, unit: StorageUnit) -> str:
 async def unit_detail(
     request: Request,
     unit_id: int,
+    view: str = "list",
     user: User = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> Response:
-    """Detaljvy för en enhet med innehållet. Mål för QR-kodscanning."""
+    """Detaljvy för en enhet. Använder samma kort/lista-rendering som /pieces."""
+    from sqlalchemy import func as sqlf
+
+    from app.routes.pieces import _covers_by_piece
+    from app.utils.images import thumbnail_url_path
+
     unit = session.get(StorageUnit, unit_id)
     if not unit:
         raise HTTPException(404)
@@ -280,23 +286,33 @@ async def unit_detail(
     path = _unit_full_path(session, unit)
 
     placements = session.exec(
-        select(PiecePlacement)
-        .where(PiecePlacement.storage_unit_id == unit_id)
-        .order_by(PiecePlacement.id)
+        select(PiecePlacement).where(PiecePlacement.storage_unit_id == unit_id)
     ).all()
-    pieces = {}
+    pieces = []
     if placements:
-        pieces = {
-            p.id: p for p in session.exec(
-                select(Piece).where(Piece.id.in_([pl.piece_id for pl in placements]))
+        pieces = list(
+            session.exec(
+                select(Piece)
+                .where(Piece.id.in_([pl.piece_id for pl in placements]))
+                .order_by(Piece.title)
             ).all()
-        }
-    items = [
-        {"placement": pl, "piece": pieces.get(pl.piece_id)}
-        for pl in placements if pieces.get(pl.piece_id)
-    ]
+        )
 
-    # Barn-enheter
+    covers = _covers_by_piece(session, [p.id for p in pieces])
+
+    def cover_thumb(piece_id: int):
+        cover = covers.get(piece_id)
+        return thumbnail_url_path(cover.image_path) if cover else None
+
+    placement_counts: dict[int, int] = {}
+    if pieces:
+        rows = session.exec(
+            select(PiecePlacement.piece_id, sqlf.count(PiecePlacement.id))
+            .where(PiecePlacement.piece_id.in_([p.id for p in pieces]))
+            .group_by(PiecePlacement.piece_id)
+        ).all()
+        placement_counts = dict(rows)
+
     children = session.exec(
         select(StorageUnit)
         .where(StorageUnit.parent_id == unit_id)
@@ -312,7 +328,10 @@ async def unit_detail(
             "location": location,
             "kind": kind,
             "path": path,
-            "items": items,
+            "pieces": pieces,
+            "view": "grid" if view == "grid" else "list",
+            "cover_thumb": cover_thumb,
+            "placement_counts": placement_counts,
             "children": children,
         },
         user=user,
