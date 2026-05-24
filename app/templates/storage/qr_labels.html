@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}QR-etiketter - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3 d-print-none">
+  <h1 class="h3 mb-0">QR-etiketter för enheter</h1>
+  <div class="btn-group btn-group-sm">
+    <button class="btn btn-primary" onclick="window.print()">Skriv ut</button>
+    <a href="/storage" class="btn btn-outline-secondary">Tillbaka</a>
+  </div>
+</div>
+
+<form method="get" class="row g-2 mb-3 d-print-none">
+  <div class="col-md-6">
+    <select name="location_id" class="form-select form-select-sm">
+      <option value="">Alla lagringsplatser</option>
+      {% for loc in locations %}
+      <option value="{{ loc.id }}" {% if loc.id == selected_location_id %}selected{% endif %}>
+        {{ loc.name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <button class="btn btn-sm btn-outline-secondary w-100" type="submit">Filtrera</button>
+  </div>
+</form>
+
+<p class="text-muted small d-print-none">
+  Sätt upp etiketterna på respektive enhet. Skanning av QR-koden öppnar
+  enhetens detaljvy där man ser vad som ska finnas.
+</p>
+
+<div class="qr-label-grid">
+  {% for u in units %}
+  <div class="qr-label">
+    <img src="/storage/units/{{ u.unit.id }}/qr.png" alt="QR">
+    <div class="qr-label-text">
+      <strong>{{ u.unit.name }}</strong>
+      <div class="qr-label-path">{{ u.path }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<style>
+.qr-label-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.qr-label {
+  border: 1px dashed #ccc;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  page-break-inside: avoid;
+}
+.qr-label img {
+  width: 100px;
+  height: 100px;
+  flex-shrink: 0;
+}
+.qr-label-text {
+  font-size: 0.85rem;
+  overflow: hidden;
+}
+.qr-label-path {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+@media print {
+  nav, footer, .alert, .navbar, form { display: none !important; }
+  .container { max-width: none !important; padding: 0 !important; }
+  body { font-size: 9pt; }
+  .qr-label { border-color: #999; }
+  @page { margin: 1cm; size: A4; }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{{ unit.name }} - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="h3 mb-0">{{ unit.name }}</h1>
+    <div class="text-muted small">{{ path }}</div>
+  </div>
+  <div class="btn-group btn-group-sm">
+    <a href="/storage/units/{{ unit.id }}/qr.png" target="_blank" class="btn btn-outline-secondary">QR-kod</a>
+    <a href="/storage" class="btn btn-outline-secondary">Tillbaka till trädet</a>
+  </div>
+</div>
+
+<dl class="row mb-3">
+  <dt class="col-sm-3">Lagringsplats</dt>
+  <dd class="col-sm-9">
+    {{ location.name }}
+    <span class="badge bg-{% if location.kind == 'digital' %}info{% else %}secondary{% endif %}">
+      {{ "Digital" if location.kind == "digital" else "Fysisk" }}
+    </span>
+  </dd>
+  {% if kind %}
+  <dt class="col-sm-3">Typ</dt>
+  <dd class="col-sm-9">{{ kind.name }}</dd>
+  {% endif %}
+  {% if unit.notes %}
+  <dt class="col-sm-3">Anteckningar</dt>
+  <dd class="col-sm-9">{{ unit.notes }}</dd>
+  {% endif %}
+</dl>
+
+{% if children %}
+<h2 class="h6 mt-3">Under-enheter</h2>
+<div class="list-group mb-3">
+  {% for c in children %}
+  <a href="/storage/units/{{ c.id }}" class="list-group-item list-group-item-action">
+    {{ c.name }}
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<h2 class="h5 mt-4">Innehåll ({{ items|length }} {% if items|length == 1 %}placering{% else %}placeringar{% endif %})</h2>
+{% if not items %}
+<p class="text-muted fst-italic">Inga noter registrerade på den här platsen.</p>
+{% else %}
+<div class="list-group">
+  {% for item in items %}
+  <a href="/pieces/{{ item.piece.id }}" class="list-group-item list-group-item-action d-flex justify-content-between">
+    <div>
+      <strong>{{ item.piece.title }}</strong>
+      {% if item.piece.contributors_cache %}<div class="small text-muted">{{ item.piece.contributors_cache }}</div>{% endif %}
+    </div>
+    <div class="text-end">
+      {% if item.piece.voicing %}<span class="badge bg-secondary">{{ item.piece.voicing }}</span>{% endif %}
+      {% if item.placement.copies %}<span class="badge bg-light text-muted">{{ item.placement.copies }} ex</span>{% endif %}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

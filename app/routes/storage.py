@@ -1,11 +1,13 @@
+import io
 import json
 
+import qrcode
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse, Response
 from sqlmodel import Session, select
 
-from app.deps import get_session, require_admin, require_editor, verify_csrf
-from app.models import PiecePlacement, StorageLocation, StorageUnit, UnitKind, User
+from app.deps import get_session, require_admin, require_auth, require_editor, verify_csrf
+from app.models import Piece, PiecePlacement, StorageLocation, StorageUnit, UnitKind, User
 from app.models.storage import LocationKind
 from app.templates_setup import flash, render
 
@@ -244,3 +246,128 @@ async def create_unit_kind(
         {"kindSelected": {"id": kind.id, "name": kind.name}}
     )
     return response
+
+
+def _unit_full_path(session: Session, unit: StorageUnit) -> str:
+    parts = [unit.name]
+    cur = unit
+    while cur.parent_id:
+        parent = session.get(StorageUnit, cur.parent_id)
+        if not parent:
+            break
+        parts.append(parent.name)
+        cur = parent
+    loc = session.get(StorageLocation, unit.location_id)
+    if loc:
+        parts.append(loc.name)
+    return " › ".join(reversed(parts))
+
+
+@router.get("/units/{unit_id}")
+async def unit_detail(
+    request: Request,
+    unit_id: int,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Detaljvy för en enhet med innehållet. Mål för QR-kodscanning."""
+    unit = session.get(StorageUnit, unit_id)
+    if not unit:
+        raise HTTPException(404)
+
+    location = session.get(StorageLocation, unit.location_id)
+    kind = session.get(UnitKind, unit.kind_id) if unit.kind_id else None
+    path = _unit_full_path(session, unit)
+
+    placements = session.exec(
+        select(PiecePlacement)
+        .where(PiecePlacement.storage_unit_id == unit_id)
+        .order_by(PiecePlacement.id)
+    ).all()
+    pieces = {}
+    if placements:
+        pieces = {
+            p.id: p for p in session.exec(
+                select(Piece).where(Piece.id.in_([pl.piece_id for pl in placements]))
+            ).all()
+        }
+    items = [
+        {"placement": pl, "piece": pieces.get(pl.piece_id)}
+        for pl in placements if pieces.get(pl.piece_id)
+    ]
+
+    # Barn-enheter
+    children = session.exec(
+        select(StorageUnit)
+        .where(StorageUnit.parent_id == unit_id)
+        .where(StorageUnit.archived == False)  # noqa: E712
+        .order_by(StorageUnit.sort_order, StorageUnit.name)
+    ).all()
+
+    return render(
+        request,
+        "storage/unit_detail.html",
+        {
+            "unit": unit,
+            "location": location,
+            "kind": kind,
+            "path": path,
+            "items": items,
+            "children": children,
+        },
+        user=user,
+    )
+
+
+@router.get("/units/{unit_id}/qr.png")
+async def unit_qr(
+    request: Request,
+    unit_id: int,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> Response:
+    unit = session.get(StorageUnit, unit_id)
+    if not unit:
+        raise HTTPException(404)
+
+    base = str(request.base_url).rstrip("/")
+    url = f"{base}/storage/units/{unit_id}"
+
+    img = qrcode.make(url, box_size=10, border=2)
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    return Response(content=buf.getvalue(), media_type="image/png")
+
+
+@router.get("/qr-labels")
+async def qr_labels(
+    request: Request,
+    location_id: int | None = None,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Utskriftsvänlig sida med QR-etiketter för enheter."""
+    stmt = select(StorageUnit).where(StorageUnit.archived == False)  # noqa: E712
+    if location_id:
+        stmt = stmt.where(StorageUnit.location_id == location_id)
+    units = session.exec(stmt.order_by(StorageUnit.location_id, StorageUnit.name)).all()
+
+    units_with_path = [
+        {
+            "unit": u,
+            "path": _unit_full_path(session, u),
+        }
+        for u in units
+    ]
+    locations = session.exec(select(StorageLocation).order_by(StorageLocation.name)).all()
+
+    return render(
+        request,
+        "storage/qr_labels.html",
+        {
+            "units": units_with_path,
+            "locations": locations,
+            "selected_location_id": location_id,
+        },
+        user=user,
+    )
