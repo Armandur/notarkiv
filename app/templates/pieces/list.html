@@ -12,7 +12,10 @@
          class="btn btn-outline-secondary {% if view == 'list' %}active{% endif %}">Lista</a>
     </div>
     {% if user.can_edit %}
-    <a href="/scan" class="btn btn-primary btn-sm">Skanna ny</a>
+    <div class="btn-group btn-group-sm">
+      <a href="/scan" class="btn btn-primary">Skanna ny</a>
+      <a href="/pieces/new" class="btn btn-outline-primary">Lägg till manuellt</a>
+    </div>
     {% endif %}
   </div>
 </div>

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Ny not - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3">
+  <h1 class="h3 mb-0">Lägg till not manuellt</h1>
+  <a href="/pieces" class="small">← Tillbaka till listan</a>
+</div>
+
+<div class="alert alert-light">
+  <small>
+    Använd det här när noten inte ska skannas, t.ex. för poster du har metadata om
+    men inte kan/vill fotografera. Bilder och placeringar kan läggas till efteråt
+    på noten via "Redigera".
+  </small>
+</div>
+
+<form method="post" action="/pieces/new">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+  <div class="card">
+    <div class="card-header"><h2 class="h6 mb-0">Metadata</h2></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Titel *</label>
+          <input type="text" name="title" class="form-control" required autofocus>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Originaltitel</label>
+          <input type="text" name="original_title" class="form-control">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Kompositör</label>
+          <input type="text" name="composer" class="form-control">
+          <div class="form-text">Flera separeras med <code>;</code> eller <code>&amp;</code></div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Arrangör</label>
+          <input type="text" name="arranger" class="form-control">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Textförfattare</label>
+          <input type="text" name="lyricist" class="form-control">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Språk</label>
+          <input type="text" name="language" class="form-control" placeholder="sv, en, la ...">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Psalmnummer</label>
+          <input type="text" name="psalm_number" class="form-control" inputmode="numeric">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Besättning</label>
+          <input type="text" name="voicing" class="form-control" list="voicing-options">
+          <datalist id="voicing-options">
+            <option value="SATB"><option value="SAB"><option value="SSA"><option value="SSAA">
+            <option value="TTBB"><option value="unison"><option value="solo">
+          </datalist>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Ackompanjemang</label>
+          <select name="accompaniment" class="form-select">
+            <option value="">(välj)</option>
+            <option value="a_cappella">A cappella</option>
+            <option value="piano">Piano</option>
+            <option value="organ">Orgel</option>
+            <option value="other">Annat</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Förlag</label>
+          <input type="text" name="publisher" class="form-control">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Förlagsnummer</label>
+          <input type="text" name="edition_number" class="form-control">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">MusicBrainz work-ID (valfritt)</label>
+          <input type="text" name="musicbrainz_work_id" class="form-control">
+        </div>
+        <div class="col-12">
+          <label class="form-label">Anteckningar</label>
+          <textarea name="notes" class="form-control" rows="3"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-4 d-flex gap-2">
+    <button type="submit" class="btn btn-primary">Skapa not</button>
+    <a href="/pieces" class="btn btn-link">Avbryt</a>
+  </div>
+</form>
+{% endblock %}

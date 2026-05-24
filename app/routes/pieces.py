@@ -115,6 +115,67 @@ async def list_pieces(
     )
 
 
+@router.get("/new")
+async def new_piece_form(
+    request: Request,
+    user: User = Depends(require_editor),
+) -> Response:
+    return render(request, "pieces/new.html", user=user)
+
+
+@router.post("/new", dependencies=[Depends(verify_csrf)])
+async def new_piece_save(
+    request: Request,
+    title: str = Form(...),
+    original_title: str | None = Form(None),
+    composer: str | None = Form(None),
+    arranger: str | None = Form(None),
+    lyricist: str | None = Form(None),
+    language: str | None = Form(None),
+    voicing: str | None = Form(None),
+    accompaniment: str | None = Form(None),
+    publisher: str | None = Form(None),
+    edition_number: str | None = Form(None),
+    psalm_number: str | None = Form(None),
+    notes: str | None = Form(None),
+    musicbrainz_work_id: str | None = Form(None),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    piece = Piece(
+        title=title.strip(),
+        original_title=(original_title or "").strip() or None,
+        language=(language or "").strip() or None,
+        voicing=(voicing or "").strip() or None,
+        accompaniment=(accompaniment or "").strip() or None,
+        publisher=(publisher or "").strip() or None,
+        edition_number=(edition_number or "").strip() or None,
+        psalm_number=(
+            int(psalm_number) if psalm_number and psalm_number.isdigit() else None
+        ),
+        notes=(notes or "").strip() or None,
+        musicbrainz_work_id=(musicbrainz_work_id or "").strip() or None,
+        created_by=user.id,
+        updated_at=datetime.utcnow(),
+    )
+    session.add(piece)
+    session.flush()
+
+    cache = replace_contributors(
+        session,
+        piece.id,
+        composers=parse_names_field(composer),
+        arrangers=parse_names_field(arranger),
+        lyricists=parse_names_field(lyricist),
+    )
+    piece.contributors_cache = cache or None
+    session.add(piece)
+    session.commit()
+
+    flash(request, f"Skapade '{piece.title}'", "success")
+    return RedirectResponse(f"/pieces/{piece.id}", status.HTTP_302_FOUND)
+
+
 @router.get("/{piece_id}")
 async def piece_detail(
     request: Request,
