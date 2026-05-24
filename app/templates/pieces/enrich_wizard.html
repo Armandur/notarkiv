@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Berika personer - {{ piece.title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3">
+  <div>
+    <h1 class="h3 mb-0">Berika personer från MusicBrainz</h1>
+    <div class="text-muted small">{{ piece.title }}</div>
+  </div>
+  <a href="/pieces/{{ piece.id }}" class="btn btn-sm btn-outline-secondary">Hoppa till noten</a>
+</div>
+
+{% if not unenriched %}
+<div class="alert alert-success">
+  Alla bidragsgivare har redan MusicBrainz-data. <a href="/pieces/{{ piece.id }}">Tillbaka till noten</a>.
+</div>
+{% else %}
+<p class="text-muted small">
+  Top 3 MusicBrainz-matchningar visas per person. Klicka <strong>"Använd"</strong>
+  för att importera namn, levnadsår, land, Wikipedia-länk och biografi.
+  Klicka <strong>"Hoppa över"</strong> för att lämna personen som den är -
+  den dyker upp igen nästa gång du öppnar wizarden.
+</p>
+
+<div class="vstack gap-3">
+  {% for item in unenriched %}
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div>
+        <strong>{{ item.person.name }}</strong>
+        <span class="text-muted small">({{ item.role }})</span>
+      </div>
+      <a href="/people/{{ item.person.id }}/edit" class="small">Manuell redigering →</a>
+    </div>
+    <div class="card-body">
+      {% if item.error %}
+      <div class="alert alert-danger small">MB-anrop misslyckades: {{ item.error }}</div>
+      {% elif not item.candidates %}
+      <p class="text-muted fst-italic small mb-0">
+        Inga matchningar hittades.
+        <a href="/people/{{ item.person.id }}/musicbrainz?return_to=/pieces/{{ piece.id }}/enrich"
+           hx-get="/people/{{ item.person.id }}/musicbrainz?return_to=/pieces/{{ piece.id }}/enrich"
+           hx-target="#mb-modal-target"
+           hx-swap="innerHTML">
+          Sök manuellt
+        </a>
+      </p>
+      {% else %}
+      <div class="list-group list-group-flush">
+        {% for a in item.candidates %}
+        <div class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <strong>{{ a.name }}</strong>
+            {% if a['sort-name'] and a['sort-name'] != a.name %}
+            <span class="text-muted small">({{ a['sort-name'] }})</span>
+            {% endif %}
+            {% set ls = a.get('life-span', {}) %}
+            {% if ls.get('begin') or ls.get('end') %}
+            <div class="small text-muted">
+              {{ ls.get('begin', '?') }}{% if ls.get('end') %} - {{ ls.get('end') }}{% endif %}
+              {% if a.get('country') %} · {{ a['country'] }}{% endif %}
+              {% if a.get('type') %} · {{ a['type'] }}{% endif %}
+            </div>
+            {% endif %}
+            {% if a.disambiguation %}<div class="small text-muted fst-italic">{{ a.disambiguation }}</div>{% endif %}
+            <div class="small">
+              <a href="https://musicbrainz.org/artist/{{ a.id }}" target="_blank">MB-länk</a>
+            </div>
+          </div>
+          <form method="post" action="/people/{{ item.person.id }}/apply-musicbrainz">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="mbid" value="{{ a.id }}">
+            <input type="hidden" name="return_to" value="/pieces/{{ piece.id }}/enrich">
+            <button type="submit" class="btn btn-sm btn-primary">Använd</button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="card-body small text-muted">
+        Ingen av träffarna stämmer?
+        <a href="#" hx-get="/people/{{ item.person.id }}/musicbrainz?return_to=/pieces/{{ piece.id }}/enrich"
+           hx-target="#mb-modal-target" hx-swap="innerHTML">Sök med annat namn</a>
+        eller <a href="/people/{{ item.person.id }}/edit">redigera manuellt</a>.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div id="mb-modal-target"></div>
+{% endblock %}

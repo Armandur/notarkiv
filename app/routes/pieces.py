@@ -715,6 +715,44 @@ async def delete_piece(
     return RedirectResponse("/pieces", status.HTTP_302_FOUND)
 
 
+@router.get("/{piece_id}/enrich")
+async def enrich_wizard(
+    request: Request,
+    piece_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Auto-sök MB för varje bidragsgivare utan MBID. Visa topp 3 per person
+    så användaren accepterar eller skippar."""
+    piece = session.get(Piece, piece_id)
+    if not piece:
+        raise HTTPException(404)
+
+    contributors = collect_contributors(session, piece_id)
+    unenriched = []
+    for role, people_list in contributors.items():
+        for p in people_list:
+            if not p.musicbrainz_artist_id:
+                unenriched.append({"person": p, "role": str(role)})
+
+    client = get_client()
+    for item in unenriched:
+        try:
+            results = await client.search_artist(item["person"].name)
+            item["candidates"] = results[:3]
+            item["error"] = None
+        except Exception as exc:
+            item["candidates"] = []
+            item["error"] = str(exc)
+
+    return render(
+        request,
+        "pieces/enrich_wizard.html",
+        {"piece": piece, "unenriched": unenriched},
+        user=user,
+    )
+
+
 @router.get("/{piece_id}/musicbrainz")
 async def musicbrainz_modal(
     request: Request,
