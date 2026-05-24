@@ -89,6 +89,34 @@
     </div>
   </div>
 
+  <div class="card mt-3">
+    <div class="card-header"><h2 class="h6 mb-0">Placering (valfri)</h2></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Lagringsplats</label>
+          <select name="placement_unit_id" class="form-select">
+            <option value="">(ingen placering nu)</option>
+            {% for opt in unit_options %}
+            <option value="{{ opt.id }}">{{ opt.label }}{% if opt.location_kind == "digital" %} (digital){% endif %}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text">
+            För digitala noter välj t.ex. en SharePoint-mapp. Antal exemplar kan lämnas tomt.
+          </div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Antal exemplar</label>
+          <input type="number" name="placement_copies" class="form-control" min="0" placeholder="1">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Anteckning (valfri)</label>
+          <input type="text" name="placement_notes" class="form-control" placeholder="t.ex. arbetsexemplar">
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="mt-4 d-flex gap-2">
     <button type="submit" class="btn btn-primary">Skapa not</button>
     <a href="/pieces" class="btn btn-link">Avbryt</a>

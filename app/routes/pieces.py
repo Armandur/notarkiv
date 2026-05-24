@@ -119,8 +119,14 @@ async def list_pieces(
 async def new_piece_form(
     request: Request,
     user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
 ) -> Response:
-    return render(request, "pieces/new.html", user=user)
+    return render(
+        request,
+        "pieces/new.html",
+        {"unit_options": _unit_path_options(session)},
+        user=user,
+    )
 
 
 @router.post("/new", dependencies=[Depends(verify_csrf)])
@@ -139,6 +145,9 @@ async def new_piece_save(
     psalm_number: str | None = Form(None),
     notes: str | None = Form(None),
     musicbrainz_work_id: str | None = Form(None),
+    placement_unit_id: str | None = Form(None),
+    placement_copies: str | None = Form(None),
+    placement_notes: str | None = Form(None),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -170,6 +179,23 @@ async def new_piece_save(
     )
     piece.contributors_cache = cache or None
     session.add(piece)
+
+    if placement_unit_id and placement_unit_id.isdigit():
+        unit = session.get(StorageUnit, int(placement_unit_id))
+        if unit:
+            session.add(
+                PiecePlacement(
+                    piece_id=piece.id,
+                    storage_unit_id=unit.id,
+                    copies=(
+                        int(placement_copies)
+                        if placement_copies and placement_copies.isdigit()
+                        else None
+                    ),
+                    notes=(placement_notes or "").strip() or None,
+                )
+            )
+
     session.commit()
 
     flash(request, f"Skapade '{piece.title}'", "success")
