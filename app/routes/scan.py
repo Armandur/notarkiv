@@ -483,6 +483,7 @@ async def save_piece(
     musicbrainz_work_id: str | None = Form(None),
     placement_unit_id: str | None = Form(None),
     placement_copies: str | None = Form(None),
+    next_in_queue: str | None = Form(None),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -563,6 +564,27 @@ async def save_piece(
     scan.resulting_piece_id = piece.id
     session.add(scan)
     session.commit()
+
+    if next_in_queue:
+        next_scan = session.exec(
+            select(ScanSession)
+            .where(ScanSession.resulting_piece_id.is_(None))
+            .where(ScanSession.discarded == False)  # noqa: E712
+            .where(ScanSession.status == ScanStatus.DONE)
+            .where(ScanSession.id != scan_id)
+            .order_by(ScanSession.created_at)
+        ).first()
+        if next_scan:
+            flash(
+                request,
+                f"Sparade '{piece.title}'. Nästa i kön: #{next_scan.id}",
+                "success",
+            )
+            return RedirectResponse(
+                f"/scan/{next_scan.id}/review", status.HTTP_302_FOUND
+            )
+        flash(request, f"Sparade '{piece.title}'. Kön är tom!", "success")
+        return RedirectResponse("/scan/queue", status.HTTP_302_FOUND)
 
     flash(request, f"Sparade '{piece.title}'", "success")
     return RedirectResponse(f"/pieces/{piece.id}", status.HTTP_302_FOUND)

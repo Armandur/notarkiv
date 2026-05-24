@@ -95,7 +95,7 @@
           </div>
           {% if s.composer %}<div class="small text-muted">{{ s.composer }}</div>{% endif %}
           <button type="button" class="btn btn-sm btn-outline-primary mt-1"
-                  onclick="applyMbSuggestion('{{ s.mbid }}', '{{ s.title|e }}', '{{ s.composer or ''|e }}')">
+                  onclick="applyMbSuggestion('{{ s.mbid }}', '{{ s.title|e }}', '{{ s.composer or ''|e }}', this)">
             Använd
           </button>
         </div>
@@ -208,19 +208,60 @@
       </details>
       {% endif %}
 
-      <div class="mt-4 d-flex gap-2">
-        <button type="submit" class="btn btn-primary">Spara</button>
-        <a href="/scan" class="btn btn-link">Avbryt</a>
+      <div class="mt-4 d-flex gap-2 flex-wrap align-items-center">
+        <button type="submit" name="next_in_queue" value="1" class="btn btn-primary">
+          Spara och nästa i kön
+        </button>
+        <button type="submit" class="btn btn-outline-primary">Spara och visa not</button>
+        <button type="button" class="btn btn-outline-danger ms-auto"
+                onclick="confirmAction('/scan/{{ scan.id }}/discard', 'Avvisa skanning #{{ scan.id }}? Den döljs men kan återställas från kön.', {submitLabel: 'Avvisa', submitClass: 'btn-warning'})">
+          Avvisa
+        </button>
+        <a href="/scan/queue" class="btn btn-link">Tillbaka till kön</a>
       </div>
     </form>
   </div>
 </div>
 
 <script>
-function applyMbSuggestion(mbid, title, composer) {
+function applyMbSuggestion(mbid, title, composer, btn) {
   document.getElementById('musicbrainz_work_id').value = mbid;
-  if (title) document.getElementById('title').value = title;
-  if (composer) document.getElementById('composer').value = composer;
+  const changes = [];
+  function setIfChanged(id, val, label) {
+    const el = document.getElementById(id);
+    if (!el || !val) return;
+    if (el.value !== val) {
+      el.value = val;
+      el.classList.remove('mb-applied');
+      void el.offsetWidth;  // tvinga reflow så animationen kan triggas på nytt
+      el.classList.add('mb-applied');
+      changes.push(label);
+    }
+  }
+  setIfChanged('title', title, 'titel');
+  setIfChanged('composer', composer, 'kompositör');
+
+  if (btn) {
+    const original = btn.textContent;
+    btn.textContent = '✓ Applicerat';
+    btn.classList.remove('btn-outline-primary');
+    btn.classList.add('btn-success');
+    setTimeout(() => {
+      btn.textContent = original;
+      btn.classList.remove('btn-success');
+      btn.classList.add('btn-outline-primary');
+    }, 1500);
+  }
+
+  if (changes.length > 0) {
+    const banner = document.getElementById('mb-applied-banner');
+    banner.textContent = 'Applicerade: ' + changes.join(', ');
+    banner.classList.remove('d-none');
+    setTimeout(() => banner.classList.add('d-none'), 2500);
+  }
 }
 </script>
+<div id="mb-applied-banner"
+     class="position-fixed top-0 start-50 translate-middle-x mt-3 alert alert-success shadow d-none"
+     style="z-index: 1080"></div>
 {% endblock %}

@@ -8,6 +8,14 @@
   opacity: 0.85;
 }
 
+@keyframes mb-flash {
+  0%   { background-color: #fff3cd; border-color: #ffc107; }
+  100% { background-color: transparent; }
+}
+.mb-applied {
+  animation: mb-flash 1.5s ease-out;
+}
+
 .storage-unit {
   margin-left: 0.5rem;
 }
