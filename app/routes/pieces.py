@@ -24,10 +24,13 @@ from app.models import (
 from app.models.piece_image import PieceImageKind
 from app.models.tag import TagKind
 from app.services.musicbrainz import (
-    extract_wikipedia_url,
+    commons_file_to_thumb_url,
+    download_image_bytes,
+    extract_image_url,
     fetch_wikipedia_summary,
     first_composer_from_work,
     get_client,
+    get_wikipedia_url,
     to_suggestions,
 )
 from app.services.people import (
@@ -44,7 +47,7 @@ from app.utils.images import (
     rotate_saved_image,
     save_uploaded_cover,
     thumbnail_url_path,
-)
+)  # noqa: F401 - save_uploaded_cover används också för MB-portrait-import
 
 router = APIRouter(prefix="/pieces", tags=["pieces"])
 
@@ -862,12 +865,24 @@ async def apply_musicbrainz(
                     if mb_composer and mb_composer.get("id"):
                         artist = await client.get_artist_with_urls(mb_composer["id"])
                         if artist:
-                            wiki_url = extract_wikipedia_url(artist)
+                            wiki_url = await get_wikipedia_url(artist)
                             wiki_bio = (
                                 await fetch_wikipedia_summary(wiki_url)
                                 if wiki_url
                                 else None
                             )
+                            if not person.portrait_image_path:
+                                image_page_url = extract_image_url(artist)
+                                if image_page_url:
+                                    thumb_url = commons_file_to_thumb_url(image_page_url, 600)
+                                    if thumb_url:
+                                        img_bytes = await download_image_bytes(thumb_url)
+                                        if img_bytes:
+                                            try:
+                                                person.portrait_image_path = save_uploaded_cover(img_bytes)
+                                                person.portrait_source_url = image_page_url
+                                            except Exception:
+                                                pass
                             enrich_person_from_mb(
                                 session,
                                 person,

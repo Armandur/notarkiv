@@ -14,7 +14,14 @@ from app.models import (
     PieceContributor,
     User,
 )
-from app.services.musicbrainz import extract_wikipedia_url, fetch_wikipedia_summary, get_client
+from app.services.musicbrainz import (
+    commons_file_to_thumb_url,
+    download_image_bytes,
+    extract_image_url,
+    fetch_wikipedia_summary,
+    get_client,
+    get_wikipedia_url,
+)
 from app.services.people import (
     derive_sort_name,
     enrich_person_from_mb,
@@ -376,8 +383,25 @@ async def apply_person_mb(
         person.name = artist["name"]
     person.musicbrainz_artist_id = artist["id"]
 
-    wiki_url = extract_wikipedia_url(artist)
+    wiki_url = await get_wikipedia_url(artist)
     wiki_bio = await fetch_wikipedia_summary(wiki_url) if wiki_url else None
+
+    # Ladda ned porträtt från MB:s image-relation (oftast Commons-fil)
+    if not person.portrait_image_path:
+        image_page_url = extract_image_url(artist)
+        if image_page_url:
+            thumb_url = commons_file_to_thumb_url(image_page_url, width=600)
+            if thumb_url:
+                img_bytes = await download_image_bytes(thumb_url)
+                if img_bytes:
+                    try:
+                        rel_path = save_uploaded_cover(img_bytes)
+                        person.portrait_image_path = rel_path
+                        person.portrait_source_url = image_page_url
+                    except Exception as exc:
+                        from loguru import logger as _log
+
+                        _log.warning("Kunde inte spara porträtt: {}", exc)
 
     enrich_person_from_mb(
         session,

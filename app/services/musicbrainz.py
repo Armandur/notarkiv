@@ -141,13 +141,98 @@ async def fetch_wikipedia_summary(url: str) -> str | None:
 
 
 def extract_wikipedia_url(artist: dict) -> str | None:
-    """Plocka Wikipedia-URL från en MB-artist med url-rels."""
+    """Plocka direkt Wikipedia-relation. Många nyare MB-poster har bara
+    wikidata-relation - använd get_wikipedia_url för fallback via Wikidata."""
     for rel in artist.get("relations", []):
         if rel.get("type") == "wikipedia":
             url = rel.get("url", {}).get("resource")
             if url:
                 return url
-    # Fallback: använd wikidata -> kan lösas via /sitelinks senare
+    return None
+
+
+def extract_wikidata_url(artist: dict) -> str | None:
+    for rel in artist.get("relations", []):
+        if rel.get("type") == "wikidata":
+            url = rel.get("url", {}).get("resource")
+            if url:
+                return url
+    return None
+
+
+def extract_image_url(artist: dict) -> str | None:
+    """Plocka image-relation (oftast commons.wikimedia.org/wiki/File:... URL)."""
+    for rel in artist.get("relations", []):
+        if rel.get("type") == "image":
+            url = rel.get("url", {}).get("resource")
+            if url:
+                return url
+    return None
+
+
+def commons_file_to_thumb_url(file_url: str, width: int = 600) -> str | None:
+    """Konvertera Commons File-URL till Special:FilePath som ger faktisk bild."""
+    import re
+
+    m = re.match(r"https?://commons\.wikimedia\.org/wiki/File:(.+)", file_url)
+    if not m:
+        return None
+    filename = m.group(1)
+    return f"https://commons.wikimedia.org/wiki/Special:FilePath/{filename}?width={width}"
+
+
+async def download_image_bytes(url: str) -> bytes | None:
+    """Ladda ner en bildfil. Följer redirects (Special:FilePath -> CDN)."""
+    try:
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            resp = await client.get(
+                url, headers={"User-Agent": get_musicbrainz_user_agent()}
+            )
+            resp.raise_for_status()
+            return resp.content
+    except httpx.HTTPError as exc:
+        logger.warning("Bildhämtning misslyckades för {}: {}", url, exc)
+        return None
+
+
+async def resolve_wikipedia_via_wikidata(
+    wikidata_url: str, langs: tuple[str, ...] = ("sv", "en", "de")
+) -> str | None:
+    """Hämta Wikipedia-URL via Wikidata-sitelinks. Försöker språk i ordning."""
+    import re
+
+    m = re.match(r"https?://www\.wikidata\.org/wiki/(Q\d+)", wikidata_url)
+    if not m:
+        return None
+    entity_id = m.group(1)
+    api_url = f"https://www.wikidata.org/wiki/Special:EntityData/{entity_id}.json"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                api_url, headers={"User-Agent": get_musicbrainz_user_agent()}
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            entity = data.get("entities", {}).get(entity_id, {})
+            sitelinks = entity.get("sitelinks", {})
+            for lang in langs:
+                key = f"{lang}wiki"
+                if key in sitelinks:
+                    title = sitelinks[key]["title"].replace(" ", "_")
+                    return f"https://{lang}.wikipedia.org/wiki/{title}"
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("Wikidata-sitelink misslyckades: {}", exc)
+    return None
+
+
+async def get_wikipedia_url(artist: dict) -> str | None:
+    """Bästa Wikipedia-URL: direkt rel om finns, annars via Wikidata-sitelinks."""
+    direct = extract_wikipedia_url(artist)
+    if direct:
+        return direct
+    wd = extract_wikidata_url(artist)
+    if wd:
+        return await resolve_wikipedia_via_wikidata(wd)
     return None
 
 
