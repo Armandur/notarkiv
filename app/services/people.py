@@ -130,12 +130,16 @@ def enrich_person_from_mb(
     *,
     mb_artist: dict,
     wikipedia_url: str | None = None,
+    biography: str | None = None,
 ) -> None:
     """Uppdatera Person med data från en MusicBrainz-artist (in-place).
 
-    mb_artist är ett dict från MB-api:t (med fält id, name, sort-name, life-span).
+    mb_artist är ett dict från MB-api:t (med fält id, name, sort-name, life-span,
+    country). Skapar också en PersonLink för Wikipedia om URL ges och saknas.
     Sparar inte - caller commitar.
     """
+    from app.models import PersonLink, PersonLinkKind
+
     changed = False
     if not person.musicbrainz_artist_id:
         person.musicbrainz_artist_id = mb_artist.get("id")
@@ -153,9 +157,30 @@ def enrich_person_from_mb(
     if end[:4].isdigit() and not person.death_year:
         person.death_year = int(end[:4])
         changed = True
-    if wikipedia_url and not person.wikipedia_url:
-        person.wikipedia_url = wikipedia_url
+    if mb_artist.get("country") and not person.country:
+        person.country = mb_artist["country"]
         changed = True
+    if biography and not person.biography:
+        person.biography = biography
+        person.biography_source_url = wikipedia_url
+        changed = True
+
+    if wikipedia_url:
+        existing = session.exec(
+            select(PersonLink)
+            .where(PersonLink.person_id == person.id)
+            .where(PersonLink.kind == PersonLinkKind.WIKIPEDIA)
+        ).first()
+        if not existing:
+            session.add(
+                PersonLink(
+                    person_id=person.id,
+                    url=wikipedia_url,
+                    kind=PersonLinkKind.WIKIPEDIA,
+                )
+            )
+            changed = True
+
     if changed:
         person.updated_at = datetime.utcnow()
         session.add(person)

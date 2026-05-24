@@ -14,6 +14,17 @@ class ContributorRole(StrEnum):
     OTHER = "other"
 
 
+class PersonLinkKind(StrEnum):
+    WIKIPEDIA = "wikipedia"
+    MUSICBRAINZ = "musicbrainz"
+    IMSLP = "imslp"
+    OFFICIAL = "official"
+    YOUTUBE = "youtube"
+    SPOTIFY = "spotify"
+    INSTAGRAM = "instagram"
+    OTHER = "other"
+
+
 class Person(SQLModel, table=True):
     """En person knuten till en eller flera noter (kompositör, arrangör, textförfattare)."""
 
@@ -24,11 +35,36 @@ class Person(SQLModel, table=True):
     sort_name: str = Field(index=True)
     birth_year: int | None = None
     death_year: int | None = None
+    country: str | None = None  # ISO 3166-1 alpha-2, t.ex. SE, DE
     biography: str | None = None
-    wikipedia_url: str | None = None
+    # Källan till biografin (för CC BY-SA-attribution när texten kommer
+    # från Wikipedia). Sätts automatiskt när bio importeras från MB/Wiki.
+    biography_source_url: str | None = None
+    portrait_image_path: str | None = None  # Relativ sökväg under IMAGES_PATH
+    # Källan till porträttet (för CC-attribution om bilden hämtats från Wikipedia/Wikidata).
+    # Null för manuellt uppladdade bilder.
+    portrait_source_url: str | None = None
     musicbrainz_artist_id: str | None = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PersonLink(SQLModel, table=True):
+    """Generisk länk knuten till en person.
+
+    Ersätter tidigare wikipedia_url-fältet på Person. Vid MB-import
+    skapas typiskt en länk med kind=wikipedia automatiskt.
+    """
+
+    __tablename__ = "person_links"
+
+    id: int | None = Field(default=None, primary_key=True)
+    person_id: int = Field(foreign_key="people.id", index=True, ondelete="CASCADE")
+    url: str
+    kind: PersonLinkKind = Field(default=PersonLinkKind.OTHER, sa_type=String)
+    label: str | None = None  # Frivillig display-text utöver kind
+    sort_order: int = Field(default=0)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class PieceContributor(SQLModel, table=True):

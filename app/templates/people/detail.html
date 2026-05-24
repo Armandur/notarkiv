@@ -10,6 +10,7 @@
       {% if person.birth_year or person.death_year %}
       · ({{ person.birth_year or '?' }}{% if person.death_year %} - {{ person.death_year }}{% endif %})
       {% endif %}
+      {% if person.country %} · {{ person.country }}{% endif %}
     </div>
   </div>
   {% if user.can_edit %}
@@ -18,9 +19,31 @@
 </div>
 
 <div class="row g-4">
-  <div class="col-md-7">
+  <div class="col-md-3">
+    {% if person.portrait_image_path %}
+    <img src="/images/{{ person.portrait_image_path }}"
+         class="img-fluid rounded shadow-sm lightbox-image" alt="{{ person.name }}">
+    {% if person.portrait_source_url %}
+    <div class="small text-muted mt-1">
+      Bild från <a href="{{ person.portrait_source_url }}" target="_blank">källa</a>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="bg-light rounded p-4 text-center text-muted">Inget porträtt</div>
+    {% endif %}
+  </div>
+
+  <div class="col-md-5">
     {% if person.biography %}
-    <p>{{ person.biography }}</p>
+    <p style="white-space: pre-wrap">{{ person.biography }}</p>
+    {% if person.biography_source_url %}
+    <p class="small text-muted">
+      Biografi från
+      <a href="{{ person.biography_source_url }}" target="_blank">Wikipedia</a>,
+      tillgänglig under
+      <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank">CC BY-SA 4.0</a>.
+    </p>
+    {% endif %}
     {% endif %}
 
     <h2 class="h5 mt-4">Bidragsgivare på</h2>
@@ -41,20 +64,25 @@
     {% endif %}
   </div>
 
-  <div class="col-md-5">
+  <div class="col-md-4">
     <div class="card">
       <div class="card-header"><h2 class="h6 mb-0">Externa länkar</h2></div>
-      <div class="card-body">
-        {% if person.wikipedia_url %}
-        <a href="{{ person.wikipedia_url }}" target="_blank" class="d-block">Wikipedia</a>
-        {% endif %}
+      <div class="list-group list-group-flush">
         {% if person.musicbrainz_artist_id %}
-        <a href="https://musicbrainz.org/artist/{{ person.musicbrainz_artist_id }}" target="_blank" class="d-block">
+        <a href="https://musicbrainz.org/artist/{{ person.musicbrainz_artist_id }}" target="_blank"
+           class="list-group-item list-group-item-action">
+          <span class="badge bg-light text-muted">musicbrainz</span>
           MusicBrainz
         </a>
         {% endif %}
-        {% if not person.wikipedia_url and not person.musicbrainz_artist_id %}
-        <span class="text-muted small fst-italic">Inga länkar än. Sätt via "Redigera".</span>
+        {% for l in links %}
+        <a href="{{ l.url }}" target="_blank" class="list-group-item list-group-item-action">
+          <span class="badge bg-light text-muted">{{ l.kind }}</span>
+          {{ l.label or l.url }}
+        </a>
+        {% endfor %}
+        {% if not links and not person.musicbrainz_artist_id %}
+        <div class="list-group-item text-muted small fst-italic">Inga länkar än</div>
         {% endif %}
       </div>
     </div>

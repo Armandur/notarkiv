@@ -1,14 +1,23 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import RedirectResponse, Response
 from sqlmodel import Session, func, select
 
 from app.deps import get_session, require_admin, require_auth, require_editor, verify_csrf
-from app.models import ContributorRole, Person, Piece, PieceContributor, User
-from app.services.musicbrainz import extract_wikipedia_url, get_client
+from app.models import (
+    ContributorRole,
+    Person,
+    PersonLink,
+    PersonLinkKind,
+    Piece,
+    PieceContributor,
+    User,
+)
+from app.services.musicbrainz import extract_wikipedia_url, fetch_wikipedia_summary, get_client
 from app.services.people import derive_sort_name, enrich_person_from_mb
 from app.templates_setup import flash, render
+from app.utils.images import delete_saved_image, save_uploaded_cover
 
 router = APIRouter(prefix="/people", tags=["people"])
 
@@ -89,10 +98,16 @@ async def person_detail(
     for pc, piece in rows:
         by_role.setdefault(pc.role, []).append(piece)
 
+    links = session.exec(
+        select(PersonLink)
+        .where(PersonLink.person_id == person_id)
+        .order_by(PersonLink.sort_order, PersonLink.id)
+    ).all()
+
     return render(
         request,
         "people/detail.html",
-        {"person": person, "pieces_by_role": by_role},
+        {"person": person, "pieces_by_role": by_role, "links": links},
         user=user,
     )
 
@@ -107,7 +122,120 @@ async def edit_person_form(
     person = session.get(Person, person_id)
     if not person:
         raise HTTPException(404)
-    return render(request, "people/edit.html", {"person": person}, user=user)
+    links = session.exec(
+        select(PersonLink)
+        .where(PersonLink.person_id == person_id)
+        .order_by(PersonLink.sort_order, PersonLink.id)
+    ).all()
+    return render(
+        request,
+        "people/edit.html",
+        {
+            "person": person,
+            "links": links,
+            "link_kinds": [k.value for k in PersonLinkKind],
+        },
+        user=user,
+    )
+
+
+@router.post("/{person_id}/portrait", dependencies=[Depends(verify_csrf)])
+async def upload_portrait(
+    request: Request,
+    person_id: int,
+    image: UploadFile = File(...),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    person = session.get(Person, person_id)
+    if not person:
+        raise HTTPException(404)
+
+    content = await image.read()
+    if not content:
+        flash(request, "Tom fil", "danger")
+        return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
+    try:
+        relative_path = save_uploaded_cover(content)
+    except Exception:
+        flash(request, "Kunde inte läsa bilden", "danger")
+        return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
+
+    if person.portrait_image_path:
+        delete_saved_image(person.portrait_image_path)
+
+    person.portrait_image_path = relative_path
+    person.updated_at = datetime.utcnow()
+    session.add(person)
+    session.commit()
+    flash(request, "Porträtt uppdaterat", "success")
+    return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
+
+
+@router.post("/{person_id}/portrait/delete", dependencies=[Depends(verify_csrf)])
+async def delete_portrait(
+    request: Request,
+    person_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    person = session.get(Person, person_id)
+    if not person:
+        raise HTTPException(404)
+    if person.portrait_image_path:
+        delete_saved_image(person.portrait_image_path)
+        person.portrait_image_path = None
+        person.updated_at = datetime.utcnow()
+        session.add(person)
+        session.commit()
+    flash(request, "Porträtt borttaget", "info")
+    return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
+
+
+@router.post("/{person_id}/links", dependencies=[Depends(verify_csrf)])
+async def add_link(
+    request: Request,
+    person_id: int,
+    url: str = Form(...),
+    kind: str = Form("other"),
+    label: str | None = Form(None),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    person = session.get(Person, person_id)
+    if not person:
+        raise HTTPException(404)
+    try:
+        kind_enum = PersonLinkKind(kind)
+    except ValueError:
+        kind_enum = PersonLinkKind.OTHER
+    session.add(
+        PersonLink(
+            person_id=person_id,
+            url=url.strip(),
+            kind=kind_enum,
+            label=(label or "").strip() or None,
+        )
+    )
+    session.commit()
+    flash(request, "Länk tillagd", "success")
+    return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
+
+
+@router.post("/{person_id}/links/{link_id}/delete", dependencies=[Depends(verify_csrf)])
+async def delete_link(
+    request: Request,
+    person_id: int,
+    link_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    link = session.get(PersonLink, link_id)
+    if not link or link.person_id != person_id:
+        raise HTTPException(404)
+    session.delete(link)
+    session.commit()
+    return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
 
 
 @router.post("/{person_id}", dependencies=[Depends(verify_csrf)])
@@ -118,8 +246,8 @@ async def update_person(
     sort_name: str | None = Form(None),
     birth_year: str | None = Form(None),
     death_year: str | None = Form(None),
+    country: str | None = Form(None),
     biography: str | None = Form(None),
-    wikipedia_url: str | None = Form(None),
     musicbrainz_artist_id: str | None = Form(None),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
@@ -132,8 +260,10 @@ async def update_person(
     person.sort_name = (sort_name or "").strip() or derive_sort_name(person.name)
     person.birth_year = int(birth_year) if birth_year and birth_year.isdigit() else None
     person.death_year = int(death_year) if death_year and death_year.isdigit() else None
+    person.country = ((country or "").strip() or None)
+    if person.country:
+        person.country = person.country.upper()[:2]
     person.biography = (biography or "").strip() or None
-    person.wikipedia_url = (wikipedia_url or "").strip() or None
     person.musicbrainz_artist_id = (musicbrainz_artist_id or "").strip() or None
     person.updated_at = datetime.utcnow()
 
@@ -229,8 +359,16 @@ async def apply_person_mb(
     if artist.get("name"):
         person.name = artist["name"]
     person.musicbrainz_artist_id = artist["id"]
+
+    wiki_url = extract_wikipedia_url(artist)
+    wiki_bio = await fetch_wikipedia_summary(wiki_url) if wiki_url else None
+
     enrich_person_from_mb(
-        session, person, mb_artist=artist, wikipedia_url=extract_wikipedia_url(artist)
+        session,
+        person,
+        mb_artist=artist,
+        wikipedia_url=wiki_url,
+        biography=wiki_bio,
     )
     session.commit()
 

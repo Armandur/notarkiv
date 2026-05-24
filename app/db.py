@@ -13,6 +13,7 @@ from app.models import (  # noqa: F401
     InventoryCheck,
     InventorySession,
     Person,
+    PersonLink,
     Piece,
     PieceContributor,
     PieceImage,

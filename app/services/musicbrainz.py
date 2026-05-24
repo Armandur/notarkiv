@@ -111,6 +111,35 @@ class MusicBrainzClient:
             return None
 
 
+async def fetch_wikipedia_summary(url: str) -> str | None:
+    """Hämta ett kort utdrag (första stycket) från ett Wikipedia-artikel-URL.
+
+    Använder REST API:t /page/summary som returnerar JSON med 'extract'.
+    Best-effort - returnerar None vid fel.
+    """
+    if not url:
+        return None
+    import re
+
+    m = re.match(r"https?://([a-z]+)\.wikipedia\.org/wiki/(.+)", url)
+    if not m:
+        return None
+    lang, title = m.group(1), m.group(2)
+    summary_url = f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{title}"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                summary_url, headers={"User-Agent": get_musicbrainz_user_agent()}
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            extract = data.get("extract")
+            return extract.strip() if extract else None
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("Wikipedia-summary misslyckades för {}: {}", url, exc)
+        return None
+
+
 def extract_wikipedia_url(artist: dict) -> str | None:
     """Plocka Wikipedia-URL från en MB-artist med url-rels."""
     for rel in artist.get("relations", []):
