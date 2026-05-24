@@ -1,9 +1,10 @@
-<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
+<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)" id="unit-form-modal">
   <div class="modal-dialog">
     <form class="modal-content" method="post" action="/storage/units">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="location_id" value="{{ location.id }}">
       {% if parent %}<input type="hidden" name="parent_id" value="{{ parent.id }}">{% endif %}
+      <input type="hidden" name="kind_id" id="kind-id-input">
 
       <div class="modal-header">
         <h2 class="modal-title h5">
@@ -18,26 +19,26 @@
         <div class="mb-3">
           <label class="form-label">Namn</label>
           <input type="text" name="name" class="form-control" required autofocus>
-          <div class="form-text">T.ex. "Hylla A", "Pärm 3", "SharePoint &gt; Advent"</div>
+          <div class="form-text">T.ex. "Hylla A", "Pärm 3", "Advent"</div>
         </div>
 
-        <div class="mb-3">
+        <div class="mb-3 position-relative">
           <label class="form-label">Typ (valfritt)</label>
-          <input type="text" name="kind" class="form-control" list="kind-options" placeholder="hylla, parm, lada, mapp, ...">
-          <datalist id="kind-options">
-            {% if location.kind.value == "physical" %}
-            <option value="hylla">
-            <option value="parm">
-            <option value="lada">
-            <option value="skap">
-            <option value="mapp">
-            {% else %}
-            <option value="sharepoint_mapp">
-            <option value="teams_kanal">
-            <option value="onedrive_mapp">
-            <option value="dropbox_mapp">
-            {% endif %}
-          </datalist>
+          <input type="text"
+                 id="kind-search"
+                 class="form-control"
+                 autocomplete="off"
+                 placeholder="hylla, pärm, låda, mapp ..."
+                 hx-get="/storage/unit-kinds/search"
+                 hx-trigger="input changed delay:200ms, focus"
+                 hx-target="#kind-results"
+                 hx-swap="innerHTML"
+                 hx-include="this"
+                 hx-params="q"
+                 name="q">
+          <div id="kind-results" class="list-group position-absolute w-100 shadow-sm"
+               style="z-index: 1050; max-height: 240px; overflow-y: auto;"></div>
+          <div class="form-text">Sök eller skapa ny - dubletter tillåts inte</div>
         </div>
 
         {% if location.kind.value == "digital" %}
@@ -61,3 +62,32 @@
     </form>
   </div>
 </div>
+
+<script>
+(function() {
+  // Lyssna på HX-Trigger "kindSelected" från POST /storage/unit-kinds
+  // och från klick på existerande kinds i sökresultaten.
+  function applyKind(id, name) {
+    document.getElementById('kind-id-input').value = id;
+    document.getElementById('kind-search').value = name;
+    document.getElementById('kind-results').innerHTML = '';
+  }
+  window._notarkivApplyKind = applyKind;
+
+  document.body.addEventListener('kindSelected', function(evt) {
+    applyKind(evt.detail.id, evt.detail.name);
+  });
+
+  // Stäng dropdown vid klick utanför
+  document.addEventListener('click', function(evt) {
+    var modal = document.getElementById('unit-form-modal');
+    if (!modal) return;
+    var search = document.getElementById('kind-search');
+    var results = document.getElementById('kind-results');
+    if (!results) return;
+    if (evt.target !== search && !results.contains(evt.target)) {
+      results.innerHTML = '';
+    }
+  });
+})();
+</script>

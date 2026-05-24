@@ -1,0 +1,6 @@
+# Standardtyper för förvaringsenheter. Användare kan skapa fler via UI:t
+# (autocomplete i formuläret för ny enhet). Dubletter blockeras.
+- hylla
+- pärm
+- låda
+- mapp

@@ -58,6 +58,38 @@
   Notarkiv v0.1
 </footer>
 
+<!-- Generell bekräftelsemodal - används via window.confirmAction(url, message) -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5" id="confirmModalTitle">Bekräfta</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Stäng"></button>
+      </div>
+      <div class="modal-body" id="confirmModalBody">Är du säker?</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+        <form id="confirmModalForm" method="post" class="d-inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn btn-danger" id="confirmModalSubmit">Ta bort</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+window.confirmAction = function(url, message, opts) {
+  opts = opts || {};
+  document.getElementById('confirmModalForm').action = url;
+  document.getElementById('confirmModalBody').textContent = message;
+  document.getElementById('confirmModalTitle').textContent = opts.title || 'Bekräfta';
+  var submit = document.getElementById('confirmModalSubmit');
+  submit.textContent = opts.submitLabel || 'Ta bort';
+  submit.className = 'btn ' + (opts.submitClass || 'btn-danger');
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('confirmModal')).show();
+};
+</script>
 </body>
 </html>

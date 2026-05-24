@@ -1,9 +1,11 @@
+import json
+
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse, Response
 from sqlmodel import Session, select
 
-from app.deps import current_user, get_session, require_admin, require_editor, verify_csrf
-from app.models import PiecePlacement, StorageLocation, StorageUnit, User
+from app.deps import get_session, require_admin, require_editor, verify_csrf
+from app.models import PiecePlacement, StorageLocation, StorageUnit, UnitKind, User
 from app.models.storage import LocationKind
 from app.templates_setup import flash, render
 
@@ -11,29 +13,32 @@ router = APIRouter(prefix="/storage", tags=["storage"])
 
 
 def _load_tree(session: Session) -> list[dict]:
-    """Hämta locations med nästlade units. Returnerar en lista dicts redo för template."""
+    """Hämta locations med nästlade units och deras kinds som dict-träd."""
     locations = session.exec(select(StorageLocation).order_by(StorageLocation.sort_order)).all()
     all_units = session.exec(
         select(StorageUnit)
         .where(StorageUnit.archived == False)  # noqa: E712
         .order_by(StorageUnit.sort_order)
     ).all()
+    kinds_by_id = {k.id: k for k in session.exec(select(UnitKind)).all()}
 
     units_by_parent: dict[tuple[int, int | None], list[StorageUnit]] = {}
     for unit in all_units:
-        key = (unit.location_id, unit.parent_id)
-        units_by_parent.setdefault(key, []).append(unit)
+        units_by_parent.setdefault((unit.location_id, unit.parent_id), []).append(unit)
 
     def build_children(location_id: int, parent_id: int | None) -> list[dict]:
         children = units_by_parent.get((location_id, parent_id), [])
         return [
-            {"unit": c, "children": build_children(location_id, c.id)}
+            {
+                "unit": c,
+                "kind": kinds_by_id.get(c.kind_id),
+                "children": build_children(location_id, c.id),
+            }
             for c in children
         ]
 
     return [
-        {"location": loc, "units": build_children(loc.id, None)}
-        for loc in locations
+        {"location": loc, "units": build_children(loc.id, None)} for loc in locations
     ]
 
 
@@ -97,7 +102,7 @@ async def create_unit(
     request: Request,
     location_id: int = Form(...),
     name: str = Form(...),
-    kind: str | None = Form(None),
+    kind_id: int | None = Form(None),
     url: str | None = Form(None),
     parent_id: int | None = Form(None),
     notes: str | None = Form(None),
@@ -111,22 +116,22 @@ async def create_unit(
         parent = session.get(StorageUnit, parent_id)
         if not parent or parent.location_id != location_id:
             raise HTTPException(400, "Ogiltig förälder")
+    if kind_id is not None:
+        kind = session.get(UnitKind, kind_id)
+        if not kind:
+            raise HTTPException(400, "Ogiltig typ")
 
     unit = StorageUnit(
         location_id=location_id,
         parent_id=parent_id,
         name=name,
-        kind=kind or None,
+        kind_id=kind_id,
         url=url or None,
         notes=notes or None,
     )
     session.add(unit)
     session.commit()
     flash(request, f"Skapade '{name}'", "success")
-
-    if request.headers.get("HX-Request"):
-        tree = _load_tree(session)
-        return render(request, "storage/_tree.html", {"tree": tree}, user=user)
     return RedirectResponse("/storage", status.HTTP_302_FOUND)
 
 
@@ -171,7 +176,6 @@ async def new_unit_form(
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
-    """HTMX-fragment: formulär för att skapa ny enhet under given location/parent."""
     location = session.get(StorageLocation, location_id)
     if not location:
         raise HTTPException(404)
@@ -182,3 +186,63 @@ async def new_unit_form(
         {"location": location, "parent": parent},
         user=user,
     )
+
+
+@router.get("/unit-kinds/search")
+async def search_unit_kinds(
+    request: Request,
+    q: str = "",
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    query = q.strip()
+    results: list[UnitKind] = []
+    exact_match = False
+
+    if query:
+        stmt = (
+            select(UnitKind)
+            .where(UnitKind.name.ilike(f"%{query}%"))
+            .order_by(UnitKind.name)
+            .limit(10)
+        )
+        results = list(session.exec(stmt).all())
+        exact_match = any(k.name.lower() == query.lower() for k in results)
+    else:
+        results = list(session.exec(select(UnitKind).order_by(UnitKind.name).limit(10)).all())
+
+    can_create = bool(query) and not exact_match
+    return render(
+        request,
+        "storage/_kind_results.html",
+        {"results": results, "query": query, "can_create": can_create},
+        user=user,
+    )
+
+
+@router.post("/unit-kinds", dependencies=[Depends(verify_csrf)])
+async def create_unit_kind(
+    request: Request,
+    name: str = Form(...),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    name = name.strip()
+    if not name:
+        raise HTTPException(400, "Namnet får inte vara tomt")
+
+    existing = session.exec(select(UnitKind).where(UnitKind.name == name)).first()
+    if existing:
+        # Returnera den befintliga - inte ett fel, för UX:t blir samma
+        kind = existing
+    else:
+        kind = UnitKind(name=name)
+        session.add(kind)
+        session.commit()
+        session.refresh(kind)
+
+    response = Response(status_code=204)
+    response.headers["HX-Trigger"] = json.dumps(
+        {"kindSelected": {"id": kind.id, "name": kind.name}}
+    )
+    return response

@@ -8,7 +8,7 @@
     <div>
       <span class="me-2">{% if location.kind.value == "digital" %}☁{% else %}■{% endif %}</span>
       <strong>{{ node.unit.name }}</strong>
-      {% if node.unit.kind %}<span class="badge bg-light text-muted">{{ node.unit.kind }}</span>{% endif %}
+      {% if node.kind %}<span class="badge bg-light text-muted">{{ node.kind.name }}</span>{% endif %}
       {% if node.unit.url %}<a href="{{ node.unit.url }}" target="_blank" class="ms-2 small">öppna</a>{% endif %}
       {% if node.unit.notes %}<span class="text-muted small ms-2">{{ node.unit.notes }}</span>{% endif %}
     </div>
@@ -19,11 +19,10 @@
               hx-swap="innerHTML">
         + under
       </button>
-      <form method="post" action="/storage/units/{{ node.unit.id }}/delete" class="d-inline"
-            onsubmit="return confirm('Ta bort {{ node.unit.name }}?')">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button class="btn btn-outline-danger">×</button>
-      </form>
+      <button class="btn btn-outline-danger"
+              onclick="confirmAction('/storage/units/{{ node.unit.id }}/delete', 'Ta bort \'{{ node.unit.name|e }}\'?')">
+        ×
+      </button>
     </div>
   </div>
   {% for child in node.children %}
@@ -52,11 +51,10 @@
         + Ny enhet
       </button>
       {% if user.is_admin %}
-      <form method="post" action="/storage/locations/{{ branch.location.id }}/delete" class="d-inline"
-            onsubmit="return confirm('Ta bort {{ branch.location.name }}?')">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button class="btn btn-outline-danger">×</button>
-      </form>
+      <button class="btn btn-outline-danger"
+              onclick="confirmAction('/storage/locations/{{ branch.location.id }}/delete', 'Ta bort lagringsplatsen \'{{ branch.location.name|e }}\'?')">
+        ×
+      </button>
       {% endif %}
     </div>
   </div>

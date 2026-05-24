@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 from app.auth import hash_password
 from app.config import settings
 from app.db import engine
-from app.models import StorageLocation, StorageUnit, Tag, User
+from app.models import StorageLocation, StorageUnit, Tag, UnitKind, User
 from app.models.storage import LocationKind
 from app.models.tag import TagKind
 from app.models.user import Role
@@ -21,6 +21,7 @@ SEED_DIR = Path("seed_data")
 def seed_all(clear_pieces: bool = False) -> None:
     with Session(engine) as session:
         _seed_tags(session)
+        _seed_unit_kinds(session)
         _seed_users(session)
         _seed_storage_locations(session)
 
@@ -32,6 +33,20 @@ def seed_all(clear_pieces: bool = False) -> None:
 
         session.commit()
     logger.info("Seed klar")
+
+
+def _seed_unit_kinds(session: Session) -> None:
+    data = _load_yaml("unit_kinds.yaml")
+    if not data:
+        return
+    added = 0
+    for name in data:
+        existing = session.exec(select(UnitKind).where(UnitKind.name == name)).first()
+        if existing:
+            continue
+        session.add(UnitKind(name=name))
+        added += 1
+    logger.info("UnitKinds: skapade {} nya", added)
 
 
 def _load_yaml(filename: str) -> Any:
@@ -147,11 +162,12 @@ def _seed_unit_recursive(
         unit = existing
         added = 0
     else:
+        kind_id = _resolve_kind_id(session, unit_row.get("kind"))
         unit = StorageUnit(
             location_id=location_id,
             parent_id=parent_id,
             name=unit_row["name"],
-            kind=unit_row.get("kind"),
+            kind_id=kind_id,
             url=unit_row.get("url"),
             sort_order=unit_row.get("sort_order", 0),
             notes=unit_row.get("notes"),
@@ -164,3 +180,16 @@ def _seed_unit_recursive(
         added += _seed_unit_recursive(session, location_id, unit.id, child)
 
     return added
+
+
+def _resolve_kind_id(session: Session, kind_name: str | None) -> int | None:
+    """Lookup kind by name. Skapar nytt UnitKind om det inte finns."""
+    if not kind_name:
+        return None
+    existing = session.exec(select(UnitKind).where(UnitKind.name == kind_name)).first()
+    if existing:
+        return existing.id
+    new_kind = UnitKind(name=kind_name)
+    session.add(new_kind)
+    session.flush()
+    return new_kind.id

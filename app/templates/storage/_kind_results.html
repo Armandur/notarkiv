@@ -1,0 +1,20 @@
+{% for k in results %}
+<button type="button" class="list-group-item list-group-item-action"
+        onclick="window._notarkivApplyKind({{ k.id }}, '{{ k.name|e }}')">
+  {{ k.name }}
+</button>
+{% endfor %}
+
+{% if can_create %}
+<button type="button"
+        class="list-group-item list-group-item-action text-success"
+        hx-post="/storage/unit-kinds"
+        hx-vals='{"name": "{{ query|e }}", "csrf_token": "{{ csrf_token }}"}'
+        hx-swap="none">
+  + Skapa ny typ: <strong>{{ query }}</strong>
+</button>
+{% endif %}
+
+{% if not results and not can_create %}
+<div class="list-group-item text-muted fst-italic">Inga träffar</div>
+{% endif %}

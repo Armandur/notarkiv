@@ -21,6 +21,19 @@ class StorageLocation(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class UnitKind(SQLModel, table=True):
+    """Typ av förvaringsenhet, t.ex. hylla, pärm, låda, mapp.
+
+    Användare skapar nya kinds genom att skriva i autocomplete-fältet.
+    """
+
+    __tablename__ = "unit_kinds"
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(unique=True, index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class StorageUnit(SQLModel, table=True):
     __tablename__ = "storage_units"
 
@@ -28,7 +41,7 @@ class StorageUnit(SQLModel, table=True):
     location_id: int = Field(foreign_key="storage_locations.id", index=True)
     parent_id: int | None = Field(default=None, foreign_key="storage_units.id", index=True)
     name: str
-    kind: str | None = None
+    kind_id: int | None = Field(default=None, foreign_key="unit_kinds.id")
     url: str | None = None
     sort_order: int = Field(default=0)
     archived: bool = Field(default=False)
