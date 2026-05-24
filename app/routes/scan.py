@@ -9,6 +9,7 @@ from sqlalchemy import func
 
 from app.deps import get_session, require_editor, verify_csrf
 from app.services.app_settings import get_ocr_provider
+from app.services.inventory import append_log, get_active_session
 from app.models import Piece, PiecePlacement, ScanSession, StorageLocation, StorageUnit, UnitKind, User
 from app.models.scan_session import ScanStatus
 from app.tasks import get_pool
@@ -56,6 +57,7 @@ async def quick_scan_page(
     ).one()
     unit_options = _load_unit_options(session)
     pending_count = _count_pending(session)
+    active_inv = get_active_session(session)
     return render(
         request,
         "scan/quick.html",
@@ -64,6 +66,7 @@ async def quick_scan_page(
             "unit_options": unit_options,
             "ocr_provider": get_ocr_provider(),
             "pending_count": pending_count,
+            "active_inventory": active_inv,
         },
         user=user,
     )
@@ -98,6 +101,7 @@ async def quick_scan_upload(
         int(placement_copies) if placement_copies and placement_copies.isdigit() else None
     )
 
+    active_inv = get_active_session(session)
     scan = ScanSession(
         user_id=user.id,
         image_path=relative_path,
@@ -105,6 +109,7 @@ async def quick_scan_upload(
         status=ScanStatus.PENDING,
         pre_placement_unit_id=unit_id,
         pre_placement_copies=copies,
+        inventory_session_id=active_inv.id if active_inv else None,
     )
     session.add(scan)
     session.commit()
@@ -112,6 +117,11 @@ async def quick_scan_upload(
 
     pool = await get_pool()
     await pool.enqueue_job("extract_metadata_job", scan.id)
+
+    if active_inv:
+        append_log(active_inv, f"Skanning #{scan.id} sparad", user.username)
+        session.add(active_inv)
+        session.commit()
 
     flash(request, "Skanning sparad - i kö för granskning", "success")
     return RedirectResponse("/scan/quick", status.HTTP_302_FOUND)
@@ -162,11 +172,13 @@ async def upload_scan(
         flash(request, "Kunde inte läsa bilden - är det en giltig bildfil?", "danger")
         return RedirectResponse("/scan", status.HTTP_302_FOUND)
 
+    active_inv = get_active_session(session)
     scan = ScanSession(
         user_id=user.id,
         image_path=relative_path,
         ocr_provider=provider,
         status=ScanStatus.PENDING,
+        inventory_session_id=active_inv.id if active_inv else None,
     )
     session.add(scan)
     session.commit()

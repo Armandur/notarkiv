@@ -10,6 +10,7 @@ from app.config import settings
 # Importera alla modeller så SQLModel.metadata vet om dem.
 from app.models import (  # noqa: F401
     AppSetting,
+    InventorySession,
     Piece,
     PiecePlacement,
     PieceTag,

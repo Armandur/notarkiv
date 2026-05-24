@@ -10,6 +10,7 @@ from app.db import init_db
 from app.logging_setup import setup_logging
 from app.middleware import EnsureCSRFTokenMiddleware
 from app.routes import auth as auth_routes
+from app.routes import inventory as inventory_routes
 from app.routes import pages as pages_routes
 from app.routes import pieces as pieces_routes
 from app.routes import scan as scan_routes
@@ -51,6 +52,7 @@ app.include_router(auth_routes.router)
 app.include_router(storage_routes.router)
 app.include_router(scan_routes.router)
 app.include_router(pieces_routes.router)
+app.include_router(inventory_routes.router)
 app.include_router(admin_users_routes.router)
 app.include_router(admin_settings_routes.router)
 

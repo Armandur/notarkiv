@@ -24,10 +24,25 @@ def render(
         "user": user,
         "flash": _pop_flash(request),
         "pending_review_count": _pending_review_count() if user and user.can_edit else 0,
+        "active_inventory_global": _active_inventory() if user and user.can_edit else None,
     }
     if context:
         ctx.update(context)
     return templates.TemplateResponse(request, name, ctx, status_code=status_code)
+
+
+def _active_inventory():
+    """Aktiv inventeringssession (om någon) - för navbar-banner."""
+    from sqlmodel import Session
+
+    from app.db import engine
+    from app.services.inventory import get_active_session
+
+    try:
+        with Session(engine) as session:
+            return get_active_session(session)
+    except Exception:
+        return None
 
 
 def _pending_review_count() -> int:
