@@ -549,6 +549,7 @@ async def edit_piece_form(
             "people_names": all_people_names(session),
             "placements": placement_views,
             "unit_options": _unit_path_options(session),
+            "unit_tree": _unit_picker_tree(session),
         },
         user=user,
     )
@@ -757,6 +758,42 @@ async def apply_musicbrainz(
 
     flash(request, "MusicBrainz-data applicerad", "success")
     return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+
+def _unit_picker_tree(session: Session) -> list[dict]:
+    """Hierarkisk trädstruktur för unit-picker-modalen."""
+    locations = session.exec(
+        select(StorageLocation).order_by(StorageLocation.sort_order, StorageLocation.name)
+    ).all()
+    units = session.exec(
+        select(StorageUnit)
+        .where(StorageUnit.archived == False)  # noqa: E712
+        .order_by(StorageUnit.sort_order, StorageUnit.name)
+    ).all()
+    kinds = {k.id: k.name for k in session.exec(select(UnitKind)).all()}
+
+    units_by_parent: dict[tuple[int, int | None], list[StorageUnit]] = {}
+    for u in units:
+        units_by_parent.setdefault((u.location_id, u.parent_id), []).append(u)
+
+    def build(location_id: int, parent_id: int | None, ancestors: list[str]) -> list[dict]:
+        out = []
+        for u in units_by_parent.get((location_id, parent_id), []):
+            path = ancestors + [u.name]
+            out.append(
+                {
+                    "unit": u,
+                    "kind_name": kinds.get(u.kind_id),
+                    "path": path,
+                    "children": build(location_id, u.id, path),
+                }
+            )
+        return out
+
+    return [
+        {"location": loc, "units": build(loc.id, None, [])}
+        for loc in locations
+    ]
 
 
 def _unit_path_options(session: Session) -> list[dict]:

@@ -196,6 +196,7 @@
   <div class="modal-dialog">
     <form class="modal-content" method="post" action="/pieces/{{ piece.id }}/placements/{{ pv.placement.id }}/update">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="storage_unit_id" id="edit-place-unit-{{ pv.placement.id }}" value="{{ pv.placement.storage_unit_id }}">
       <div class="modal-header">
         <h2 class="modal-title h5">Redigera placering</h2>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -203,14 +204,13 @@
       <div class="modal-body">
         <div class="mb-3">
           <label class="form-label">Lagringsplats</label>
-          <select name="storage_unit_id" class="form-select" required>
-            {% for opt in unit_options %}
-            <option value="{{ opt.id }}" {% if opt.id == pv.placement.storage_unit_id %}selected{% endif %}>
-              {{ opt.label }}{% if opt.location_kind == "digital" %} (digital){% endif %}
-            </option>
-            {% endfor %}
-          </select>
-          <div class="form-text">Om du väljer en annan enhet som redan har en placering av denna not slås de samman.</div>
+          <div class="d-flex align-items-center gap-2">
+            <div class="border rounded px-2 py-1 flex-grow-1" id="edit-place-label-{{ pv.placement.id }}">{{ pv.path }}</div>
+            <button type="button" class="btn btn-outline-secondary btn-sm"
+                    data-bs-toggle="modal" data-bs-target="#editPlacePicker-{{ pv.placement.id }}"
+                    data-bs-dismiss="modal">Välj...</button>
+          </div>
+          <div class="form-text">Om du väljer en annan enhet där noten redan finns slås placeringarna samman.</div>
         </div>
         <div class="mb-3">
           <label class="form-label">Antal exemplar</label>
@@ -228,25 +228,30 @@
     </form>
   </div>
 </div>
+
+{% with picker_id="editPlacePicker-" ~ pv.placement.id, input_id="edit-place-unit-" ~ pv.placement.id, label_id="edit-place-label-" ~ pv.placement.id, return_modal="editPlacementModal-" ~ pv.placement.id, tree=unit_tree %}
+  {% include "pieces/_unit_picker.html" %}
+{% endwith %}
 {% endfor %}
 
 <div class="modal fade" id="addPlacementModal" tabindex="-1">
   <div class="modal-dialog">
     <form class="modal-content" method="post" action="/pieces/{{ piece.id }}/placements">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="storage_unit_id" id="add-place-unit" value="" required>
       <div class="modal-header">
         <h2 class="modal-title h5">Lägg till placering</h2>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <div class="mb-3">
-          <label class="form-label">Lagringsplats</label>
-          <select name="storage_unit_id" class="form-select" required>
-            <option value="">(välj)</option>
-            {% for opt in unit_options %}
-            <option value="{{ opt.id }}">{{ opt.label }}{% if opt.location_kind == "digital" %} (digital){% endif %}</option>
-            {% endfor %}
-          </select>
+          <label class="form-label">Lagringsplats *</label>
+          <div class="d-flex align-items-center gap-2">
+            <div class="border rounded px-2 py-1 flex-grow-1 text-muted" id="add-place-label"><em>(ej vald)</em></div>
+            <button type="button" class="btn btn-outline-secondary btn-sm"
+                    data-bs-toggle="modal" data-bs-target="#addPlacePicker"
+                    data-bs-dismiss="modal">Välj...</button>
+          </div>
         </div>
         <div class="mb-3">
           <label class="form-label">Antal exemplar (lämna tomt för digital)</label>
@@ -265,6 +270,30 @@
     </form>
   </div>
 </div>
+
+{% with picker_id="addPlacePicker", input_id="add-place-unit", label_id="add-place-label", return_modal="addPlacementModal", tree=unit_tree %}
+  {% include "pieces/_unit_picker.html" %}
+{% endwith %}
+
+<script>
+// När en enhet väljs i picker-modalen: skriv värdet till hidden input,
+// uppdatera label, stäng picker och öppna föregående modal igen.
+window._notarkivPickUnit = function(btn) {
+  document.getElementById(btn.dataset.inputId).value = btn.dataset.unitId;
+  const label = document.getElementById(btn.dataset.labelId);
+  label.textContent = btn.dataset.unitLabel;
+  label.classList.remove('text-muted');
+  bootstrap.Modal.getInstance(document.getElementById(btn.dataset.pickerId)).hide();
+  const returnTo = document.getElementById(btn.dataset.pickerId).querySelector('[data-return-modal]');
+};
+// När picker stängs: återöppna föregående modal (om det finns)
+document.addEventListener('hidden.bs.modal', function(evt) {
+  const ret = evt.target.getAttribute('data-return-to');
+  if (ret) {
+    setTimeout(() => bootstrap.Modal.getOrCreateInstance(document.getElementById(ret)).show(), 50);
+  }
+});
+</script>
 
 <datalist id="people-options">
   {% for name in people_names %}<option value="{{ name }}">{% endfor %}
