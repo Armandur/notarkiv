@@ -4,82 +4,157 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-baseline mb-3">
   <h1 class="h3 mb-0">Redigera not</h1>
-  <a href="/pieces/{{ piece.id }}" class="small">← Tillbaka</a>
+  <a href="/pieces/{{ piece.id }}" class="small">← Tillbaka till noten</a>
 </div>
 
 <form method="post" action="/pieces/{{ piece.id }}/edit">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-  <div class="row g-3">
-    <div class="col-md-6">
-      <label class="form-label">Titel *</label>
-      <input type="text" name="title" class="form-control" required value="{{ piece.title }}">
-    </div>
-    <div class="col-md-6">
-      <label class="form-label">Originaltitel</label>
-      <input type="text" name="original_title" class="form-control" value="{{ piece.original_title or '' }}">
-    </div>
-    <div class="col-md-6">
-      <label class="form-label">Kompositör</label>
-      <input type="text" name="composer" class="form-control" value="{{ composers_str }}">
-      <div class="form-text">Flera separeras med <code>;</code> eller <code>&amp;</code></div>
-    </div>
-    <div class="col-md-6">
-      <label class="form-label">Arrangör</label>
-      <input type="text" name="arranger" class="form-control" value="{{ arrangers_str }}">
-    </div>
-    <div class="col-md-6">
-      <label class="form-label">Textförfattare</label>
-      <input type="text" name="lyricist" class="form-control" value="{{ lyricists_str }}">
-    </div>
-    <div class="col-md-3">
-      <label class="form-label">Språk</label>
-      <input type="text" name="language" class="form-control" value="{{ piece.language or '' }}" placeholder="sv, en, la ...">
-    </div>
-    <div class="col-md-3">
-      <label class="form-label">Psalmnummer</label>
-      <input type="text" name="psalm_number" class="form-control" inputmode="numeric" value="{{ piece.psalm_number or '' }}">
-    </div>
-    <div class="col-md-4">
-      <label class="form-label">Besättning</label>
-      <input type="text" name="voicing" class="form-control" value="{{ piece.voicing or '' }}" list="voicing-options">
-      <datalist id="voicing-options">
-        <option value="SATB"><option value="SAB"><option value="SSA"><option value="SSAA">
-        <option value="TTBB"><option value="unison"><option value="solo">
-      </datalist>
-    </div>
-    <div class="col-md-4">
-      <label class="form-label">Ackompanjemang</label>
-      <select name="accompaniment" class="form-select">
-        {% set acc = piece.accompaniment or '' %}
-        <option value="">(välj)</option>
-        <option value="a_cappella" {% if acc == "a_cappella" %}selected{% endif %}>A cappella</option>
-        <option value="piano" {% if acc == "piano" %}selected{% endif %}>Piano</option>
-        <option value="organ" {% if acc == "organ" %}selected{% endif %}>Orgel</option>
-        <option value="other" {% if acc == "other" %}selected{% endif %}>Annat</option>
-      </select>
-    </div>
-    <div class="col-md-4">
-      <label class="form-label">Förlag</label>
-      <input type="text" name="publisher" class="form-control" value="{{ piece.publisher or '' }}">
-    </div>
-    <div class="col-md-6">
-      <label class="form-label">Förlagsnummer</label>
-      <input type="text" name="edition_number" class="form-control" value="{{ piece.edition_number or '' }}">
-    </div>
-    <div class="col-md-6">
-      <label class="form-label">MusicBrainz work-ID</label>
-      <input type="text" name="musicbrainz_work_id" class="form-control" value="{{ piece.musicbrainz_work_id or '' }}">
-    </div>
-    <div class="col-12">
-      <label class="form-label">Anteckningar</label>
-      <textarea name="notes" class="form-control" rows="3">{{ piece.notes or '' }}</textarea>
+  <div class="card mb-3">
+    <div class="card-header"><h2 class="h6 mb-0">Metadata</h2></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Titel *</label>
+          <input type="text" name="title" id="title" class="form-control" required value="{{ piece.title }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Originaltitel</label>
+          <input type="text" name="original_title" class="form-control" value="{{ piece.original_title or '' }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Kompositör</label>
+          <input type="text" name="composer" id="composer" class="form-control" value="{{ composers_str }}">
+          <div class="form-text">Flera separeras med <code>;</code> eller <code>&amp;</code></div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Arrangör</label>
+          <input type="text" name="arranger" class="form-control" value="{{ arrangers_str }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Textförfattare</label>
+          <input type="text" name="lyricist" class="form-control" value="{{ lyricists_str }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Språk</label>
+          <input type="text" name="language" class="form-control" value="{{ piece.language or '' }}" placeholder="sv, en, la ...">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Psalmnummer</label>
+          <input type="text" name="psalm_number" class="form-control" inputmode="numeric" value="{{ piece.psalm_number or '' }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Besättning</label>
+          <input type="text" name="voicing" class="form-control" value="{{ piece.voicing or '' }}" list="voicing-options">
+          <datalist id="voicing-options">
+            <option value="SATB"><option value="SAB"><option value="SSA"><option value="SSAA">
+            <option value="TTBB"><option value="unison"><option value="solo">
+          </datalist>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Ackompanjemang</label>
+          <select name="accompaniment" class="form-select">
+            {% set acc = piece.accompaniment or '' %}
+            <option value="">(välj)</option>
+            <option value="a_cappella" {% if acc == "a_cappella" %}selected{% endif %}>A cappella</option>
+            <option value="piano" {% if acc == "piano" %}selected{% endif %}>Piano</option>
+            <option value="organ" {% if acc == "organ" %}selected{% endif %}>Orgel</option>
+            <option value="other" {% if acc == "other" %}selected{% endif %}>Annat</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Förlag</label>
+          <input type="text" name="publisher" class="form-control" value="{{ piece.publisher or '' }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Förlagsnummer</label>
+          <input type="text" name="edition_number" class="form-control" value="{{ piece.edition_number or '' }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">MusicBrainz work-ID</label>
+          <div class="input-group">
+            <input type="text" name="musicbrainz_work_id" id="musicbrainz_work_id" class="form-control" value="{{ piece.musicbrainz_work_id or '' }}">
+            <button type="button" class="btn btn-outline-secondary"
+                    hx-get="/pieces/{{ piece.id }}/musicbrainz?skip_search=1"
+                    hx-target="#mb-modal-target"
+                    hx-swap="innerHTML">
+              Sök i MusicBrainz
+            </button>
+          </div>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Anteckningar</label>
+          <textarea name="notes" class="form-control" rows="3">{{ piece.notes or '' }}</textarea>
+        </div>
+      </div>
     </div>
   </div>
 
   <div class="mt-4 d-flex gap-2">
-    <button type="submit" class="btn btn-primary">Spara</button>
+    <button type="submit" class="btn btn-primary">Spara metadata</button>
     <a href="/pieces/{{ piece.id }}" class="btn btn-link">Avbryt</a>
   </div>
 </form>
+
+<div class="card mt-4">
+  <div class="card-header"><h2 class="h6 mb-0">Bilder</h2></div>
+  <div class="list-group list-group-flush">
+    {% for img in images %}
+    <div class="list-group-item d-flex align-items-center gap-3">
+      <img src="/images/thumbnails/{{ img.image_path.split('/')[-1] }}"
+           style="width: 60px; height: 60px; object-fit: cover" class="rounded lightbox-image"
+           data-full-src="/images/{{ img.image_path }}">
+      <div class="flex-grow-1">
+        <span class="badge bg-light text-muted">{{ img.kind }}</span>
+        {% if img.label %}<span class="ms-1">{{ img.label }}</span>{% endif %}
+        {% if loop.index == 1 %}<span class="badge bg-primary ms-1">primär</span>{% endif %}
+      </div>
+      <div class="btn-group btn-group-sm">
+        <form method="post" action="/pieces/{{ piece.id }}/images/{{ img.id }}/rotate" class="d-inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="angle" value="-90">
+          <button class="btn btn-outline-secondary" title="Rotera moturs">⟲</button>
+        </form>
+        <form method="post" action="/pieces/{{ piece.id }}/images/{{ img.id }}/rotate" class="d-inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="angle" value="90">
+          <button class="btn btn-outline-secondary" title="Rotera medurs">⟳</button>
+        </form>
+        {% if loop.index != 1 %}
+        <button class="btn btn-outline-primary" title="Gör till primär"
+                onclick="confirmAction('/pieces/{{ piece.id }}/images/{{ img.id }}/promote', 'Gör denna bild till primärbild?', {submitLabel: 'Gör primär', submitClass: 'btn-primary'})">★</button>
+        <button class="btn btn-outline-danger" title="Ta bort"
+                onclick="confirmAction('/pieces/{{ piece.id }}/images/{{ img.id }}/delete', 'Radera denna bild?')">×</button>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="card-body">
+    <form method="post" action="/pieces/{{ piece.id }}/images" enctype="multipart/form-data" class="row g-2 align-items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="col-md-5">
+        <label class="form-label small mb-1">Lägg till bild</label>
+        <input type="file" name="image" accept="image/*" capture="environment" class="form-control form-control-sm" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Typ</label>
+        <select name="kind" class="form-select form-select-sm">
+          {% for k in image_kinds %}
+          <option value="{{ k }}" {% if k == "back" %}selected{% endif %}>{{ k }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Etikett (valfri)</label>
+        <input type="text" name="label" class="form-control form-control-sm" placeholder="Försättsblad ...">
+      </div>
+      <div class="col-md-1">
+        <button type="submit" class="btn btn-sm btn-primary w-100">+</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="mb-modal-target"></div>
 {% endblock %}

@@ -210,6 +210,11 @@ async def edit_piece_form(
     if not piece:
         raise HTTPException(404)
     contributors = collect_contributors(session, piece_id)
+    images = session.exec(
+        select(PieceImage)
+        .where(PieceImage.piece_id == piece_id)
+        .order_by(PieceImage.sort_order, PieceImage.id)
+    ).all()
     return render(
         request,
         "pieces/edit.html",
@@ -218,6 +223,8 @@ async def edit_piece_form(
             "composers_str": _format_contributor_list(contributors, ContributorRole.COMPOSER),
             "arrangers_str": _format_contributor_list(contributors, ContributorRole.ARRANGER),
             "lyricists_str": _format_contributor_list(contributors, ContributorRole.LYRICIST),
+            "images": images,
+            "image_kinds": [k.value for k in PieceImageKind],
         },
         user=user,
     )

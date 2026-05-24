@@ -31,46 +31,8 @@
     {% endif %}
 
     {% if user.can_edit %}
-    <div class="card mt-2">
-      <div class="card-header py-2">
-        <small class="fw-bold">Bilder</small>
-      </div>
-      <div class="list-group list-group-flush">
-        {% for img in images %}
-        <div class="list-group-item d-flex align-items-center gap-2 py-2">
-          <img src="/images/thumbnails/{{ img.image_path.split('/')[-1] }}"
-               style="width: 40px; height: 40px; object-fit: cover" class="rounded">
-          <div class="flex-grow-1 small">
-            <span class="badge bg-light text-muted">{{ img.kind }}</span>
-            {% if img.label %}<span class="ms-1">{{ img.label }}</span>{% endif %}
-            {% if loop.index == 1 %}<span class="badge bg-primary ms-1">primär</span>{% endif %}
-          </div>
-          <div class="btn-group btn-group-sm">
-            <form method="post" action="/pieces/{{ piece.id }}/images/{{ img.id }}/rotate" class="d-inline">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-              <input type="hidden" name="angle" value="-90">
-              <button class="btn btn-outline-secondary" title="Rotera moturs">⟲</button>
-            </form>
-            <form method="post" action="/pieces/{{ piece.id }}/images/{{ img.id }}/rotate" class="d-inline">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-              <input type="hidden" name="angle" value="90">
-              <button class="btn btn-outline-secondary" title="Rotera medurs">⟳</button>
-            </form>
-            {% if loop.index != 1 %}
-            <button class="btn btn-outline-primary" title="Gör till primär"
-                    onclick="confirmAction('/pieces/{{ piece.id }}/images/{{ img.id }}/promote', 'Gör denna bild till primärbild?', {submitLabel: 'Gör primär', submitClass: 'btn-primary'})">★</button>
-            <button class="btn btn-outline-danger" title="Ta bort"
-                    onclick="confirmAction('/pieces/{{ piece.id }}/images/{{ img.id }}/delete', 'Radera denna bild?')">×</button>
-            {% endif %}
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-      <div class="card-body py-2">
-        <button class="btn btn-sm btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#addImageModal">
-          + Lägg till bild
-        </button>
-      </div>
+    <div class="text-muted small mt-2 text-center">
+      <a href="/pieces/{{ piece.id }}/edit">Redigera bilder och metadata</a>
     </div>
     {% endif %}
   </div>
@@ -84,12 +46,6 @@
       {% if user.can_edit %}
       <div class="btn-group btn-group-sm">
         <a href="/pieces/{{ piece.id }}/edit" class="btn btn-outline-secondary">Redigera</a>
-        <button class="btn btn-outline-secondary"
-                hx-get="/pieces/{{ piece.id }}/musicbrainz"
-                hx-target="#mb-modal-target"
-                hx-swap="innerHTML">
-          Sök i MusicBrainz
-        </button>
         {% if user.is_admin %}
         <button class="btn btn-outline-danger"
                 onclick="confirmAction('/pieces/{{ piece.id }}/delete', 'Radera \'{{ piece.title|e }}\' permanent? Detta tar bort alla placeringar och bilder.')">
@@ -175,43 +131,5 @@
   </div>
 </div>
 
-{% if user.can_edit %}
-<div class="modal fade" id="addImageModal" tabindex="-1">
-  <div class="modal-dialog">
-    <form class="modal-content" method="post" action="/pieces/{{ piece.id }}/images" enctype="multipart/form-data">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <div class="modal-header">
-        <h2 class="modal-title h5">Lägg till bild</h2>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Bild</label>
-          <input type="file" name="image" accept="image/*" capture="environment" class="form-control" required>
-          <div class="form-text">Kameran öppnas på mobil.</div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Typ</label>
-          <select name="kind" class="form-select">
-            {% for k in image_kinds %}
-            <option value="{{ k }}" {% if k == "back" %}selected{% endif %}>{{ k }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Etikett (valfri)</label>
-          <input type="text" name="label" class="form-control" placeholder="t.ex. 'Försättsblad', 'Sista sidan'">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
-        <button type="submit" class="btn btn-primary">Lägg till</button>
-      </div>
-    </form>
-  </div>
-</div>
-{% endif %}
-
-<div id="mb-modal-target"></div>
 <div id="tag-modal-target"></div>
 {% endblock %}
