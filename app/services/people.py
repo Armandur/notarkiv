@@ -124,6 +124,43 @@ def collect_contributors(
     return out
 
 
+def enrich_person_from_mb(
+    session: Session,
+    person: Person,
+    *,
+    mb_artist: dict,
+    wikipedia_url: str | None = None,
+) -> None:
+    """Uppdatera Person med data från en MusicBrainz-artist (in-place).
+
+    mb_artist är ett dict från MB-api:t (med fält id, name, sort-name, life-span).
+    Sparar inte - caller commitar.
+    """
+    changed = False
+    if not person.musicbrainz_artist_id:
+        person.musicbrainz_artist_id = mb_artist.get("id")
+        changed = True
+    sort_name = mb_artist.get("sort-name") or mb_artist.get("sort_name")
+    if sort_name and (not person.sort_name or person.sort_name != sort_name):
+        person.sort_name = sort_name
+        changed = True
+    life_span = mb_artist.get("life-span") or mb_artist.get("life_span") or {}
+    begin = life_span.get("begin", "") or ""
+    end = life_span.get("ended") and life_span.get("end", "") or life_span.get("end", "") or ""
+    if begin[:4].isdigit() and not person.birth_year:
+        person.birth_year = int(begin[:4])
+        changed = True
+    if end[:4].isdigit() and not person.death_year:
+        person.death_year = int(end[:4])
+        changed = True
+    if wikipedia_url and not person.wikipedia_url:
+        person.wikipedia_url = wikipedia_url
+        changed = True
+    if changed:
+        person.updated_at = datetime.utcnow()
+        session.add(person)
+
+
 def all_people_names(session: Session) -> list[str]:
     """Returnera alla person-namn alfabetiskt - för autocomplete-datalist."""
     return [

@@ -162,13 +162,21 @@ granska -> spara -> hitta igen.
       en stabil UUID istället för full URL - då går etiketterna inte
       sönder om appen flyttar till annan domän. Krav: live-detection
       som funkar smidigt på mobil (testning behövs).
-- [ ] **Anteckningsfält per användare på not** (t.ex. körledarens egna
-      tonarter, framförandetempo)
+- [x] **Anteckningsfält per användare på not** (körledarens egna
+      tonarter, repetitionsnoter etc.)
+- [ ] **Utlåningshantering**: musikerna ska kunna se om någon
+      "lånat/tagit hem" exemplar av en not. Liten log per piece/per
+      placering: vem lånade, när, ev. återlämningsdatum, status
+      (utlånad/återlämnad). Synligt för alla läsare så man vet om
+      ett exemplar är borta innan man går till hyllan.
+- [ ] **Sök och sortera /pieces på inläggningsdatum**:
+      sorterings-dropdown (titel/datum), filter "skapade senaste 7/30
+      dagar".
+- [ ] **Senaste noter på startsidan**: ovanför stats-korten visa
+      de N senast inlagda med thumbnail + titel som genväg.
 
 ## V3 - "Långt fram"
 
-- [ ] **Utlåningshantering**: "körledare X har lånat 5 ex av Y till och
-      med datum Z"
 - [ ] **Framförandehistorik**: spara vilka noter som använts vid vilka
       gudstjänster/konserter, generera statistik
 - [ ] **Offline-stöd via PWA**: cacha skanningar lokalt på mobilen och

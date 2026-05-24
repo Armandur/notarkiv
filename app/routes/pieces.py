@@ -23,10 +23,16 @@ from app.models import (
 )
 from app.models.piece_image import PieceImageKind
 from app.models.tag import TagKind
-from app.services.musicbrainz import get_client, to_suggestions
+from app.services.musicbrainz import (
+    extract_wikipedia_url,
+    first_composer_from_work,
+    get_client,
+    to_suggestions,
+)
 from app.services.people import (
     all_people_names,
     collect_contributors,
+    enrich_person_from_mb,
     find_or_create_person,
     parse_names_field,
     replace_contributors,
@@ -798,6 +804,29 @@ async def apply_musicbrainz(
                         role=ContributorRole.COMPOSER,
                     )
                 )
+
+        # Berika kompositör-Person med MB-data (MBID, levnadsår, Wikipedia)
+        if person:
+            try:
+                client = get_client()
+                work = await client.get_work_with_rels(mbid)
+                if work:
+                    mb_composer = first_composer_from_work(work)
+                    if mb_composer and mb_composer.get("id"):
+                        artist = await client.get_artist_with_urls(mb_composer["id"])
+                        if artist:
+                            enrich_person_from_mb(
+                                session,
+                                person,
+                                mb_artist=artist,
+                                wikipedia_url=extract_wikipedia_url(artist),
+                            )
+            except Exception as exc:
+                # Berikning är best-effort - blockera inte spara
+                from loguru import logger as _log
+
+                _log.warning("MB-berikning av Person misslyckades: {}", exc)
+
         # Bygg om cache
         contributors = collect_contributors(session, piece_id)
         cache_parts = []
