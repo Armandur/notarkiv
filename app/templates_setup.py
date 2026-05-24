@@ -25,6 +25,7 @@ def render(
         "flash": _pop_flash(request),
         "pending_review_count": _pending_review_count() if user and user.can_edit else 0,
         "active_inventory_global": _active_inventory() if user and user.can_edit else None,
+        "active_loans_count": _active_loans_count() if user else 0,
     }
     if context:
         ctx.update(context)
@@ -43,6 +44,22 @@ def _active_inventory():
             return get_active_session(session)
     except Exception:
         return None
+
+
+def _active_loans_count() -> int:
+    from sqlalchemy import func as sqlf
+    from sqlmodel import Session, select
+
+    from app.db import engine
+    from app.models import Loan
+
+    try:
+        with Session(engine) as session:
+            return session.exec(
+                select(sqlf.count(Loan.id)).where(Loan.returned_at.is_(None))
+            ).one()
+    except Exception:
+        return 0
 
 
 def _pending_review_count() -> int:

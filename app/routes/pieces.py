@@ -7,6 +7,7 @@ from datetime import datetime
 from app.deps import get_session, require_admin, require_auth, require_editor, verify_csrf
 from app.models import (
     ContributorRole,
+    Loan,
     Person,
     Piece,
     PieceContributor,
@@ -483,6 +484,18 @@ async def piece_detail(
     units = {u.id: u for u in session.exec(select(StorageUnit)).all()}
     kinds = {k.id: k.name for k in session.exec(select(UnitKind)).all()}
 
+    # Aktiva utlån per placering
+    placement_loans: dict[int, list[Loan]] = {}
+    if placements:
+        active_loans = session.exec(
+            select(Loan)
+            .where(Loan.placement_id.in_([p.id for p in placements]))
+            .where(Loan.returned_at.is_(None))
+            .order_by(Loan.borrowed_at.desc())
+        ).all()
+        for loan in active_loans:
+            placement_loans.setdefault(loan.placement_id, []).append(loan)
+
     for p in placements:
         unit = units.get(p.storage_unit_id)
         if not unit:
@@ -497,6 +510,8 @@ async def piece_detail(
         loc = locations.get(unit.location_id)
         if loc:
             parts.append(loc.name)
+        loans_here = placement_loans.get(p.id, [])
+        out_count = sum(loan.copies for loan in loans_here)
         placement_views.append(
             {
                 "placement": p,
@@ -504,6 +519,8 @@ async def piece_detail(
                 "location": loc,
                 "path": " > ".join(reversed(parts)),
                 "kind_name": kinds.get(unit.kind_id),
+                "loans": loans_here,
+                "out_count": out_count,
             }
         )
 

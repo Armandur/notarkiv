@@ -1,6 +1,7 @@
 from app.models.app_setting import AppSetting
 from app.models.inventory import InventorySession
 from app.models.inventory_check import InventoryCheck
+from app.models.loan import Loan
 from app.models.person import ContributorRole, Person, PersonLink, PersonLinkKind, PieceContributor
 from app.models.piece import Piece
 from app.models.piece_image import PieceImage
@@ -16,6 +17,7 @@ __all__ = [
     "ContributorRole",
     "InventoryCheck",
     "InventorySession",
+    "Loan",
     "Person",
     "PersonLink",
     "PersonLinkKind",

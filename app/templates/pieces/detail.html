@@ -154,21 +154,101 @@
 
     <h2 class="h6 mt-4 mb-2">Placeringar</h2>
     {% if placements %}
-    <ul class="list-group">
+    <div class="vstack gap-2">
       {% for pv in placements %}
-      <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div>
-          {% if pv.location.kind == 'digital' %}☁{% else %}■{% endif %}
-          <a href="/storage/units/{{ pv.placement.storage_unit_id }}" class="text-reset text-decoration-none">{{ pv.path }}</a>
-          {% if pv.kind_name %}<span class="badge bg-light text-muted">{{ pv.kind_name }}</span>{% endif %}
-          {% if pv.placement.notes %}<div class="small text-muted">{{ pv.placement.notes }}</div>{% endif %}
+      <div class="card">
+        <div class="card-body py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            {% if pv.location.kind == 'digital' %}☁{% else %}■{% endif %}
+            <a href="/storage/units/{{ pv.placement.storage_unit_id }}" class="text-reset text-decoration-none">{{ pv.path }}</a>
+            {% if pv.kind_name %}<span class="badge bg-light text-muted">{{ pv.kind_name }}</span>{% endif %}
+            {% if pv.placement.notes %}<div class="small text-muted">{{ pv.placement.notes }}</div>{% endif %}
+          </div>
+          <div class="d-flex gap-2 align-items-center">
+            {% if pv.placement.copies %}
+              {% set home = pv.placement.copies - pv.out_count %}
+              <span class="badge bg-secondary">{{ home }}/{{ pv.placement.copies }} ex hemma</span>
+              {% if pv.out_count %}<span class="badge bg-warning text-dark">{{ pv.out_count }} utlånade</span>{% endif %}
+            {% endif %}
+            {% if user.can_edit %}
+            <button class="btn btn-sm btn-outline-primary" type="button"
+                    data-bs-toggle="modal" data-bs-target="#addLoanModal-{{ pv.placement.id }}">
+              + Lån
+            </button>
+            {% endif %}
+          </div>
         </div>
-        {% if pv.placement.copies %}<span class="badge bg-secondary">{{ pv.placement.copies }} ex</span>{% endif %}
-      </li>
+        {% if pv.loans %}
+        <ul class="list-group list-group-flush small">
+          {% for loan in pv.loans %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ loan.borrower_name }}</strong>
+              · {{ loan.copies }} ex
+              · lånat {{ loan.borrowed_at.strftime('%Y-%m-%d') }}
+              {% if loan.expected_return_at %}
+              · {% set overdue = loan.expected_return_at < (loan.expected_return_at.now() if loan.expected_return_at else None) %}
+              förv. retur {{ loan.expected_return_at.strftime('%Y-%m-%d') }}
+              {% endif %}
+              {% if loan.notes %}<div class="text-muted">{{ loan.notes }}</div>{% endif %}
+            </div>
+            {% if user.can_edit %}
+            <form method="post" action="/loans/{{ loan.id }}/return">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button class="btn btn-sm btn-outline-success" type="submit">Återlämnad</button>
+            </form>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
       {% endfor %}
-    </ul>
+    </div>
     {% else %}
     <p class="text-muted fst-italic">Inga placeringar registrerade.{% if user.can_edit %} Lägg till via "Redigera".{% endif %}</p>
+    {% endif %}
+
+    {% if user.can_edit %}
+    {% for pv in placements %}
+    <div class="modal fade" id="addLoanModal-{{ pv.placement.id }}" tabindex="-1">
+      <div class="modal-dialog">
+        <form class="modal-content" method="post"
+              action="/pieces/{{ piece.id }}/placements/{{ pv.placement.id }}/loans">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="modal-header">
+            <h2 class="modal-title h5">Registrera utlån</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="text-muted small mb-2">Från: {{ pv.path }}</div>
+            <div class="mb-3">
+              <label class="form-label">Låntagare *</label>
+              <input type="text" name="borrower_name" class="form-control" required>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-4">
+                <label class="form-label small mb-1">Antal exemplar</label>
+                <input type="number" name="copies" class="form-control" min="1" value="1">
+              </div>
+              <div class="col-8">
+                <label class="form-label small mb-1">Förväntad återlämning (valfritt)</label>
+                <input type="date" name="expected_return" class="form-control">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Anteckning (valfri)</label>
+              <textarea name="notes" class="form-control" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+            <button type="submit" class="btn btn-primary">Registrera</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
     {% endif %}
 
   </div>

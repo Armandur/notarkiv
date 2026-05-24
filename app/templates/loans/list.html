@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Utlån - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
+  <h1 class="h3 mb-0">Utlån</h1>
+  <a href="?show_returned={% if show_returned %}0{% else %}1{% endif %}" class="small">
+    {% if show_returned %}Bara aktiva{% else %}Inkludera återlämnade{% endif %}
+  </a>
+</div>
+
+{% if not items %}
+<p class="text-muted fst-italic">
+  {% if show_returned %}Inga utlån alls.{% else %}Inga aktiva utlån just nu.{% endif %}
+</p>
+{% else %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        <th>Låntagare</th>
+        <th>Not</th>
+        <th>Plats</th>
+        <th>Antal</th>
+        <th>Lånat</th>
+        <th>Förv. retur</th>
+        <th>Status</th>
+        <th class="text-end">Åtgärd</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td><strong>{{ item.loan.borrower_name }}</strong></td>
+        <td>
+          {% if item.piece %}<a href="/pieces/{{ item.piece.id }}">{{ item.piece.title }}</a>{% endif %}
+        </td>
+        <td class="small">
+          {% if item.unit %}<a href="/storage/units/{{ item.unit.id }}">{{ item.unit.name }}</a>{% endif %}
+        </td>
+        <td>{{ item.loan.copies }}</td>
+        <td class="small">{{ item.loan.borrowed_at.strftime('%Y-%m-%d') }}</td>
+        <td class="small">
+          {% if item.loan.expected_return_at %}
+          {{ item.loan.expected_return_at.strftime('%Y-%m-%d') }}
+          {% endif %}
+        </td>
+        <td>
+          {% if item.loan.returned_at %}
+          <span class="badge bg-success">återlämnad {{ item.loan.returned_at.strftime('%Y-%m-%d') }}</span>
+          {% else %}
+          <span class="badge bg-warning text-dark">utlånad</span>
+          {% endif %}
+        </td>
+        <td class="text-end">
+          {% if not item.loan.returned_at and user.can_edit %}
+          <form method="post" action="/loans/{{ item.loan.id }}/return" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="btn btn-sm btn-outline-success" type="submit">Återlämna</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

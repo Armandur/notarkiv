@@ -12,6 +12,7 @@ from app.models import (  # noqa: F401
     AppSetting,
     InventoryCheck,
     InventorySession,
+    Loan,
     Person,
     PersonLink,
     Piece,
