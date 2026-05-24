@@ -83,6 +83,15 @@
   <div class="col-md-4">
     <img src="/images/{{ scan.image_path }}" class="img-fluid rounded shadow-sm sticky-top lightbox-image" style="top: 1rem" alt="Skannat omslag">
 
+    <div class="d-grid mt-3">
+      <button type="button" class="btn btn-sm btn-outline-secondary"
+              hx-get="/scan/{{ scan.id }}/musicbrainz?q_title={{ extracted.title or ''|urlencode }}&q_composer={{ extracted.composer or ''|urlencode }}&skip_search=1"
+              hx-target="#mb-modal-target"
+              hx-swap="innerHTML">
+        Sök manuellt i MusicBrainz
+      </button>
+    </div>
+
     {% if suggestions %}
     <div class="card mt-3">
       <div class="card-header">MusicBrainz-förslag</div>
@@ -264,4 +273,5 @@ function applyMbSuggestion(mbid, title, composer, btn) {
 <div id="mb-applied-banner"
      class="position-fixed top-0 start-50 translate-middle-x mt-3 alert alert-success shadow d-none"
      style="z-index: 1080"></div>
+<div id="mb-modal-target"></div>
 {% endblock %}

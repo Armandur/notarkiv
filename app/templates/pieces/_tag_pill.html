@@ -1,0 +1,10 @@
+{% set kind_color = {'liturgical': 'primary', 'occasion': 'success', 'free': 'secondary'}.get(tag.kind, 'secondary') %}
+<button type="button"
+        id="tag-pill-{{ tag.id }}"
+        hx-post="/pieces/{{ piece.id }}/tags/{{ tag.id }}/toggle"
+        hx-vals='{"csrf_token": "{{ csrf_token }}"}'
+        hx-target="this"
+        hx-swap="outerHTML"
+        class="btn btn-sm {% if active %}btn-{{ kind_color }}{% else %}btn-outline-{{ kind_color }}{% endif %}">
+  {% if active %}✓ {% endif %}{{ tag.name }}
+</button>

@@ -2,12 +2,12 @@
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h2 class="modal-title h5">Sök i MusicBrainz</h2>
+        <h2 class="modal-title h5">Manuell sökning i MusicBrainz</h2>
         <button type="button" class="btn-close"
                 onclick="document.getElementById('mb-modal-target').innerHTML=''"></button>
       </div>
       <div class="modal-body">
-        <form hx-get="/pieces/{{ piece.id }}/musicbrainz"
+        <form hx-get="/scan/{{ scan.id }}/musicbrainz"
               hx-target="#mb-modal-target"
               hx-swap="innerHTML"
               class="row g-2 align-items-end mb-3">
@@ -25,35 +25,30 @@
         </form>
 
         <div class="form-text mb-2">
-          Tips: prova en engelsk titelvariant ("Silent Night") om det svenska originalet inte hittas.
+          Tips: prova en engelsk titelvariant om det svenska originalet inte hittas.
         </div>
 
         {% if error %}
         <div class="alert alert-danger">MusicBrainz-anrop misslyckades: {{ error }}</div>
         {% elif searched and not suggestions %}
-        <p class="text-muted fst-italic">Inga matchningar - prova en annan stavning eller variant.</p>
+        <p class="text-muted fst-italic">Inga matchningar - prova en annan stavning.</p>
         {% elif suggestions %}
         <div class="list-group">
           {% for s in suggestions %}
-          <div class="list-group-item">
-            <div class="d-flex justify-content-between align-items-baseline">
-              <div>
-                <strong>{{ s.title }}</strong>
-                {% if s.composer %}<div class="small text-muted">{{ s.composer }}</div>{% endif %}
-                <div class="small text-muted">
-                  <a href="https://musicbrainz.org/work/{{ s.mbid }}" target="_blank">{{ s.mbid }}</a>
-                </div>
+          <div class="list-group-item d-flex justify-content-between align-items-baseline">
+            <div>
+              <strong>{{ s.title }}</strong>
+              {% if s.composer %}<div class="small text-muted">{{ s.composer }}</div>{% endif %}
+              <div class="small">
+                <a href="https://musicbrainz.org/work/{{ s.mbid }}" target="_blank">{{ s.mbid }}</a>
               </div>
-              <div class="text-end">
-                <span class="badge bg-secondary">{{ s.score }}% match</span>
-                <form method="post" action="/pieces/{{ piece.id }}/apply-musicbrainz" class="mt-2">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                  <input type="hidden" name="mbid" value="{{ s.mbid }}">
-                  <input type="hidden" name="title" value="{{ s.title }}">
-                  <input type="hidden" name="composer" value="{{ s.composer or '' }}">
-                  <button type="submit" class="btn btn-sm btn-primary">Använd</button>
-                </form>
-              </div>
+            </div>
+            <div class="text-end">
+              <span class="badge bg-secondary">{{ s.score }}% match</span>
+              <button type="button" class="btn btn-sm btn-primary mt-2"
+                      onclick="applyMbSuggestion('{{ s.mbid }}', '{{ s.title|e }}', '{{ s.composer or ''|e }}', this); document.getElementById('mb-modal-target').innerHTML='';">
+                Använd
+              </button>
             </div>
           </div>
           {% endfor %}

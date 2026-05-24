@@ -1,0 +1,55 @@
+<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)" id="tag-modal">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Taggar för "{{ piece.title }}"</h2>
+        <button type="button" class="btn-close"
+                onclick="document.getElementById('tag-modal-target').innerHTML=''"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Klicka för att slå av/på. Ändringar sparas direkt.</p>
+
+        {% set kind_labels = {'liturgical': 'Kyrkoåret', 'occasion': 'Tillfällen', 'free': 'Fria taggar'} %}
+        {% for kind, label in kind_labels.items() %}
+        {% if by_kind.get(kind) %}
+        <h3 class="h6 mt-3">{{ label }}</h3>
+        <div class="d-flex flex-wrap gap-1">
+          {% for item in by_kind[kind] %}
+            {% set tag = item.tag %}
+            {% set active = item.active %}
+            {% include "pieces/_tag_pill.html" %}
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% endfor %}
+
+        <hr>
+        <h3 class="h6">Skapa ny tagg</h3>
+        <form method="post" action="/pieces/{{ piece.id }}/tags/new" class="row g-2 align-items-end">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="col-md-6">
+            <label class="form-label small mb-1">Namn</label>
+            <input type="text" name="name" class="form-control form-control-sm" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Typ</label>
+            <select name="kind" class="form-select form-select-sm">
+              <option value="free" selected>Fri</option>
+              <option value="liturgical">Kyrkoåret</option>
+              <option value="occasion">Tillfälle</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-sm btn-primary w-100">Skapa</button>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link"
+                onclick="document.getElementById('tag-modal-target').innerHTML=''; window.location.reload();">
+          Stäng
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -12,13 +12,16 @@ from app.models import (
     PieceContributor,
     PieceImage,
     PiecePlacement,
+    PieceTag,
     ScanSession,
     StorageLocation,
     StorageUnit,
+    Tag,
     UnitKind,
     User,
 )
 from app.models.piece_image import PieceImageKind
+from app.models.tag import TagKind
 from app.services.musicbrainz import get_client, to_suggestions
 from app.services.people import (
     collect_contributors,
@@ -163,6 +166,15 @@ async def piece_detail(
         )
 
     contributors = collect_contributors(session, piece_id)
+
+    # Taggar
+    tag_rows = session.exec(
+        select(Tag)
+        .join(PieceTag, PieceTag.tag_id == Tag.id)
+        .where(PieceTag.piece_id == piece_id)
+        .order_by(Tag.kind, Tag.name)
+    ).all()
+
     return render(
         request,
         "pieces/detail.html",
@@ -171,6 +183,7 @@ async def piece_detail(
             "images": images,
             "placements": placement_views,
             "contributors": contributors,
+            "tags": tag_rows,
             "composer_role": ContributorRole.COMPOSER,
             "arranger_role": ContributorRole.ARRANGER,
             "lyricist_role": ContributorRole.LYRICIST,
@@ -303,33 +316,53 @@ async def delete_piece(
 async def musicbrainz_modal(
     request: Request,
     piece_id: int,
+    q_title: str | None = None,
+    q_composer: str | None = None,
+    skip_search: int = 0,
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
-    """HTMX-fragment: anropar MB synkront, returnerar modal med förslag."""
+    """HTMX-fragment: visar MB-sökmodal med ev. resultat.
+
+    Om skip_search=1 visas bara förifyllt formulär utan att anropa MB
+    (för att inte slösa rate-limited anrop när användaren bara öppnar modalen).
+    """
     piece = session.get(Piece, piece_id)
     if not piece:
         raise HTTPException(404)
 
-    composer_str = ""
     contributors = collect_contributors(session, piece_id)
     composers = contributors.get(ContributorRole.COMPOSER, [])
-    if composers:
-        composer_str = composers[0].name
+    default_composer = composers[0].name if composers else ""
+
+    search_title = (q_title or piece.title).strip()
+    search_composer = (q_composer or default_composer).strip()
 
     suggestions = []
     error = None
-    try:
-        client = get_client()
-        works = await client.search_work(piece.title, composer_str or None)
-        suggestions = to_suggestions(works, piece.title, composer_str or None, threshold=40)
-    except Exception as exc:
-        error = str(exc)
+    searched = False
+    if not skip_search:
+        searched = True
+        try:
+            client = get_client()
+            works = await client.search_work(search_title, search_composer or None)
+            suggestions = to_suggestions(
+                works, search_title, search_composer or None, threshold=40
+            )
+        except Exception as exc:
+            error = str(exc)
 
     return render(
         request,
         "pieces/_musicbrainz_modal.html",
-        {"piece": piece, "suggestions": suggestions, "error": error},
+        {
+            "piece": piece,
+            "suggestions": suggestions,
+            "error": error,
+            "search_title": search_title,
+            "search_composer": search_composer,
+            "searched": searched,
+        },
         user=user,
     )
 
@@ -391,6 +424,117 @@ async def apply_musicbrainz(
     session.commit()
 
     flash(request, "MusicBrainz-data applicerad", "success")
+    return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+
+@router.get("/{piece_id}/tags")
+async def tag_modal(
+    request: Request,
+    piece_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    piece = session.get(Piece, piece_id)
+    if not piece:
+        raise HTTPException(404)
+
+    all_tags = session.exec(
+        select(Tag).order_by(Tag.kind, Tag.sort_order, Tag.name)
+    ).all()
+    active_ids = set(
+        session.exec(
+            select(PieceTag.tag_id).where(PieceTag.piece_id == piece_id)
+        ).all()
+    )
+
+    by_kind: dict[str, list[dict]] = {}
+    for t in all_tags:
+        by_kind.setdefault(t.kind, []).append({"tag": t, "active": t.id in active_ids})
+
+    return render(
+        request,
+        "pieces/_tag_modal.html",
+        {"piece": piece, "by_kind": by_kind},
+        user=user,
+    )
+
+
+@router.post("/{piece_id}/tags/{tag_id}/toggle", dependencies=[Depends(verify_csrf)])
+async def toggle_tag(
+    request: Request,
+    piece_id: int,
+    tag_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    piece = session.get(Piece, piece_id)
+    tag = session.get(Tag, tag_id)
+    if not piece or not tag:
+        raise HTTPException(404)
+
+    existing = session.exec(
+        select(PieceTag)
+        .where(PieceTag.piece_id == piece_id)
+        .where(PieceTag.tag_id == tag_id)
+    ).first()
+
+    if existing:
+        session.delete(existing)
+        active = False
+    else:
+        session.add(PieceTag(piece_id=piece_id, tag_id=tag_id))
+        active = True
+    session.commit()
+
+    if request.headers.get("HX-Request"):
+        return render(
+            request,
+            "pieces/_tag_pill.html",
+            {"piece": piece, "tag": tag, "active": active},
+            user=user,
+        )
+    return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+
+@router.post("/{piece_id}/tags/new", dependencies=[Depends(verify_csrf)])
+async def create_and_attach_tag(
+    request: Request,
+    piece_id: int,
+    name: str = Form(...),
+    kind: str = Form("free"),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    piece = session.get(Piece, piece_id)
+    if not piece:
+        raise HTTPException(404)
+    name = name.strip()
+    if not name:
+        flash(request, "Tomt namn", "danger")
+        return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+    existing = session.exec(select(Tag).where(Tag.name == name)).first()
+    if existing:
+        tag = existing
+    else:
+        try:
+            kind_enum = TagKind(kind)
+        except ValueError:
+            kind_enum = TagKind.FREE
+        tag = Tag(name=name, kind=kind_enum)
+        session.add(tag)
+        session.flush()
+
+    already = session.exec(
+        select(PieceTag)
+        .where(PieceTag.piece_id == piece_id)
+        .where(PieceTag.tag_id == tag.id)
+    ).first()
+    if not already:
+        session.add(PieceTag(piece_id=piece_id, tag_id=tag.id))
+    session.commit()
+
+    flash(request, f"Tagg '{tag.name}' tillagd", "success")
     return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
 
 

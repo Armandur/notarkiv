@@ -11,6 +11,7 @@ from app.deps import get_session, require_editor, verify_csrf
 from app.services.app_settings import get_ocr_provider
 from app.services.duplicates import find_duplicates
 from app.services.inventory import append_log, get_active_session
+from app.services.musicbrainz import get_client, to_suggestions
 from app.services.people import parse_names_field, replace_contributors
 from app.models import (
     InventorySession,
@@ -462,6 +463,53 @@ async def add_placement_to_existing(
 
     flash(request, f"Lagt till placering på '{piece.title}'", "success")
     return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+
+@router.get("/{scan_id}/musicbrainz")
+async def review_musicbrainz_modal(
+    request: Request,
+    scan_id: int,
+    q_title: str = "",
+    q_composer: str = "",
+    skip_search: int = 0,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Manuell MB-sökning i granskningsflödet."""
+    scan = session.get(ScanSession, scan_id)
+    if not scan:
+        raise HTTPException(404)
+
+    search_title = q_title.strip()
+    search_composer = q_composer.strip()
+
+    suggestions = []
+    error = None
+    searched = False
+    if not skip_search and search_title:
+        searched = True
+        try:
+            client = get_client()
+            works = await client.search_work(search_title, search_composer or None)
+            suggestions = to_suggestions(
+                works, search_title, search_composer or None, threshold=40
+            )
+        except Exception as exc:
+            error = str(exc)
+
+    return render(
+        request,
+        "scan/_musicbrainz_modal.html",
+        {
+            "scan": scan,
+            "suggestions": suggestions,
+            "error": error,
+            "search_title": search_title,
+            "search_composer": search_composer,
+            "searched": searched,
+        },
+        user=user,
+    )
 
 
 @router.post("/{scan_id}/save", dependencies=[Depends(verify_csrf)])
