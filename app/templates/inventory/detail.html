@@ -36,9 +36,12 @@
   <div class="col-md-7">
     <div class="d-flex justify-content-between align-items-baseline">
       <h2 class="h5">Skanningar i denna session</h2>
-      {% if active %}
-      <a href="/scan/quick" class="btn btn-sm btn-primary">Skanna mer</a>
-      {% endif %}
+      <div class="btn-group btn-group-sm">
+        {% if active %}
+        <a href="/scan/quick" class="btn btn-outline-primary">Skanna mer</a>
+        {% endif %}
+        <a href="/inventory/{{ inv.id }}/check" class="btn btn-outline-secondary">Inventeringsläge</a>
+      </div>
     </div>
     {% if not scans %}
     <p class="text-muted fst-italic small">Inga skanningar ännu.</p>

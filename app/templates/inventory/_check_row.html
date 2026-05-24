@@ -1,0 +1,54 @@
+{% set status = item.check.status if item.check else 'not_checked' %}
+{% set border = {
+  'found': 'border-success',
+  'partial': 'border-warning',
+  'missing': 'border-danger',
+  'extra': 'border-warning',
+  'not_checked': ''
+}.get(status, '') %}
+<div class="card {{ border }}" id="check-item-{{ item.placement.id }}">
+  <div class="card-body p-2 d-flex align-items-center gap-3">
+    {% if item.thumb %}
+    <img src="/images/thumbnails/{{ item.thumb.split('/')[-1] }}"
+         style="width: 56px; height: 56px; object-fit: cover" class="rounded">
+    {% else %}
+    <div class="bg-light rounded text-muted small d-flex align-items-center justify-content-center"
+         style="width: 56px; height: 56px">-</div>
+    {% endif %}
+
+    <div class="flex-grow-1">
+      <div class="d-flex justify-content-between">
+        <a href="/pieces/{{ item.piece.id }}" target="_blank" class="text-decoration-none text-reset">
+          <strong>{{ item.piece.title }}</strong>
+        </a>
+        {% if status == 'found' %}<span class="badge bg-success">✓ hittad</span>
+        {% elif status == 'partial' %}<span class="badge bg-warning text-dark">⚠ {{ item.check.actual_copies }} ex (förv. {{ item.placement.copies or '?' }})</span>
+        {% elif status == 'missing' %}<span class="badge bg-danger">✗ saknas</span>
+        {% elif status == 'extra' %}<span class="badge bg-warning text-dark">+ {{ item.check.actual_copies }} ex (förv. {{ item.placement.copies or '?' }})</span>
+        {% else %}<span class="badge bg-light text-muted">ej checkad</span>
+        {% endif %}
+      </div>
+      <div class="small text-muted">
+        {% if item.piece.contributors_cache %}{{ item.piece.contributors_cache }}{% endif %}
+        {% if item.placement.copies %} - förväntat <strong>{{ item.placement.copies }} ex</strong>{% endif %}
+      </div>
+    </div>
+
+    <form method="post"
+          action="/inventory/{{ inv.id }}/check/{{ unit_id }}/items/{{ item.placement.id }}"
+          hx-post="/inventory/{{ inv.id }}/check/{{ unit_id }}/items/{{ item.placement.id }}"
+          hx-target="#check-item-{{ item.placement.id }}"
+          hx-swap="outerHTML"
+          class="d-flex gap-1 align-items-center">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="number" name="actual_copies" class="form-control form-control-sm"
+             style="width: 70px"
+             min="0"
+             value="{{ item.check.actual_copies if item.check else (item.placement.copies or '') }}"
+             placeholder="antal">
+      <button type="submit" name="status" value="found" class="btn btn-sm btn-outline-success" title="Hittad">✓</button>
+      <button type="submit" name="status" value="partial" class="btn btn-sm btn-outline-warning" title="Avvikande antal">⚠</button>
+      <button type="submit" name="status" value="missing" class="btn btn-sm btn-outline-danger" title="Saknas">✗</button>
+    </form>
+  </div>
+</div>

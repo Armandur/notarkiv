@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Välj enhet att inventera - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3">
+  <h1 class="h3 mb-0">Inventeringsläge: välj enhet</h1>
+  <a href="/inventory/{{ inv.id }}" class="small">← {{ inv.name }}</a>
+</div>
+
+<p class="text-muted small">
+  Visa allt som ska ligga i en enhet och checka av exemplar för exemplar.
+  Avvikelser loggas i inventeringstillfället.
+</p>
+
+{% if not options %}
+<p class="fst-italic text-muted">Inga enheter med registrerade placeringar än.</p>
+{% else %}
+<div class="list-group">
+  {% for opt in options %}
+  <a href="/inventory/{{ inv.id }}/check/{{ opt.id }}"
+     class="list-group-item list-group-item-action d-flex justify-content-between">
+    {{ opt.label }}
+    <span class="badge bg-secondary">{{ opt.count }} placeringar</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

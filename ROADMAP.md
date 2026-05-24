@@ -127,6 +127,11 @@ granska -> spara -> hitta igen.
       istället för "skapa ny post" om träff finns
 - [ ] **Inventeringsläge**: visa allt som ska ligga i en specifik
       storage_unit, checkbar lista, markera "saknas"
+- [ ] **Flytt- och omorganisationshantering**: redigera befintliga
+      placeringar (byt enhet eller antal exemplar), dela upp placering
+      ("5 ex stannar här, 10 ex flyttas dit"), bulk-flytt av allt från
+      en enhet till en annan vid omorganisation av notförrådet. Inkludera
+      audit-spår så det går att se vad som flyttats när och av vem.
 - [ ] **PDF-katalog**: exportera hela eller filtrerad lista som PDF
       för utskrift (körpärm, allmän översikt)
 - [ ] **Trasiga URL-detektor**: nattlig HEAD-kontroll på digitala
