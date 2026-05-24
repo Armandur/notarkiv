@@ -45,9 +45,10 @@ Avviker från användarens globala defaulter på några punkter - se
   returnera direkt och UI:t pollar resultat via HTMX.
 - **Loggning**: **loguru** för strukturerad loggning. Sentry valfritt
   via env-variabel (`SENTRY_DSN`).
-- **Backup**: `litestream` för SQLite till S3-kompatibel bucket
-  (Backblaze B2), nattlig rsync av uppladdade bilder. *(Inte konfigurerat
-  än - kommer närmare prod-deploy.)*
+- **Backup**: `scripts/backup.sh` tar `sqlite3 .backup`-snapshot,
+  komprimerar och laddar upp till Google Drive via rclone. Bilder
+  synkas inkrementellt. Schemaläggs via cron på värden.
+  Se `docs/backup.md`.
 - **Runtime-inställningar**: `AppSetting`-tabell tillåter ändring av
   API-nyckel, Claude-modell, OCR-default, MB User-Agent via
   `/admin/settings` utan omstart. Env-värden används som fallback.

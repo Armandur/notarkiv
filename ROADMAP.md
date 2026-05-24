@@ -101,9 +101,12 @@ granska -> spara -> hitta igen.
 
 ### Backup
 
-- [ ] `litestream` konfigurerat mot offsite-bucket
-- [ ] Nattlig cron för bilduppladdningsmapp (rsync till samma bucket)
-- [ ] Dokumenterad återställningsprocess
+- [x] `scripts/backup.sh` - sqlite3 .backup + gzip + rclone copyto för DB,
+      rclone sync för bilder. Konfigurerat mot Google Drive via rclone.
+- [x] `scripts/restore.sh` - hämtar senaste eller specifik snapshot
+- [x] Dokumenterad i `docs/backup.md` med engångsuppsättning och
+      cron-exempel
+- [ ] Verifierad återställningskörning (kvar tills användaren testat)
 
 ### Klart-kriterier för MVP
 
