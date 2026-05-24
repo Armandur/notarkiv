@@ -4,6 +4,7 @@ from sqlmodel import Session, select
 
 from app.deps import get_session, require_auth, require_editor, verify_csrf
 from app.models import (
+    ContributorRole,
     Piece,
     PieceImage,
     PiecePlacement,
@@ -13,6 +14,7 @@ from app.models import (
     User,
 )
 from app.models.piece_image import PieceImageKind
+from app.services.people import collect_contributors
 from app.templates_setup import flash, render
 from app.utils.images import (
     delete_saved_image,
@@ -130,6 +132,7 @@ async def piece_detail(
             }
         )
 
+    contributors = collect_contributors(session, piece_id)
     return render(
         request,
         "pieces/detail.html",
@@ -137,6 +140,10 @@ async def piece_detail(
             "piece": piece,
             "images": images,
             "placements": placement_views,
+            "contributors": contributors,
+            "composer_role": ContributorRole.COMPOSER,
+            "arranger_role": ContributorRole.ARRANGER,
+            "lyricist_role": ContributorRole.LYRICIST,
             "image_kinds": [k.value for k in PieceImageKind],
         },
         user=user,

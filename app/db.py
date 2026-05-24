@@ -11,7 +11,9 @@ from app.config import settings
 from app.models import (  # noqa: F401
     AppSetting,
     InventorySession,
+    Person,
     Piece,
+    PieceContributor,
     PieceImage,
     PiecePlacement,
     PieceTag,
@@ -68,7 +70,7 @@ def _ensure_fts_objects() -> None:
             text(
                 """
                 CREATE VIRTUAL TABLE IF NOT EXISTS pieces_fts USING fts5(
-                    title, original_title, composer, arranger, lyricist, notes,
+                    title, original_title, contributors_cache, notes,
                     content='pieces', content_rowid='id'
                 )
                 """
@@ -78,8 +80,8 @@ def _ensure_fts_objects() -> None:
             text(
                 """
                 CREATE TRIGGER IF NOT EXISTS pieces_ai AFTER INSERT ON pieces BEGIN
-                  INSERT INTO pieces_fts(rowid, title, original_title, composer, arranger, lyricist, notes)
-                  VALUES (new.id, new.title, new.original_title, new.composer, new.arranger, new.lyricist, new.notes);
+                  INSERT INTO pieces_fts(rowid, title, original_title, contributors_cache, notes)
+                  VALUES (new.id, new.title, new.original_title, new.contributors_cache, new.notes);
                 END
                 """
             )
@@ -88,8 +90,8 @@ def _ensure_fts_objects() -> None:
             text(
                 """
                 CREATE TRIGGER IF NOT EXISTS pieces_ad AFTER DELETE ON pieces BEGIN
-                  INSERT INTO pieces_fts(pieces_fts, rowid, title, original_title, composer, arranger, lyricist, notes)
-                  VALUES('delete', old.id, old.title, old.original_title, old.composer, old.arranger, old.lyricist, old.notes);
+                  INSERT INTO pieces_fts(pieces_fts, rowid, title, original_title, contributors_cache, notes)
+                  VALUES('delete', old.id, old.title, old.original_title, old.contributors_cache, old.notes);
                 END
                 """
             )
@@ -98,10 +100,10 @@ def _ensure_fts_objects() -> None:
             text(
                 """
                 CREATE TRIGGER IF NOT EXISTS pieces_au AFTER UPDATE ON pieces BEGIN
-                  INSERT INTO pieces_fts(pieces_fts, rowid, title, original_title, composer, arranger, lyricist, notes)
-                  VALUES('delete', old.id, old.title, old.original_title, old.composer, old.arranger, old.lyricist, old.notes);
-                  INSERT INTO pieces_fts(rowid, title, original_title, composer, arranger, lyricist, notes)
-                  VALUES (new.id, new.title, new.original_title, new.composer, new.arranger, new.lyricist, new.notes);
+                  INSERT INTO pieces_fts(pieces_fts, rowid, title, original_title, contributors_cache, notes)
+                  VALUES('delete', old.id, old.title, old.original_title, old.contributors_cache, old.notes);
+                  INSERT INTO pieces_fts(rowid, title, original_title, contributors_cache, notes)
+                  VALUES (new.id, new.title, new.original_title, new.contributors_cache, new.notes);
                 END
                 """
             )

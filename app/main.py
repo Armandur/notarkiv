@@ -12,6 +12,7 @@ from app.middleware import EnsureCSRFTokenMiddleware
 from app.routes import auth as auth_routes
 from app.routes import inventory as inventory_routes
 from app.routes import pages as pages_routes
+from app.routes import people as people_routes
 from app.routes import pieces as pieces_routes
 from app.routes import scan as scan_routes
 from app.routes import storage as storage_routes
@@ -52,6 +53,7 @@ app.include_router(auth_routes.router)
 app.include_router(storage_routes.router)
 app.include_router(scan_routes.router)
 app.include_router(pieces_routes.router)
+app.include_router(people_routes.router)
 app.include_router(inventory_routes.router)
 app.include_router(admin_users_routes.router)
 app.include_router(admin_settings_routes.router)

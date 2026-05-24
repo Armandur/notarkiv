@@ -10,6 +10,7 @@ from sqlalchemy import func
 from app.deps import get_session, require_editor, verify_csrf
 from app.services.app_settings import get_ocr_provider
 from app.services.inventory import append_log, get_active_session
+from app.services.people import parse_names_field, replace_contributors
 from app.models import (
     Piece,
     PieceImage,
@@ -313,9 +314,6 @@ async def save_piece(
     piece = Piece(
         title=title,
         original_title=original_title or None,
-        composer=composer or None,
-        arranger=arranger or None,
-        lyricist=lyricist or None,
         language=language or None,
         voicing=voicing or None,
         accompaniment=accompaniment or None,
@@ -329,6 +327,17 @@ async def save_piece(
     )
     session.add(piece)
     session.flush()
+
+    # Skapa/återanvänd Person-poster och länka via PieceContributor
+    cache = replace_contributors(
+        session,
+        piece.id,
+        composers=parse_names_field(composer),
+        arrangers=parse_names_field(arranger),
+        lyricists=parse_names_field(lyricist),
+    )
+    piece.contributors_cache = cache or None
+    session.add(piece)
 
     # Skapa primärbilden från skanningens huvudbild
     session.add(

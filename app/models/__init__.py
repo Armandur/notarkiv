@@ -1,5 +1,6 @@
 from app.models.app_setting import AppSetting
 from app.models.inventory import InventorySession
+from app.models.person import ContributorRole, Person, PieceContributor
 from app.models.piece import Piece
 from app.models.piece_image import PieceImage
 from app.models.scan_session import ScanSession
@@ -10,7 +11,10 @@ from app.models.user import User
 
 __all__ = [
     "AppSetting",
+    "ContributorRole",
     "InventorySession",
+    "Person",
+    "PieceContributor",
     "Piece",
     "PieceImage",
     "ScanSession",

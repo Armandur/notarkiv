@@ -80,9 +80,21 @@
     {% if piece.original_title %}<div class="text-muted">{{ piece.original_title }}</div>{% endif %}
 
     <dl class="row mt-3">
-      {% if piece.composer %}<dt class="col-sm-3">Kompositör</dt><dd class="col-sm-9">{{ piece.composer }}</dd>{% endif %}
-      {% if piece.arranger %}<dt class="col-sm-3">Arrangör</dt><dd class="col-sm-9">{{ piece.arranger }}</dd>{% endif %}
-      {% if piece.lyricist %}<dt class="col-sm-3">Textförfattare</dt><dd class="col-sm-9">{{ piece.lyricist }}</dd>{% endif %}
+      {% macro people_links(people) %}
+        {% for p in people %}<a href="/people/{{ p.id }}">{{ p.name }}</a>{% if not loop.last %}; {% endif %}{% endfor %}
+      {% endmacro %}
+      {% if contributors.get(composer_role) %}
+      <dt class="col-sm-3">Kompositör</dt>
+      <dd class="col-sm-9">{{ people_links(contributors[composer_role]) }}</dd>
+      {% endif %}
+      {% if contributors.get(arranger_role) %}
+      <dt class="col-sm-3">Arrangör</dt>
+      <dd class="col-sm-9">{{ people_links(contributors[arranger_role]) }}</dd>
+      {% endif %}
+      {% if contributors.get(lyricist_role) %}
+      <dt class="col-sm-3">Textförfattare</dt>
+      <dd class="col-sm-9">{{ people_links(contributors[lyricist_role]) }}</dd>
+      {% endif %}
       {% if piece.voicing %}<dt class="col-sm-3">Besättning</dt><dd class="col-sm-9">{{ piece.voicing }}</dd>{% endif %}
       {% if piece.accompaniment %}<dt class="col-sm-3">Ackompanjemang</dt><dd class="col-sm-9">{{ piece.accompaniment }}</dd>{% endif %}
       {% if piece.language %}<dt class="col-sm-3">Språk</dt><dd class="col-sm-9">{{ piece.language }}</dd>{% endif %}

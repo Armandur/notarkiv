@@ -39,9 +39,9 @@ class Piece(SQLModel, table=True):
 
     title: str
     original_title: str | None = None
-    composer: str | None = Field(default=None, index=True)
-    arranger: str | None = None
-    lyricist: str | None = None
+    # Denormaliserad cache för sökning/listning - byggs från PieceContributor.
+    # Format: "Felix Mendelssohn (composer); Bob Smith (arranger)"
+    contributors_cache: str | None = None
     language: str | None = None
     voicing: str | None = None
     accompaniment: Accompaniment | None = Field(default=None, sa_type=String)

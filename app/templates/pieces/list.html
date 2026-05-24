@@ -39,7 +39,7 @@
           <div class="col-8">
             <div class="card-body p-2">
               <div class="fw-bold text-truncate">{{ p.title }}</div>
-              {% if p.composer %}<div class="small text-muted text-truncate">{{ p.composer }}</div>{% endif %}
+              {% if p.contributors_cache %}<div class="small text-muted text-truncate">{{ p.contributors_cache }}</div>{% endif %}
               <div class="small">
                 {% if p.voicing %}<span class="badge bg-secondary">{{ p.voicing }}</span>{% endif %}
                 {% if p.language %}<span class="badge bg-light text-muted">{{ p.language }}</span>{% endif %}
