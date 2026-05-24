@@ -8,7 +8,9 @@
     <div class="text-muted">
       {{ person.sort_name }}
       {% if person.birth_year or person.death_year %}
-      · ({{ person.birth_year or '?' }}{% if person.death_year %} - {{ person.death_year }}{% endif %})
+      {% set birth = person.birth_year and (person.birth_year|string + (person.birth_month and '-' + '%02d'|format(person.birth_month) or '') + (person.birth_day and '-' + '%02d'|format(person.birth_day) or '')) %}
+      {% set death = person.death_year and (person.death_year|string + (person.death_month and '-' + '%02d'|format(person.death_month) or '') + (person.death_day and '-' + '%02d'|format(person.death_day) or '')) %}
+      · ({{ birth or '?' }}{% if death %} - {{ death }}{% endif %})
       {% endif %}
       {% if person.country %} · {{ person.country }}{% endif %}
     </div>

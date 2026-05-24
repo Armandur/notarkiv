@@ -9,6 +9,54 @@ from sqlmodel import Session, select
 from app.models import ContributorRole, Person, PieceContributor
 
 
+def parse_partial_date(text: str | None) -> tuple[int | None, int | None, int | None]:
+    """Parsa "YYYY", "YYYY-MM" eller "YYYY-MM-DD" till (year, month, day).
+
+    Returnerar (None, None, None) för tom/ogiltig input. Tolererar slash istället
+    för bindestreck. Validerar månader 1-12, dagar 1-31 (utan kalenderkontroll).
+    """
+    if not text:
+        return (None, None, None)
+    text = text.strip().replace("/", "-")
+    if not text:
+        return (None, None, None)
+    parts = text.split("-")
+    try:
+        year = int(parts[0]) if parts[0] else None
+    except ValueError:
+        return (None, None, None)
+    if year is None:
+        return (None, None, None)
+    month = None
+    day = None
+    if len(parts) >= 2 and parts[1]:
+        try:
+            month = int(parts[1])
+            if not 1 <= month <= 12:
+                month = None
+        except ValueError:
+            month = None
+    if month and len(parts) >= 3 and parts[2]:
+        try:
+            day = int(parts[2])
+            if not 1 <= day <= 31:
+                day = None
+        except ValueError:
+            day = None
+    return (year, month, day)
+
+
+def format_partial_date(year: int | None, month: int | None, day: int | None) -> str:
+    """Formatera till samma sträng man kan skriva in."""
+    if not year:
+        return ""
+    if month and day:
+        return f"{year:04d}-{month:02d}-{day:02d}"
+    if month:
+        return f"{year:04d}-{month:02d}"
+    return f"{year:04d}"
+
+
 def derive_sort_name(name: str) -> str:
     """Konvertera "Felix Mendelssohn" till "Mendelssohn, Felix" som sort_name.
 
@@ -150,12 +198,18 @@ def enrich_person_from_mb(
         changed = True
     life_span = mb_artist.get("life-span") or mb_artist.get("life_span") or {}
     begin = life_span.get("begin", "") or ""
-    end = life_span.get("ended") and life_span.get("end", "") or life_span.get("end", "") or ""
-    if begin[:4].isdigit() and not person.birth_year:
-        person.birth_year = int(begin[:4])
+    end = life_span.get("end", "") or ""
+    by, bm, bd = parse_partial_date(begin)
+    if by and not person.birth_year:
+        person.birth_year = by
+        person.birth_month = bm
+        person.birth_day = bd
         changed = True
-    if end[:4].isdigit() and not person.death_year:
-        person.death_year = int(end[:4])
+    dy, dm, dd = parse_partial_date(end)
+    if dy and not person.death_year:
+        person.death_year = dy
+        person.death_month = dm
+        person.death_day = dd
         changed = True
     if mb_artist.get("country") and not person.country:
         person.country = mb_artist["country"]

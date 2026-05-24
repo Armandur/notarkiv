@@ -505,6 +505,13 @@ async def piece_detail(
 
     contributors = collect_contributors(session, piece_id)
 
+    # Bidragsgivare utan MBID - för "slå upp i MB"-banner
+    contributors_without_mbid = []
+    for role, people_list in contributors.items():
+        for p in people_list:
+            if not p.musicbrainz_artist_id:
+                contributors_without_mbid.append({"person": p, "role": str(role)})
+
     # Taggar
     tag_rows = session.exec(
         select(Tag)
@@ -535,6 +542,7 @@ async def piece_detail(
             "images": images,
             "placements": placement_views,
             "contributors": contributors,
+            "contributors_without_mbid": contributors_without_mbid,
             "tags": tag_rows,
             "my_note": my_note,
             "others_notes": others_notes,

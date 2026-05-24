@@ -33,8 +33,13 @@ class Person(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)
     sort_name: str = Field(index=True)
+    # Partiella datum: bara year, year+month eller year+month+day
     birth_year: int | None = None
+    birth_month: int | None = None
+    birth_day: int | None = None
     death_year: int | None = None
+    death_month: int | None = None
+    death_day: int | None = None
     country: str | None = None  # ISO 3166-1 alpha-2, t.ex. SE, DE
     biography: str | None = None
     # Källan till biografin (för CC BY-SA-attribution när texten kommer

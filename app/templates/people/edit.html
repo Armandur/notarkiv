@@ -24,12 +24,13 @@
           <div class="form-text">T.ex. "Mendelssohn, Felix" - lämna tomt för auto.</div>
         </div>
         <div class="col-md-3">
-          <label class="form-label">Födelseår</label>
-          <input type="text" name="birth_year" class="form-control" inputmode="numeric" value="{{ person.birth_year or '' }}">
+          <label class="form-label">Födelsedatum</label>
+          <input type="text" name="birth_date" class="form-control" value="{{ birth_date_str }}" placeholder="1809 / 1809-02 / 1809-02-03">
+          <div class="form-text">Endast år eller år-månad räcker</div>
         </div>
         <div class="col-md-3">
-          <label class="form-label">Dödsår</label>
-          <input type="text" name="death_year" class="form-control" inputmode="numeric" value="{{ person.death_year or '' }}">
+          <label class="form-label">Dödsdatum</label>
+          <input type="text" name="death_date" class="form-control" value="{{ death_date_str }}" placeholder="1847 / 1847-11-04">
         </div>
         <div class="col-md-3">
           <label class="form-label">Land</label>

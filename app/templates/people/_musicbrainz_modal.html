@@ -53,6 +53,7 @@
             <form method="post" action="/people/{{ person.id }}/apply-musicbrainz">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
               <input type="hidden" name="mbid" value="{{ a.id }}">
+              {% if return_to %}<input type="hidden" name="return_to" value="{{ return_to }}">{% endif %}
               <button type="submit" class="btn btn-sm btn-primary">Använd</button>
             </form>
           </div>

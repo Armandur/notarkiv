@@ -15,7 +15,12 @@ from app.models import (
     User,
 )
 from app.services.musicbrainz import extract_wikipedia_url, fetch_wikipedia_summary, get_client
-from app.services.people import derive_sort_name, enrich_person_from_mb
+from app.services.people import (
+    derive_sort_name,
+    enrich_person_from_mb,
+    format_partial_date,
+    parse_partial_date,
+)
 from app.templates_setup import flash, render
 from app.utils.images import delete_saved_image, save_uploaded_cover
 
@@ -134,6 +139,12 @@ async def edit_person_form(
             "person": person,
             "links": links,
             "link_kinds": [k.value for k in PersonLinkKind],
+            "birth_date_str": format_partial_date(
+                person.birth_year, person.birth_month, person.birth_day
+            ),
+            "death_date_str": format_partial_date(
+                person.death_year, person.death_month, person.death_day
+            ),
         },
         user=user,
     )
@@ -244,8 +255,8 @@ async def update_person(
     person_id: int,
     name: str = Form(...),
     sort_name: str | None = Form(None),
-    birth_year: str | None = Form(None),
-    death_year: str | None = Form(None),
+    birth_date: str | None = Form(None),
+    death_date: str | None = Form(None),
     country: str | None = Form(None),
     biography: str | None = Form(None),
     musicbrainz_artist_id: str | None = Form(None),
@@ -258,8 +269,10 @@ async def update_person(
 
     person.name = name.strip()
     person.sort_name = (sort_name or "").strip() or derive_sort_name(person.name)
-    person.birth_year = int(birth_year) if birth_year and birth_year.isdigit() else None
-    person.death_year = int(death_year) if death_year and death_year.isdigit() else None
+    by, bm, bd = parse_partial_date(birth_date)
+    person.birth_year, person.birth_month, person.birth_day = by, bm, bd
+    dy, dm, dd = parse_partial_date(death_date)
+    person.death_year, person.death_month, person.death_day = dy, dm, dd
     person.country = ((country or "").strip() or None)
     if person.country:
         person.country = person.country.upper()[:2]
@@ -298,6 +311,7 @@ async def person_mb_modal(
     person_id: int,
     q_name: str | None = None,
     skip_search: int = 0,
+    return_to: str | None = None,
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -327,6 +341,7 @@ async def person_mb_modal(
             "error": error,
             "search_name": search_name,
             "searched": searched,
+            "return_to": return_to or "",
         },
         user=user,
     )
@@ -337,6 +352,7 @@ async def apply_person_mb(
     request: Request,
     person_id: int,
     mbid: str = Form(...),
+    return_to: str | None = Form(None),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -373,7 +389,11 @@ async def apply_person_mb(
     session.commit()
 
     flash(request, f"MusicBrainz-data applicerad på {person.name}", "success")
-    return RedirectResponse(f"/people/{person_id}", status.HTTP_302_FOUND)
+    target = return_to.strip() if return_to else f"/people/{person_id}"
+    # Säkerhet: tillåt bara interna sökvägar
+    if not target.startswith("/"):
+        target = f"/people/{person_id}"
+    return RedirectResponse(target, status.HTTP_302_FOUND)
 
 
 @router.post("/{person_id}/delete", dependencies=[Depends(verify_csrf)])
