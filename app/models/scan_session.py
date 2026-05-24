@@ -31,5 +31,8 @@ class ScanSession(SQLModel, table=True):
         default=None, foreign_key="inventory_sessions.id"
     )
     resulting_piece_id: int | None = Field(default=None, foreign_key="pieces.id")
+    discarded: bool = Field(default=False)
+    discarded_at: datetime | None = None
+    discard_reason: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     completed_at: datetime | None = None

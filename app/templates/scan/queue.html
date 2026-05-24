@@ -2,42 +2,132 @@
 {% block title %}Granskningskö - Notarkiv{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-baseline mb-3">
+<div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
   <h1 class="h3 mb-0">Granskningskö</h1>
-  <div class="text-muted small">{{ items|length }} väntande</div>
+  <div class="d-flex gap-2 align-items-center">
+    <div class="btn-group btn-group-sm">
+      <a href="?view=grid{% if show_discarded %}&show_discarded=1{% endif %}"
+         class="btn btn-outline-secondary {% if view == 'grid' %}active{% endif %}">Kort</a>
+      <a href="?view=list{% if show_discarded %}&show_discarded=1{% endif %}"
+         class="btn btn-outline-secondary {% if view == 'list' %}active{% endif %}">Lista</a>
+    </div>
+    {% if discarded_count %}
+    <a href="?view={{ view }}&show_discarded={% if show_discarded %}0{% else %}1{% endif %}"
+       class="btn btn-sm btn-link">
+      {% if show_discarded %}Dölj avvisade{% else %}Visa avvisade ({{ discarded_count }}){% endif %}
+    </a>
+    {% endif %}
+    <span class="text-muted small">{{ items|length }} st</span>
+  </div>
 </div>
 
 {% if not items %}
 <div class="alert alert-light text-center py-4">
   Inget i kön just nu. Ta en kopp kaffe.
 </div>
+{% elif view == 'list' %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        <th></th>
+        <th>#</th>
+        <th>Skannad</th>
+        <th>Status</th>
+        <th>Placering</th>
+        <th>Felmeddelande</th>
+        <th class="text-end">Åtgärder</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in items %}
+      {% set is_discarded = s.discarded %}
+      <tr class="{% if is_discarded %}text-muted{% endif %}">
+        <td>
+          <img src="/images/thumbnails/{{ s.image_path.split('/')[-1] }}"
+               style="width: 48px; height: 48px; object-fit: cover" class="rounded">
+        </td>
+        <td>#{{ s.id }}</td>
+        <td class="small">{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>
+          {% if is_discarded %}<span class="badge bg-secondary">avvisad</span>
+          {% elif s.status == 'done' %}<span class="badge bg-success">done</span>
+          {% elif s.status == 'failed' %}<span class="badge bg-danger">failed</span>
+          {% else %}<span class="badge bg-info text-dark">{{ s.status }}</span>{% endif %}
+        </td>
+        <td class="small">
+          {% if s.pre_placement_unit_id %}📍 förnoterad{% else %}-{% endif %}
+        </td>
+        <td class="small text-danger">{{ s.error_message or '' }}</td>
+        <td class="text-end">
+          {% if is_discarded %}
+          <button class="btn btn-sm btn-outline-success"
+                  onclick="confirmAction('/scan/{{ s.id }}/restore', 'Återställ skanning #{{ s.id }} till kön?', {submitLabel: 'Återställ', submitClass: 'btn-success'})">
+            Återställ
+          </button>
+          {% else %}
+          {% if s.status == 'done' %}
+          <a href="/scan/{{ s.id }}/review" class="btn btn-sm btn-primary">Granska</a>
+          {% else %}
+          <a href="/scan/{{ s.id }}" class="btn btn-sm btn-outline-secondary">Status</a>
+          {% endif %}
+          <button class="btn btn-sm btn-outline-danger"
+                  onclick="confirmAction('/scan/{{ s.id }}/discard', 'Avvisa skanning #{{ s.id }}? Den döljs men kan återställas.', {submitLabel: 'Avvisa', submitClass: 'btn-warning'})">
+            Avvisa
+          </button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% else %}
 <div class="row g-3">
   {% for s in items %}
   <div class="col-md-6 col-lg-4">
-    <div class="card h-100">
-      <a href="{% if s.status == 'done' %}/scan/{{ s.id }}/review{% else %}/scan/{{ s.id }}{% endif %}" class="text-decoration-none text-reset">
-        <img src="/images/thumbnails/{{ s.image_path.split('/')[-1] }}" class="card-img-top" style="object-fit: cover; max-height: 200px" alt="Skanning #{{ s.id }}">
+    <div class="card h-100 {% if s.discarded %}opacity-50{% endif %}">
+      {% if s.status == 'done' and not s.discarded %}
+      <a href="/scan/{{ s.id }}/review" class="text-decoration-none text-reset">
+      {% else %}
+      <a href="/scan/{{ s.id }}" class="text-decoration-none text-reset">
+      {% endif %}
+        <img src="/images/thumbnails/{{ s.image_path.split('/')[-1] }}"
+             class="card-img-top" style="object-fit: cover; max-height: 200px" alt="Skanning #{{ s.id }}">
       </a>
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-baseline">
           <strong>#{{ s.id }}</strong>
-          <span class="badge bg-{% if s.status == 'done' %}success{% elif s.status == 'failed' %}danger{% else %}secondary{% endif %}">
-            {{ s.status }}
-          </span>
+          {% if s.discarded %}<span class="badge bg-secondary">avvisad</span>
+          {% elif s.status == 'done' %}<span class="badge bg-success">done</span>
+          {% elif s.status == 'failed' %}<span class="badge bg-danger">failed</span>
+          {% else %}<span class="badge bg-info text-dark">{{ s.status }}</span>{% endif %}
         </div>
         <div class="small text-muted">
           {{ s.created_at.strftime('%Y-%m-%d %H:%M') }}
-          {% if s.pre_placement_unit_id %}
-          <div>📍 placering förnoterad</div>
-          {% endif %}
+          {% if s.pre_placement_unit_id %}<div>📍 placering förnoterad</div>{% endif %}
         </div>
         {% if s.error_message %}
         <div class="small text-danger mt-1">{{ s.error_message }}</div>
         {% endif %}
-        <a href="{% if s.status == 'done' %}/scan/{{ s.id }}/review{% else %}/scan/{{ s.id }}{% endif %}" class="btn btn-sm btn-primary mt-2 w-100">
-          {% if s.status == 'done' %}Granska{% else %}Visa status{% endif %}
-        </a>
+        <div class="mt-2 d-flex gap-1">
+          {% if s.discarded %}
+          <button class="btn btn-sm btn-outline-success flex-grow-1"
+                  onclick="confirmAction('/scan/{{ s.id }}/restore', 'Återställ skanning #{{ s.id }} till kön?', {submitLabel: 'Återställ', submitClass: 'btn-success'})">
+            Återställ
+          </button>
+          {% else %}
+          {% if s.status == 'done' %}
+          <a href="/scan/{{ s.id }}/review" class="btn btn-sm btn-primary flex-grow-1">Granska</a>
+          {% else %}
+          <a href="/scan/{{ s.id }}" class="btn btn-sm btn-outline-secondary flex-grow-1">Visa</a>
+          {% endif %}
+          <button class="btn btn-sm btn-outline-danger" title="Avvisa"
+                  onclick="confirmAction('/scan/{{ s.id }}/discard', 'Avvisa skanning #{{ s.id }}? Den döljs men kan återställas.', {submitLabel: 'Avvisa', submitClass: 'btn-warning'})">
+            ×
+          </button>
+          {% endif %}
+        </div>
       </div>
     </div>
   </div>

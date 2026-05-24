@@ -2,18 +2,27 @@
 {% block title %}Noter - Notarkiv{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h1 class="h3 mb-0">Noter</h1>
-  {% if user.can_edit %}
-  <a href="/scan" class="btn btn-primary btn-sm">Skanna ny</a>
-  {% endif %}
+  <div class="d-flex gap-2 align-items-center">
+    <div class="btn-group btn-group-sm">
+      <a href="?view=grid{% if q %}&q={{ q }}{% endif %}"
+         class="btn btn-outline-secondary {% if view == 'grid' %}active{% endif %}">Kort</a>
+      <a href="?view=list{% if q %}&q={{ q }}{% endif %}"
+         class="btn btn-outline-secondary {% if view == 'list' %}active{% endif %}">Lista</a>
+    </div>
+    {% if user.can_edit %}
+    <a href="/scan" class="btn btn-primary btn-sm">Skanna ny</a>
+    {% endif %}
+  </div>
 </div>
 
 <form method="get" action="/pieces" class="mb-3">
+  <input type="hidden" name="view" value="{{ view }}">
   <div class="input-group">
     <input type="search" name="q" class="form-control" placeholder="Sök titel, kompositör, anteckningar..." value="{{ q }}">
     <button class="btn btn-outline-secondary" type="submit">Sök</button>
-    {% if q %}<a href="/pieces" class="btn btn-outline-secondary">Rensa</a>{% endif %}
+    {% if q %}<a href="/pieces?view={{ view }}" class="btn btn-outline-secondary">Rensa</a>{% endif %}
   </div>
 </form>
 
@@ -21,6 +30,49 @@
 <p class="text-muted fst-italic">
   {% if q %}Inga träffar för "{{ q }}".{% else %}Inga noter registrerade än.{% endif %}
 </p>
+{% elif view == 'list' %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Titel</th>
+        <th>Kompositör / arrangör</th>
+        <th>Besättning</th>
+        <th>Språk</th>
+        <th>Förlag</th>
+        <th class="text-end">Placeringar</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pieces %}
+      <tr style="cursor: pointer" onclick="window.location='/pieces/{{ p.id }}'">
+        <td>
+          {% set t = cover_thumb(p.id) %}
+          {% if t %}
+          <img src="{{ t }}" style="width: 40px; height: 40px; object-fit: cover" class="rounded">
+          {% else %}
+          <div class="bg-light rounded text-muted small d-flex align-items-center justify-content-center"
+               style="width: 40px; height: 40px">-</div>
+          {% endif %}
+        </td>
+        <td>
+          <strong>{{ p.title }}</strong>
+          {% if p.original_title %}<div class="text-muted small">{{ p.original_title }}</div>{% endif %}
+        </td>
+        <td class="small">{{ p.contributors_cache or '' }}</td>
+        <td class="small">{% if p.voicing %}<span class="badge bg-secondary">{{ p.voicing }}</span>{% endif %}</td>
+        <td class="small">{{ p.language or '' }}</td>
+        <td class="small">{{ p.publisher or '' }}{% if p.edition_number %} <span class="text-muted">/ {{ p.edition_number }}</span>{% endif %}</td>
+        <td class="text-end small">
+          {% set c = placement_counts.get(p.id, 0) %}
+          {% if c %}<span class="badge bg-light text-muted">{{ c }} st</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% else %}
 <div class="row g-3">
   {% for p in pieces %}

@@ -13,6 +13,7 @@ from app.services.duplicates import find_duplicates
 from app.services.inventory import append_log, get_active_session
 from app.services.people import parse_names_field, replace_contributors
 from app.models import (
+    InventorySession,
     Piece,
     PieceImage,
     PiecePlacement,
@@ -164,20 +165,89 @@ async def quick_scan_upload(
 @router.get("/queue")
 async def scan_queue(
     request: Request,
+    view: str = "grid",
+    show_discarded: bool = False,
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
-    pending = session.exec(
-        select(ScanSession)
+    stmt = select(ScanSession).where(ScanSession.resulting_piece_id.is_(None))
+    if not show_discarded:
+        stmt = stmt.where(ScanSession.discarded == False)  # noqa: E712
+    pending = session.exec(stmt.order_by(ScanSession.created_at)).all()
+    discarded_count = session.exec(
+        select(func.count(ScanSession.id))
         .where(ScanSession.resulting_piece_id.is_(None))
-        .order_by(ScanSession.created_at)
-    ).all()
-    return render(request, "scan/queue.html", {"items": pending}, user=user)
+        .where(ScanSession.discarded == True)  # noqa: E712
+    ).one()
+    return render(
+        request,
+        "scan/queue.html",
+        {
+            "items": pending,
+            "view": "list" if view == "list" else "grid",
+            "show_discarded": show_discarded,
+            "discarded_count": discarded_count,
+        },
+        user=user,
+    )
+
+
+@router.post("/{scan_id}/discard", dependencies=[Depends(verify_csrf)])
+async def discard_scan(
+    request: Request,
+    scan_id: int,
+    reason: str | None = Form(None),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    scan = session.get(ScanSession, scan_id)
+    if not scan:
+        raise HTTPException(404)
+    if scan.resulting_piece_id:
+        flash(request, "Skanningen är redan sparad som not", "info")
+        return RedirectResponse("/scan/queue", status.HTTP_302_FOUND)
+
+    scan.discarded = True
+    scan.discarded_at = datetime.utcnow()
+    scan.discard_reason = (reason or "").strip() or None
+    session.add(scan)
+
+    # Logga i ev. aktiv inventeringssession
+    if scan.inventory_session_id:
+        inv = session.get(InventorySession, scan.inventory_session_id)
+        if inv and not inv.ended_at:
+            append_log(inv, f"Skanning #{scan.id} avvisad", user.username)
+            session.add(inv)
+
+    session.commit()
+    flash(request, f"Skanning #{scan.id} avvisad", "info")
+    return RedirectResponse("/scan/queue", status.HTTP_302_FOUND)
+
+
+@router.post("/{scan_id}/restore", dependencies=[Depends(verify_csrf)])
+async def restore_scan(
+    request: Request,
+    scan_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    scan = session.get(ScanSession, scan_id)
+    if not scan:
+        raise HTTPException(404)
+    scan.discarded = False
+    scan.discarded_at = None
+    scan.discard_reason = None
+    session.add(scan)
+    session.commit()
+    flash(request, f"Skanning #{scan.id} återställd", "success")
+    return RedirectResponse("/scan/queue?show_discarded=1", status.HTTP_302_FOUND)
 
 
 def _count_pending(session: Session) -> int:
     return session.exec(
-        select(func.count(ScanSession.id)).where(ScanSession.resulting_piece_id.is_(None))
+        select(func.count(ScanSession.id))
+        .where(ScanSession.resulting_piece_id.is_(None))
+        .where(ScanSession.discarded == False)  # noqa: E712
     ).one()
 
 

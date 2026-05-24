@@ -56,9 +56,9 @@ def _pending_review_count() -> int:
     try:
         with Session(engine) as session:
             return session.exec(
-                select(sqlf.count(ScanSession.id)).where(
-                    ScanSession.resulting_piece_id.is_(None)
-                )
+                select(sqlf.count(ScanSession.id))
+                .where(ScanSession.resulting_piece_id.is_(None))
+                .where(ScanSession.discarded == False)  # noqa: E712
             ).one()
     except Exception:
         return 0

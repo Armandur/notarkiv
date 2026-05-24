@@ -46,6 +46,7 @@ def _covers_by_piece(session: Session, piece_ids: list[int]) -> dict[int, PieceI
 async def list_pieces(
     request: Request,
     q: str | None = None,
+    view: str = "grid",
     user: User = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -70,6 +71,18 @@ async def list_pieces(
 
     covers = _covers_by_piece(session, [p.id for p in pieces])
 
+    # Räkna placeringar per piece för list-vyn
+    from sqlalchemy import func as sqlf
+
+    placement_counts: dict[int, int] = {}
+    if pieces:
+        rows = session.exec(
+            select(PiecePlacement.piece_id, sqlf.count(PiecePlacement.id))
+            .where(PiecePlacement.piece_id.in_([p.id for p in pieces]))
+            .group_by(PiecePlacement.piece_id)
+        ).all()
+        placement_counts = dict(rows)
+
     def cover_thumb(piece_id: int) -> str | None:
         cover = covers.get(piece_id)
         return thumbnail_url_path(cover.image_path) if cover else None
@@ -77,7 +90,13 @@ async def list_pieces(
     return render(
         request,
         "pieces/list.html",
-        {"pieces": pieces, "q": q or "", "cover_thumb": cover_thumb},
+        {
+            "pieces": pieces,
+            "q": q or "",
+            "view": "list" if view == "list" else "grid",
+            "cover_thumb": cover_thumb,
+            "placement_counts": placement_counts,
+        },
         user=user,
     )
 
