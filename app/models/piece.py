@@ -51,7 +51,6 @@ class Piece(SQLModel, table=True):
     difficulty: int | None = None
     duration_seconds: int | None = None
     copyright_status: CopyrightStatus | None = Field(default=None, sa_type=String)
-    cover_image_path: str | None = None
     musicbrainz_work_id: str | None = None
     notes: str | None = None
 

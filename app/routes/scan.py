@@ -10,7 +10,17 @@ from sqlalchemy import func
 from app.deps import get_session, require_editor, verify_csrf
 from app.services.app_settings import get_ocr_provider
 from app.services.inventory import append_log, get_active_session
-from app.models import Piece, PiecePlacement, ScanSession, StorageLocation, StorageUnit, UnitKind, User
+from app.models import (
+    Piece,
+    PieceImage,
+    PiecePlacement,
+    ScanSession,
+    StorageLocation,
+    StorageUnit,
+    UnitKind,
+    User,
+)
+from app.models.piece_image import PieceImageKind
 from app.models.scan_session import ScanStatus
 from app.tasks import get_pool
 from app.templates_setup import flash, render
@@ -291,13 +301,22 @@ async def save_piece(
         edition_number=edition_number or None,
         psalm_number=int(psalm_number) if psalm_number and psalm_number.isdigit() else None,
         notes=notes or None,
-        cover_image_path=scan.image_path,
         musicbrainz_work_id=musicbrainz_work_id or None,
         created_by=user.id,
         updated_at=datetime.utcnow(),
     )
     session.add(piece)
     session.flush()
+
+    # Skapa primärbilden från skanningsomslaget
+    session.add(
+        PieceImage(
+            piece_id=piece.id,
+            image_path=scan.image_path,
+            kind=PieceImageKind.COVER,
+            sort_order=0,
+        )
+    )
 
     if placement_unit_id and placement_unit_id.isdigit():
         unit = session.get(StorageUnit, int(placement_unit_id))

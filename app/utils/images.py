@@ -60,3 +60,33 @@ def thumbnail_url_path(relative_path: str | None) -> str | None:
         return None
     filename = Path(relative_path).name
     return f"/images/thumbnails/{filename}"
+
+
+def rotate_saved_image(relative_path: str, angle: int) -> None:
+    """Rotera en sparad bild med 90/180/270 grader och uppdatera thumbnail.
+
+    angle: 90 = medurs, -90/270 = moturs, 180 = upp och ner. Andra värden tillåts
+    men ger oväntade resultat.
+    """
+    full_path = settings.images_path / relative_path
+    img = Image.open(full_path)
+    img = ImageOps.exif_transpose(img)
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+
+    rotated = img.rotate(-angle, expand=True)  # PIL roterar moturs som positivt
+    rotated.save(full_path, "JPEG", quality=90, optimize=True)
+    _save_thumbnail(rotated, Path(relative_path).name)
+
+
+def delete_saved_image(relative_path: str) -> None:
+    """Radera bild och tillhörande thumbnail från filsystemet."""
+    if not relative_path:
+        return
+    full_path = settings.images_path / relative_path
+    thumb_path = settings.thumbnails_dir / Path(relative_path).name
+    for path in (full_path, thumb_path):
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass

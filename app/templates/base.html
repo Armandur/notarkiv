@@ -109,7 +109,13 @@
     <div class="modal-content bg-transparent border-0">
       <div class="modal-body p-0 text-center position-relative">
         <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-2"
-                data-bs-dismiss="modal" aria-label="Stäng" style="z-index: 1"></button>
+                data-bs-dismiss="modal" aria-label="Stäng" style="z-index: 2"></button>
+        <button type="button" id="lightboxPrev"
+                class="btn btn-dark position-absolute top-50 start-0 translate-middle-y ms-2"
+                style="z-index: 2; opacity: 0.7">‹</button>
+        <button type="button" id="lightboxNext"
+                class="btn btn-dark position-absolute top-50 end-0 translate-middle-y me-2"
+                style="z-index: 2; opacity: 0.7">›</button>
         <img id="lightboxImage" src="" class="img-fluid rounded shadow" style="max-height: 90vh" alt="">
       </div>
     </div>
@@ -129,20 +135,65 @@ window.confirmAction = function(url, message, opts) {
   bootstrap.Modal.getOrCreateInstance(document.getElementById('confirmModal')).show();
 };
 
-window.openLightbox = function(src, alt) {
+// Lightbox med valfri grupp-navigering. Om bilden har data-lightbox-group
+// söker vi alla andra bilder med samma grupp och låter pilarna växla mellan dem.
+var _lightboxGroup = [];
+var _lightboxIndex = 0;
+
+function _renderLightbox() {
+  var current = _lightboxGroup[_lightboxIndex];
+  if (!current) return;
   var img = document.getElementById('lightboxImage');
-  img.src = src;
-  img.alt = alt || '';
+  img.src = current.src;
+  img.alt = current.alt || '';
+  var multi = _lightboxGroup.length > 1;
+  document.getElementById('lightboxPrev').style.display = multi ? 'block' : 'none';
+  document.getElementById('lightboxNext').style.display = multi ? 'block' : 'none';
+}
+
+window.openLightbox = function(src, alt) {
+  _lightboxGroup = [{src: src, alt: alt}];
+  _lightboxIndex = 0;
+  _renderLightbox();
   bootstrap.Modal.getOrCreateInstance(document.getElementById('lightboxModal')).show();
 };
 
-// Aktivera automatiskt på alla img.lightbox-image
 document.addEventListener('click', function(evt) {
   var el = evt.target.closest && evt.target.closest('img.lightbox-image');
-  if (el) {
-    evt.preventDefault();
-    window.openLightbox(el.src, el.alt);
+  if (!el) return;
+  evt.preventDefault();
+
+  var group = el.getAttribute('data-lightbox-group');
+  if (group) {
+    var members = Array.from(document.querySelectorAll('img.lightbox-image[data-lightbox-group="' + group + '"]'));
+    _lightboxGroup = members.map(function(m) {
+      return {
+        src: m.getAttribute('data-full-src') || m.src,
+        alt: m.alt
+      };
+    });
+    var fullSrc = el.getAttribute('data-full-src') || el.src;
+    _lightboxIndex = Math.max(0, _lightboxGroup.findIndex(function(g) { return g.src === fullSrc; }));
+  } else {
+    _lightboxGroup = [{src: el.src, alt: el.alt}];
+    _lightboxIndex = 0;
   }
+  _renderLightbox();
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('lightboxModal')).show();
+});
+
+document.getElementById('lightboxPrev').addEventListener('click', function() {
+  _lightboxIndex = (_lightboxIndex - 1 + _lightboxGroup.length) % _lightboxGroup.length;
+  _renderLightbox();
+});
+document.getElementById('lightboxNext').addEventListener('click', function() {
+  _lightboxIndex = (_lightboxIndex + 1) % _lightboxGroup.length;
+  _renderLightbox();
+});
+document.addEventListener('keydown', function(evt) {
+  if (!document.getElementById('lightboxModal').classList.contains('show')) return;
+  if (evt.key === 'ArrowLeft') document.getElementById('lightboxPrev').click();
+  if (evt.key === 'ArrowRight') document.getElementById('lightboxNext').click();
 });
 </script>
 </body>

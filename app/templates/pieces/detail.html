@@ -3,15 +3,79 @@
 
 {% block content %}
 <div class="row g-4">
-  <div class="col-md-4">
-    {% if cover_url %}
-    <img src="{{ cover_url }}" class="img-fluid rounded shadow-sm lightbox-image" alt="{{ piece.title }}">
+  <div class="col-md-5">
+    {% set primary = images[0] if images else None %}
+    {% if primary %}
+    <div class="mb-2">
+      <img src="/images/{{ primary.image_path }}"
+           class="img-fluid rounded shadow-sm lightbox-image w-100"
+           data-lightbox-group="piece-{{ piece.id }}"
+           alt="{{ piece.title }}">
+    </div>
     {% else %}
-    <div class="bg-light rounded p-5 text-center text-muted">Ingen omslagsbild</div>
+    <div class="bg-light rounded p-5 text-center text-muted mb-2">Ingen omslagsbild</div>
+    {% endif %}
+
+    {% if images|length > 1 %}
+    <div class="d-flex gap-1 flex-wrap mb-2">
+      {% for img in images[1:] %}
+      <img src="/images/thumbnails/{{ img.image_path.split('/')[-1] }}"
+           class="rounded lightbox-image"
+           data-lightbox-group="piece-{{ piece.id }}"
+           data-full-src="/images/{{ img.image_path }}"
+           style="width: 80px; height: 80px; object-fit: cover"
+           alt="{{ img.label or img.kind }}"
+           title="{{ img.label or img.kind }}">
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if user.can_edit %}
+    <div class="card mt-2">
+      <div class="card-header py-2">
+        <small class="fw-bold">Bilder</small>
+      </div>
+      <div class="list-group list-group-flush">
+        {% for img in images %}
+        <div class="list-group-item d-flex align-items-center gap-2 py-2">
+          <img src="/images/thumbnails/{{ img.image_path.split('/')[-1] }}"
+               style="width: 40px; height: 40px; object-fit: cover" class="rounded">
+          <div class="flex-grow-1 small">
+            <span class="badge bg-light text-muted">{{ img.kind }}</span>
+            {% if img.label %}<span class="ms-1">{{ img.label }}</span>{% endif %}
+            {% if loop.index == 1 %}<span class="badge bg-primary ms-1">primär</span>{% endif %}
+          </div>
+          <div class="btn-group btn-group-sm">
+            <form method="post" action="/pieces/{{ piece.id }}/images/{{ img.id }}/rotate" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="angle" value="-90">
+              <button class="btn btn-outline-secondary" title="Rotera moturs">⟲</button>
+            </form>
+            <form method="post" action="/pieces/{{ piece.id }}/images/{{ img.id }}/rotate" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="angle" value="90">
+              <button class="btn btn-outline-secondary" title="Rotera medurs">⟳</button>
+            </form>
+            {% if loop.index != 1 %}
+            <button class="btn btn-outline-primary" title="Gör till primär"
+                    onclick="confirmAction('/pieces/{{ piece.id }}/images/{{ img.id }}/promote', 'Gör denna bild till primärbild?', {submitLabel: 'Gör primär', submitClass: 'btn-primary'})">★</button>
+            <button class="btn btn-outline-danger" title="Ta bort"
+                    onclick="confirmAction('/pieces/{{ piece.id }}/images/{{ img.id }}/delete', 'Radera denna bild?')">×</button>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="card-body py-2">
+        <button class="btn btn-sm btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#addImageModal">
+          + Lägg till bild
+        </button>
+      </div>
+    </div>
     {% endif %}
   </div>
 
-  <div class="col-md-8">
+  <div class="col-md-7">
     <h1 class="h3">{{ piece.title }}</h1>
     {% if piece.original_title %}<div class="text-muted">{{ piece.original_title }}</div>{% endif %}
 
@@ -57,4 +121,41 @@
     {% endif %}
   </div>
 </div>
+
+{% if user.can_edit %}
+<div class="modal fade" id="addImageModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="/pieces/{{ piece.id }}/images" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Lägg till bild</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Bild</label>
+          <input type="file" name="image" accept="image/*" capture="environment" class="form-control" required>
+          <div class="form-text">Kameran öppnas på mobil.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Typ</label>
+          <select name="kind" class="form-select">
+            {% for k in image_kinds %}
+            <option value="{{ k }}" {% if k == "back" %}selected{% endif %}>{{ k }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Etikett (valfri)</label>
+          <input type="text" name="label" class="form-control" placeholder="t.ex. 'Försättsblad', 'Sista sidan'">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+        <button type="submit" class="btn btn-primary">Lägg till</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

@@ -29,7 +29,7 @@
       <div class="card h-100">
         <div class="row g-0">
           <div class="col-4">
-            {% set t = thumb(p.cover_image_path) %}
+            {% set t = cover_thumb(p.id) %}
             {% if t %}
             <img src="{{ t }}" class="rounded-start h-100 w-100" style="object-fit: cover" alt="{{ p.title }}">
             {% else %}
