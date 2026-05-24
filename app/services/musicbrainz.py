@@ -66,6 +66,24 @@ class MusicBrainzClient:
         _search_cache_set(cache_key, works)
         return works
 
+    async def search_artist(self, name: str) -> list[dict]:
+        """Sök artister efter namn."""
+        await self._wait_for_rate_limit()
+        try:
+            resp = await self._client.get(
+                "/artist",
+                params={
+                    "query": f'artist:"{_escape(name)}"',
+                    "fmt": "json",
+                    "limit": 8,
+                },
+            )
+            resp.raise_for_status()
+            return resp.json().get("artists", [])
+        except httpx.HTTPError as exc:
+            logger.warning("MB search_artist misslyckades: {}", exc)
+            return []
+
     async def get_work_with_rels(self, mbid: str) -> dict | None:
         """Hämta ett verk med artist-relationer (composer, lyricist osv)."""
         await self._wait_for_rate_limit()

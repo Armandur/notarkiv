@@ -2,7 +2,7 @@
 {% block title %}{{ person.sort_name }} - Notarkiv{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-baseline mb-3">
+<div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
   <div>
     <h1 class="h3 mb-0">{{ person.name }}</h1>
     <div class="text-muted">
@@ -13,7 +13,7 @@
     </div>
   </div>
   {% if user.can_edit %}
-  <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editPersonModal">Redigera</button>
+  <a href="/people/{{ person.id }}/edit" class="btn btn-sm btn-outline-secondary">Redigera</a>
   {% endif %}
 </div>
 
@@ -28,7 +28,7 @@
     <p class="text-muted fst-italic">Inga noter länkade.</p>
     {% else %}
     {% for role, pieces in pieces_by_role.items() %}
-    <h3 class="h6 text-muted mt-3">Som {{ role.value }}</h3>
+    <h3 class="h6 text-muted mt-3">Som {{ role }}</h3>
     <ul class="list-group">
       {% for piece in pieces %}
       <li class="list-group-item">
@@ -54,67 +54,10 @@
         </a>
         {% endif %}
         {% if not person.wikipedia_url and not person.musicbrainz_artist_id %}
-        <span class="text-muted small fst-italic">Inga länkar än</span>
+        <span class="text-muted small fst-italic">Inga länkar än. Sätt via "Redigera".</span>
         {% endif %}
       </div>
     </div>
   </div>
 </div>
-
-{% if user.can_edit %}
-<div class="modal fade" id="editPersonModal" tabindex="-1">
-  <div class="modal-dialog">
-    <form class="modal-content" method="post" action="/people/{{ person.id }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <div class="modal-header">
-        <h2 class="modal-title h5">Redigera {{ person.name }}</h2>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Namn (visas)</label>
-          <input type="text" name="name" class="form-control" required value="{{ person.name }}">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Sorteringsnamn</label>
-          <input type="text" name="sort_name" class="form-control" value="{{ person.sort_name }}">
-          <div class="form-text">T.ex. "Mendelssohn, Felix" - lämna tomt för auto.</div>
-        </div>
-        <div class="row g-2 mb-3">
-          <div class="col-6">
-            <label class="form-label">Födelseår</label>
-            <input type="text" name="birth_year" class="form-control" inputmode="numeric" value="{{ person.birth_year or '' }}">
-          </div>
-          <div class="col-6">
-            <label class="form-label">Dödsår</label>
-            <input type="text" name="death_year" class="form-control" inputmode="numeric" value="{{ person.death_year or '' }}">
-          </div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Biografi</label>
-          <textarea name="biography" class="form-control" rows="4">{{ person.biography or '' }}</textarea>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Wikipedia-URL</label>
-          <input type="url" name="wikipedia_url" class="form-control" value="{{ person.wikipedia_url or '' }}">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">MusicBrainz artist-MBID</label>
-          <input type="text" name="musicbrainz_artist_id" class="form-control" value="{{ person.musicbrainz_artist_id or '' }}">
-        </div>
-      </div>
-      <div class="modal-footer">
-        {% if user.is_admin %}
-        <button type="button" class="btn btn-outline-danger me-auto"
-                onclick="confirmAction('/people/{{ person.id }}/delete', 'Radera {{ person.name|e }} permanent? Endast tillåtet om personen inte är kopplad till några noter.')">
-          Radera
-        </button>
-        {% endif %}
-        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
-        <button type="submit" class="btn btn-primary">Spara</button>
-      </div>
-    </form>
-  </div>
-</div>
-{% endif %}
 {% endblock %}

@@ -1,0 +1,69 @@
+<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)" id="mb-modal">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5">MusicBrainz-sökning för {{ person.name }}</h2>
+        <button type="button" class="btn-close"
+                onclick="document.getElementById('mb-modal-target').innerHTML=''"></button>
+      </div>
+      <div class="modal-body">
+        <form hx-get="/people/{{ person.id }}/musicbrainz"
+              hx-target="#mb-modal-target"
+              hx-swap="innerHTML"
+              class="row g-2 align-items-end mb-3">
+          <div class="col-md-9">
+            <label class="form-label small mb-1">Sök namn</label>
+            <input type="text" name="q_name" class="form-control form-control-sm" value="{{ search_name }}">
+          </div>
+          <div class="col-md-3">
+            <button type="submit" class="btn btn-sm btn-primary w-100">Sök</button>
+          </div>
+        </form>
+
+        <div class="form-text mb-2">
+          Tips: prova en annan stavning eller efternamn först om det första försöket inte hittar.
+        </div>
+
+        {% if error %}
+        <div class="alert alert-danger">MusicBrainz-anrop misslyckades: {{ error }}</div>
+        {% elif searched and not results %}
+        <p class="text-muted fst-italic">Inga matchningar - prova en annan stavning.</p>
+        {% elif results %}
+        <div class="list-group">
+          {% for a in results %}
+          <div class="list-group-item d-flex justify-content-between align-items-baseline">
+            <div>
+              <strong>{{ a.name }}</strong>
+              {% if a['sort-name'] and a['sort-name'] != a.name %}
+              <span class="text-muted">({{ a['sort-name'] }})</span>
+              {% endif %}
+              {% set ls = a.get('life-span', {}) %}
+              {% if ls.get('begin') or ls.get('end') %}
+              <div class="small text-muted">
+                {{ ls.get('begin', '?') }}{% if ls.get('end') %} - {{ ls.get('end') }}{% endif %}
+                {% if a.get('country') %} · {{ a['country'] }}{% endif %}
+                {% if a.get('type') %} · {{ a['type'] }}{% endif %}
+              </div>
+              {% endif %}
+              {% if a.disambiguation %}<div class="small text-muted fst-italic">{{ a.disambiguation }}</div>{% endif %}
+              <div class="small">
+                <a href="https://musicbrainz.org/artist/{{ a.id }}" target="_blank">{{ a.id }}</a>
+              </div>
+            </div>
+            <form method="post" action="/people/{{ person.id }}/apply-musicbrainz">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="mbid" value="{{ a.id }}">
+              <button type="submit" class="btn btn-sm btn-primary">Använd</button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link"
+                onclick="document.getElementById('mb-modal-target').innerHTML=''">Stäng</button>
+      </div>
+    </div>
+  </div>
+</div>

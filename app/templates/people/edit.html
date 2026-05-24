@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Redigera {{ person.name }} - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3">
+  <h1 class="h3 mb-0">Redigera person</h1>
+  <a href="/people/{{ person.id }}" class="small">← Tillbaka</a>
+</div>
+
+<form method="post" action="/people/{{ person.id }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+  <div class="card">
+    <div class="card-header"><h2 class="h6 mb-0">Metadata</h2></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Namn (visas) *</label>
+          <input type="text" name="name" class="form-control" required value="{{ person.name }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Sorteringsnamn</label>
+          <input type="text" name="sort_name" class="form-control" value="{{ person.sort_name }}">
+          <div class="form-text">T.ex. "Mendelssohn, Felix" - lämna tomt för auto.</div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Födelseår</label>
+          <input type="text" name="birth_year" class="form-control" inputmode="numeric" value="{{ person.birth_year or '' }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Dödsår</label>
+          <input type="text" name="death_year" class="form-control" inputmode="numeric" value="{{ person.death_year or '' }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">MusicBrainz artist-MBID</label>
+          <div class="input-group">
+            <input type="text" name="musicbrainz_artist_id" id="mbid-input" class="form-control" value="{{ person.musicbrainz_artist_id or '' }}">
+            <button type="button" class="btn btn-outline-secondary"
+                    hx-get="/people/{{ person.id }}/musicbrainz?skip_search=1"
+                    hx-target="#mb-modal-target"
+                    hx-swap="innerHTML">
+              Sök i MusicBrainz
+            </button>
+          </div>
+        </div>
+        <div class="col-md-12">
+          <label class="form-label">Wikipedia-URL</label>
+          <input type="url" name="wikipedia_url" class="form-control" value="{{ person.wikipedia_url or '' }}">
+        </div>
+        <div class="col-12">
+          <label class="form-label">Biografi</label>
+          <textarea name="biography" class="form-control" rows="5">{{ person.biography or '' }}</textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-4 d-flex gap-2">
+    <button type="submit" class="btn btn-primary">Spara</button>
+    <a href="/people/{{ person.id }}" class="btn btn-link">Avbryt</a>
+    {% if user.is_admin %}
+    <button type="button" class="btn btn-outline-danger ms-auto"
+            onclick="confirmAction('/people/{{ person.id }}/delete', 'Radera {{ person.name|e }}? Endast tillåtet om personen inte är kopplad till några noter.')">
+      Radera
+    </button>
+    {% endif %}
+  </div>
+</form>
+
+<div id="mb-modal-target"></div>
+{% endblock %}
