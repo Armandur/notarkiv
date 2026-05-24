@@ -1,0 +1,73 @@
+{% if not tree %}
+<div class="text-muted fst-italic">Inga lagringsplatser ännu. Skapa den första via knappen ovan.</div>
+{% endif %}
+
+{% macro render_unit(node, location, depth) %}
+<div class="storage-unit ps-3 border-start">
+  <div class="d-flex align-items-center justify-content-between py-1">
+    <div>
+      <span class="me-2">{% if location.kind.value == "digital" %}☁{% else %}■{% endif %}</span>
+      <strong>{{ node.unit.name }}</strong>
+      {% if node.unit.kind %}<span class="badge bg-light text-muted">{{ node.unit.kind }}</span>{% endif %}
+      {% if node.unit.url %}<a href="{{ node.unit.url }}" target="_blank" class="ms-2 small">öppna</a>{% endif %}
+      {% if node.unit.notes %}<span class="text-muted small ms-2">{{ node.unit.notes }}</span>{% endif %}
+    </div>
+    <div class="btn-group btn-group-sm">
+      <button class="btn btn-outline-secondary"
+              hx-get="/storage/units/new-form?location_id={{ location.id }}&parent_id={{ node.unit.id }}"
+              hx-target="#modal-target"
+              hx-swap="innerHTML">
+        + under
+      </button>
+      <form method="post" action="/storage/units/{{ node.unit.id }}/delete" class="d-inline"
+            onsubmit="return confirm('Ta bort {{ node.unit.name }}?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-outline-danger">×</button>
+      </form>
+    </div>
+  </div>
+  {% for child in node.children %}
+    {{ render_unit(child, location, depth + 1) }}
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{% for branch in tree %}
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <div>
+      <strong>{{ branch.location.name }}</strong>
+      <span class="badge bg-{% if branch.location.kind.value == 'digital' %}info{% else %}secondary{% endif %}">
+        {{ "Digital" if branch.location.kind.value == "digital" else "Fysisk" }}
+      </span>
+      {% if branch.location.description %}
+      <div class="text-muted small">{{ branch.location.description }}</div>
+      {% endif %}
+    </div>
+    <div class="btn-group btn-group-sm">
+      <button class="btn btn-outline-primary"
+              hx-get="/storage/units/new-form?location_id={{ branch.location.id }}"
+              hx-target="#modal-target"
+              hx-swap="innerHTML">
+        + Ny enhet
+      </button>
+      {% if user.is_admin %}
+      <form method="post" action="/storage/locations/{{ branch.location.id }}/delete" class="d-inline"
+            onsubmit="return confirm('Ta bort {{ branch.location.name }}?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-outline-danger">×</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  <div class="card-body">
+    {% if branch.units %}
+      {% for node in branch.units %}
+        {{ render_unit(node, branch.location, 0) }}
+      {% endfor %}
+    {% else %}
+      <div class="text-muted fst-italic small">Inga enheter ännu.</div>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}

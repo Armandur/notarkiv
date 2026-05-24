@@ -1,0 +1,63 @@
+<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="/storage/units">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="location_id" value="{{ location.id }}">
+      {% if parent %}<input type="hidden" name="parent_id" value="{{ parent.id }}">{% endif %}
+
+      <div class="modal-header">
+        <h2 class="modal-title h5">
+          Ny enhet under
+          {% if parent %}<em>{{ parent.name }}</em>{% else %}<em>{{ location.name }}</em>{% endif %}
+        </h2>
+        <button type="button" class="btn-close"
+                onclick="document.getElementById('modal-target').innerHTML=''"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Namn</label>
+          <input type="text" name="name" class="form-control" required autofocus>
+          <div class="form-text">T.ex. "Hylla A", "Pärm 3", "SharePoint &gt; Advent"</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Typ (valfritt)</label>
+          <input type="text" name="kind" class="form-control" list="kind-options" placeholder="hylla, parm, lada, mapp, ...">
+          <datalist id="kind-options">
+            {% if location.kind.value == "physical" %}
+            <option value="hylla">
+            <option value="parm">
+            <option value="lada">
+            <option value="skap">
+            <option value="mapp">
+            {% else %}
+            <option value="sharepoint_mapp">
+            <option value="teams_kanal">
+            <option value="onedrive_mapp">
+            <option value="dropbox_mapp">
+            {% endif %}
+          </datalist>
+        </div>
+
+        {% if location.kind.value == "digital" %}
+        <div class="mb-3">
+          <label class="form-label">URL (valfritt)</label>
+          <input type="url" name="url" class="form-control" placeholder="https://...">
+        </div>
+        {% endif %}
+
+        <div class="mb-3">
+          <label class="form-label">Anteckningar (valfritt)</label>
+          <textarea name="notes" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link"
+                onclick="document.getElementById('modal-target').innerHTML=''">Avbryt</button>
+        <button type="submit" class="btn btn-primary">Skapa</button>
+      </div>
+    </form>
+  </div>
+</div>

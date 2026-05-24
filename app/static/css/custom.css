@@ -1,0 +1,19 @@
+/* Notarkiv custom styles - kompletterar Bootstrap */
+
+.storage-unit {
+  margin-left: 0.5rem;
+}
+
+.storage-unit:hover > div:first-child {
+  background: #f8f9fa;
+}
+
+.htmx-indicator {
+  display: none;
+}
+.htmx-request .htmx-indicator {
+  display: inline-block;
+}
+.htmx-request.htmx-indicator {
+  display: inline-block;
+}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Lagringsplatser - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Lagringsplatser</h1>
+  {% if user.is_admin %}
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newLocationModal">
+    Ny lagringsplats
+  </button>
+  {% endif %}
+</div>
+
+<p class="text-muted">
+  En lagringsplats är ett rum eller system (t.ex. <em>Notarkivet</em>, <em>SharePoint</em>).
+  Inom varje plats kan du nästla hyllor, pärmar, mappar etc. så djupt du vill.
+</p>
+
+<div id="storage-tree">
+  {% include "storage/_tree.html" %}
+</div>
+
+{% if user.is_admin %}
+<div class="modal fade" id="newLocationModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="/storage/locations">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Ny lagringsplats</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Namn</label>
+          <input type="text" name="name" class="form-control" required>
+          <div class="form-text">T.ex. "Notarkivet", "SharePoint", "Sakristian"</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Typ</label>
+          <select name="kind" class="form-select">
+            <option value="physical">Fysisk</option>
+            <option value="digital">Digital</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Beskrivning (valfritt)</label>
+          <textarea name="description" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+        <button type="submit" class="btn btn-primary">Skapa</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div id="modal-target"></div>
+{% endblock %}

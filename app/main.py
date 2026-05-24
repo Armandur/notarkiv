@@ -1,7 +1,6 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from starlette.middleware.sessions import SessionMiddleware
@@ -9,6 +8,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 from app.db import init_db
 from app.logging_setup import setup_logging
+from app.middleware import EnsureCSRFTokenMiddleware
+from app.routes import auth as auth_routes
+from app.routes import pages as pages_routes
+from app.routes import storage as storage_routes
 
 
 @asynccontextmanager
@@ -26,6 +29,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(EnsureCSRFTokenMiddleware)
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.session_secret,
@@ -35,22 +39,11 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+app.include_router(pages_routes.router)
+app.include_router(auth_routes.router)
+app.include_router(storage_routes.router)
+
 
 @app.get("/healthz")
 async def healthz() -> dict[str, str]:
     return {"status": "ok"}
-
-
-@app.get("/", response_class=HTMLResponse)
-async def index() -> str:
-    return """
-    <!doctype html>
-    <html lang="sv">
-    <head><meta charset="utf-8"><title>Notarkiv</title></head>
-    <body>
-      <h1>Notarkiv</h1>
-      <p>Skelettet kör. UI byggs i nästa steg.</p>
-      <p><a href="/healthz">/healthz</a></p>
-    </body>
-    </html>
-    """

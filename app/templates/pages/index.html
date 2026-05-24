@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Översikt - Notarkiv{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4">Översikt</h1>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card text-bg-light h-100">
+      <div class="card-body">
+        <div class="display-6">{{ stats.pieces }}</div>
+        <div class="text-muted">noter</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card text-bg-light h-100">
+      <div class="card-body">
+        <div class="display-6">{{ stats.locations }}</div>
+        <div class="text-muted">lagringsplatser</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card text-bg-light h-100">
+      <div class="card-body">
+        <div class="display-6">{{ stats.tags }}</div>
+        <div class="text-muted">taggar</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h2 class="h5">Kom igång</h2>
+    <ol class="mb-0">
+      {% if user.can_edit %}
+      <li>Lägg upp dina <a href="/storage">lagringsplatser</a> (rum, hyllor, pärmar, eller digitala mappar).</li>
+      <li>Skanningsflödet byggs i nästa commit - tills dess kan du logga in och hantera taggar/lagring.</li>
+      {% else %}
+      <li>Du är inloggad som läsare. Sök och bläddra kommer att fungera när noter har registrerats.</li>
+      {% endif %}
+    </ol>
+  </div>
+</div>
+{% endblock %}
