@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import RedirectResponse, Response
 from sqlmodel import Session, select
 
@@ -61,32 +61,38 @@ async def list_pieces(
     request: Request,
     q: str | None = None,
     view: str = "grid",
+    tag: list[str] | None = Query(default=None),
+    voicing: str | None = None,
+    language: str | None = None,
     user: User = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> Response:
+    from sqlalchemy import func as sqlf
+
+    # Bygg basquery - använd FTS om q givet, annars vanlig select
     if q:
         from sqlalchemy import text
 
-        rows = session.exec(
+        fts_rows = session.exec(
             text(
                 "SELECT id FROM pieces_fts JOIN pieces ON pieces.id = pieces_fts.rowid "
-                "WHERE pieces_fts MATCH :q ORDER BY rank LIMIT 100"
+                "WHERE pieces_fts MATCH :q ORDER BY rank LIMIT 300"
             ),
             params={"q": q + "*"},
         ).all()
-        ids = [r[0] for r in rows]
-        pieces = (
-            session.exec(select(Piece).where(Piece.id.in_(ids))).all() if ids else []
-        )
+        candidate_ids = [r[0] for r in fts_rows]
+        if not candidate_ids:
+            pieces = []
+        else:
+            stmt = select(Piece).where(Piece.id.in_(candidate_ids))
+            stmt = _apply_filters(stmt, session, tag, voicing, language)
+            pieces = list(session.exec(stmt).all())
     else:
-        pieces = session.exec(
-            select(Piece).order_by(Piece.created_at.desc()).limit(100)
-        ).all()
+        stmt = select(Piece).order_by(Piece.created_at.desc())
+        stmt = _apply_filters(stmt, session, tag, voicing, language)
+        pieces = list(session.exec(stmt.limit(200)).all())
 
     covers = _covers_by_piece(session, [p.id for p in pieces])
-
-    # Räkna placeringar per piece för list-vyn
-    from sqlalchemy import func as sqlf
 
     placement_counts: dict[int, int] = {}
     if pieces:
@@ -101,6 +107,26 @@ async def list_pieces(
         cover = covers.get(piece_id)
         return thumbnail_url_path(cover.image_path) if cover else None
 
+    # Hämta alla taggar för filter-chipsen, grupperat per kind
+    all_tags = session.exec(
+        select(Tag).order_by(Tag.kind, Tag.sort_order, Tag.name)
+    ).all()
+    tags_by_kind: dict[str, list[Tag]] = {}
+    for t in all_tags:
+        tags_by_kind.setdefault(t.kind, []).append(t)
+
+    # Distinkta voicings + languages för dropdown-filter
+    voicings = [
+        v for v in session.exec(
+            select(Piece.voicing).where(Piece.voicing.is_not(None)).distinct()
+        ).all() if v
+    ]
+    languages = [
+        lang for lang in session.exec(
+            select(Piece.language).where(Piece.language.is_not(None)).distinct()
+        ).all() if lang
+    ]
+
     return render(
         request,
         "pieces/list.html",
@@ -110,9 +136,41 @@ async def list_pieces(
             "view": "list" if view == "list" else "grid",
             "cover_thumb": cover_thumb,
             "placement_counts": placement_counts,
+            "tags_by_kind": tags_by_kind,
+            "active_tags": set(tag or []),
+            "voicings": sorted(voicings),
+            "active_voicing": voicing or "",
+            "languages": sorted(languages),
+            "active_language": language or "",
         },
         user=user,
     )
+
+
+def _apply_filters(stmt, session, tags, voicing, language):
+    if tags:
+        tag_ids = list(
+            session.exec(select(Tag.id).where(Tag.name.in_(tags))).all()
+        )
+        if tag_ids:
+            piece_ids_with_tag = list(
+                session.exec(
+                    select(PieceTag.piece_id)
+                    .where(PieceTag.tag_id.in_(tag_ids))
+                    .distinct()
+                ).all()
+            )
+            if piece_ids_with_tag:
+                stmt = stmt.where(Piece.id.in_(piece_ids_with_tag))
+            else:
+                stmt = stmt.where(Piece.id == -1)
+        else:
+            stmt = stmt.where(Piece.id == -1)
+    if voicing:
+        stmt = stmt.where(Piece.voicing == voicing)
+    if language:
+        stmt = stmt.where(Piece.language == language)
+    return stmt
 
 
 @router.get("/new")

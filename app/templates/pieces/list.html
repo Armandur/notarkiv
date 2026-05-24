@@ -6,9 +6,9 @@
   <h1 class="h3 mb-0">Noter</h1>
   <div class="d-flex gap-2 align-items-center">
     <div class="btn-group btn-group-sm">
-      <a href="?view=grid{% if q %}&q={{ q }}{% endif %}"
+      <a href="{{ request.url.include_query_params(view='grid') }}"
          class="btn btn-outline-secondary {% if view == 'grid' %}active{% endif %}">Kort</a>
-      <a href="?view=list{% if q %}&q={{ q }}{% endif %}"
+      <a href="{{ request.url.include_query_params(view='list') }}"
          class="btn btn-outline-secondary {% if view == 'list' %}active{% endif %}">Lista</a>
     </div>
     {% if user.can_edit %}
@@ -22,16 +22,67 @@
 
 <form method="get" action="/pieces" class="mb-3">
   <input type="hidden" name="view" value="{{ view }}">
-  <div class="input-group">
-    <input type="search" name="q" class="form-control" placeholder="Sök titel, kompositör, anteckningar..." value="{{ q }}">
-    <button class="btn btn-outline-secondary" type="submit">Sök</button>
-    {% if q %}<a href="/pieces?view={{ view }}" class="btn btn-outline-secondary">Rensa</a>{% endif %}
+  <div class="row g-2 align-items-end">
+    <div class="col-md-5">
+      <input type="search" name="q" class="form-control" placeholder="Sök titel, kompositör, anteckningar..." value="{{ q }}">
+    </div>
+    <div class="col-md-3">
+      <select name="voicing" class="form-select">
+        <option value="">Alla besättningar</option>
+        {% for v in voicings %}
+        <option value="{{ v }}" {% if v == active_voicing %}selected{% endif %}>{{ v }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="language" class="form-select">
+        <option value="">Alla språk</option>
+        {% for l in languages %}
+        <option value="{{ l }}" {% if l == active_language %}selected{% endif %}>{{ l }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 d-flex gap-1">
+      {# Bevara taggar via dolda inputs så de inte tappas vid submit #}
+      {% for t in active_tags %}<input type="hidden" name="tag" value="{{ t }}">{% endfor %}
+      <button class="btn btn-outline-secondary flex-grow-1" type="submit">Filtrera</button>
+      {% if q or active_voicing or active_language or active_tags %}
+      <a href="/pieces?view={{ view }}" class="btn btn-outline-secondary">×</a>
+      {% endif %}
+    </div>
   </div>
 </form>
 
+{# Tag-chips: klick togglar taggen i URL:en #}
+<div class="mb-3">
+  {% for kind, kind_tags in tags_by_kind.items() %}
+  <div class="d-flex gap-1 flex-wrap mb-1">
+    {% set kind_color = {'liturgical': 'primary', 'occasion': 'success', 'free': 'secondary'}.get(kind, 'secondary') %}
+    <span class="text-muted small me-1">{{ {'liturgical': 'Kyrkoåret', 'occasion': 'Tillfälle', 'free': 'Fritt'}.get(kind, kind) }}:</span>
+    {% for t in kind_tags %}
+      {% set is_active = t.name in active_tags %}
+      {% if is_active %}
+        {% set new_tags = active_tags|reject('equalto', t.name)|list %}
+      {% else %}
+        {% set new_tags = (active_tags|list) + [t.name] %}
+      {% endif %}
+      {# Bygg URL manuellt med alla aktiva tags utom/inklusive denna #}
+      {% set base_params = {'view': view} %}
+      {% if q %}{% set _ = base_params.update({'q': q}) %}{% endif %}
+      {% if active_voicing %}{% set _ = base_params.update({'voicing': active_voicing}) %}{% endif %}
+      {% if active_language %}{% set _ = base_params.update({'language': active_language}) %}{% endif %}
+      <a href="?{% for k, v in base_params.items() %}{{ k }}={{ v }}&{% endfor %}{% for nt in new_tags %}tag={{ nt }}{% if not loop.last %}&{% endif %}{% endfor %}"
+         class="btn btn-sm {% if is_active %}btn-{{ kind_color }}{% else %}btn-outline-{{ kind_color }}{% endif %}">
+        {% if is_active %}✓ {% endif %}{{ t.name }}
+      </a>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+
 {% if not pieces %}
 <p class="text-muted fst-italic">
-  {% if q %}Inga träffar för "{{ q }}".{% else %}Inga noter registrerade än.{% endif %}
+  {% if q or active_tags or active_voicing or active_language %}Inga träffar med filtren.{% else %}Inga noter registrerade än.{% endif %}
 </p>
 {% elif view == 'list' %}
 <div class="table-responsive">
