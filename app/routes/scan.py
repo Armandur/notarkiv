@@ -9,6 +9,7 @@ from sqlalchemy import func
 
 from app.deps import get_session, require_editor, verify_csrf
 from app.services.app_settings import get_ocr_provider
+from app.services.duplicates import find_duplicates
 from app.services.inventory import append_log, get_active_session
 from app.services.people import parse_names_field, replace_contributors
 from app.models import (
@@ -270,6 +271,13 @@ async def review_form(
     suggestions = json.loads(scan.musicbrainz_suggestion or "[]")
     tree = _load_unit_options(session)
 
+    duplicates = find_duplicates(
+        session,
+        title=extracted.get("title"),
+        composer=extracted.get("composer"),
+        edition_number=extracted.get("edition_number"),
+    )
+
     return render(
         request,
         "scan/review.html",
@@ -278,11 +286,85 @@ async def review_form(
             "extracted": extracted,
             "suggestions": suggestions,
             "unit_options": tree,
+            "duplicates": duplicates,
             "prefill_placement_unit_id": scan.pre_placement_unit_id,
             "prefill_placement_copies": scan.pre_placement_copies,
         },
         user=user,
     )
+
+
+@router.post("/{scan_id}/add-placement/{piece_id}", dependencies=[Depends(verify_csrf)])
+async def add_placement_to_existing(
+    request: Request,
+    scan_id: int,
+    piece_id: int,
+    placement_unit_id: str | None = Form(None),
+    placement_copies: str | None = Form(None),
+    add_image: str | None = Form(None),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Markera skanningen som dublett: lägg till placering på befintlig piece
+    istället för att skapa ny. Bilden kan eventuellt sparas som extra bild."""
+    scan = session.get(ScanSession, scan_id)
+    if not scan:
+        raise HTTPException(404)
+    piece = session.get(Piece, piece_id)
+    if not piece:
+        raise HTTPException(404)
+
+    unit_id = (
+        int(placement_unit_id)
+        if placement_unit_id and placement_unit_id.isdigit()
+        else None
+    )
+    if unit_id:
+        copies = (
+            int(placement_copies)
+            if placement_copies and placement_copies.isdigit()
+            else None
+        )
+        # Kolla om placering redan finns - i så fall öka antal
+        existing = session.exec(
+            select(PiecePlacement)
+            .where(PiecePlacement.piece_id == piece_id)
+            .where(PiecePlacement.storage_unit_id == unit_id)
+        ).first()
+        if existing:
+            existing.copies = (existing.copies or 0) + (copies or 1)
+            session.add(existing)
+        else:
+            session.add(
+                PiecePlacement(
+                    piece_id=piece_id,
+                    storage_unit_id=unit_id,
+                    copies=copies,
+                )
+            )
+
+    if add_image:
+        # Lägg till bilden som extra på den befintliga noten
+        last_order = session.exec(
+            select(PieceImage.sort_order)
+            .where(PieceImage.piece_id == piece_id)
+            .order_by(PieceImage.sort_order.desc())
+        ).first()
+        session.add(
+            PieceImage(
+                piece_id=piece_id,
+                image_path=scan.image_path,
+                kind=PieceImageKind.OTHER,
+                sort_order=(last_order or 0) + 1,
+            )
+        )
+
+    scan.resulting_piece_id = piece_id
+    session.add(scan)
+    session.commit()
+
+    flash(request, f"Lagt till placering på '{piece.title}'", "success")
+    return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
 
 
 @router.post("/{scan_id}/save", dependencies=[Depends(verify_csrf)])

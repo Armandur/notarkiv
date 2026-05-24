@@ -4,6 +4,81 @@
 {% block content %}
 <h1 class="h3 mb-4">Granska och spara</h1>
 
+{% if duplicates %}
+<div class="alert alert-warning">
+  <div class="d-flex align-items-baseline justify-content-between">
+    <strong>Möjlig dublett: liknande not finns redan i katalogen</strong>
+    <button class="btn btn-sm btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#dup-details">
+      visa
+    </button>
+  </div>
+  <div class="collapse show mt-2" id="dup-details">
+    <p class="small mb-2">Klicka "Lägg till placering" för att registrera detta exemplar på den befintliga noten istället för att skapa en ny post.</p>
+    <div class="list-group">
+      {% for d in duplicates %}
+      <div class="list-group-item">
+        <div class="d-flex justify-content-between">
+          <div>
+            <strong><a href="/pieces/{{ d.piece_id }}" target="_blank">{{ d.title }}</a></strong>
+            {% if d.contributors_cache %}<div class="small text-muted">{{ d.contributors_cache }}</div>{% endif %}
+            {% if d.publisher or d.edition_number %}
+            <div class="small text-muted">
+              {{ d.publisher or '' }}{% if d.edition_number %} / {{ d.edition_number }}{% endif %}
+            </div>
+            {% endif %}
+          </div>
+          <div class="text-end">
+            <span class="badge bg-secondary">{{ d.score }}% match</span>
+            <div class="mt-1">
+              <button type="button" class="btn btn-sm btn-outline-primary"
+                      onclick="document.getElementById('addPlacementForm-{{ d.piece_id }}').classList.toggle('d-none')">
+                Lägg till placering
+              </button>
+            </div>
+          </div>
+        </div>
+        <form id="addPlacementForm-{{ d.piece_id }}" method="post"
+              action="/scan/{{ scan.id }}/add-placement/{{ d.piece_id }}"
+              class="d-none mt-2 border-top pt-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="row g-2 align-items-end">
+            <div class="col-md-6">
+              <label class="form-label small mb-1">Placering</label>
+              <select name="placement_unit_id" class="form-select form-select-sm">
+                <option value="">(ingen placering)</option>
+                {% for opt in unit_options %}
+                <option value="{{ opt.id }}" {% if opt.id == prefill_placement_unit_id %}selected{% endif %}>
+                  {{ opt.label }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small mb-1">Antal</label>
+              <input type="text" name="placement_copies" class="form-control form-control-sm" inputmode="numeric"
+                     value="{{ prefill_placement_copies or '' }}">
+            </div>
+            <div class="col-md-2">
+              <div class="form-check small">
+                <input type="checkbox" id="add-img-{{ d.piece_id }}" name="add_image" value="1" class="form-check-input">
+                <label for="add-img-{{ d.piece_id }}" class="form-check-label">Spara denna bild som extra</label>
+              </div>
+            </div>
+            <div class="col-md-2 text-end">
+              <button type="submit" class="btn btn-sm btn-primary">Bekräfta</button>
+            </div>
+          </div>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="small mt-2">
+      Inget av detta är samma not? Fyll bara i formuläret nedan och spara - en ny post skapas.
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <div class="row g-4">
   <div class="col-md-4">
     <img src="/images/{{ scan.image_path }}" class="img-fluid rounded shadow-sm sticky-top lightbox-image" style="top: 1rem" alt="Skannat omslag">

@@ -100,10 +100,19 @@ granska -> spara -> hitta igen.
 
 ## V2 - "Riktigt användbart"
 
-- [ ] **Kompositörer/personer som egna entiteter**: Person-tabell med
+- [x] **Kompositörer/personer som egna entiteter**: Person-tabell med
       sort_name, biografi, MB-artist-MBID, Wikipedia-länk.
       PieceContributor-länkning med roll (composer/arranger/lyricist).
-      Auto-import via MusicBrainz när MB-träff finns.
+
+### Förbättringar kring Person
+
+- [ ] **Person-autocomplete i granskningsformulär**: ersätt fritextfälten
+      med autocomplete-fält likt UnitKind, med "Skapa ny: '<namn>'"-knapp
+      vid ingen träff. Visar levnadsår och antal noter i förslagslistan.
+- [ ] **Auto-import av Person från MusicBrainz**: när MB-träff används,
+      slå upp artist via MB:s artist-rels och url-rels för att hämta
+      kanoniskt namn, MBID, Wikipedia-URL och levnadsår. Skapar
+      Person-poster med all metadata förifylld.
 - [ ] **Auto-crop med jscanify**: webbläsare-baserad dokument-detektion
       via OpenCV.js, perspektivkorrigering, manuell hörnjustering.
       Ersätter standard `<input capture>` på mobil.
