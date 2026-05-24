@@ -104,8 +104,38 @@
     </div>
 
     {% if piece.notes %}
-    <h2 class="h6 mt-3">Anteckningar</h2>
+    <h2 class="h6 mt-3">Gemensamma anteckningar</h2>
     <p>{{ piece.notes }}</p>
+    {% endif %}
+
+    <h2 class="h6 mt-3 mb-2">Mina anteckningar</h2>
+    <form method="post" action="/pieces/{{ piece.id }}/user-notes">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <textarea name="text" class="form-control mb-2" rows="2"
+                placeholder="Egna noteringar - tonart, tempo, repetitionsnoter ...">{{ my_note.text if my_note else '' }}</textarea>
+      <div class="d-flex justify-content-between align-items-baseline">
+        <button type="submit" class="btn btn-sm btn-outline-primary">Spara</button>
+        {% if my_note %}
+        <small class="text-muted">Senast {{ my_note.updated_at.strftime('%Y-%m-%d %H:%M') }} - lämna tomt för att radera</small>
+        {% endif %}
+      </div>
+    </form>
+
+    {% if others_notes %}
+    <h2 class="h6 mt-3 mb-2">Andras anteckningar</h2>
+    <div class="vstack gap-2">
+      {% for note, note_user in others_notes %}
+      <div class="card">
+        <div class="card-body py-2 px-3">
+          <div class="small text-muted mb-1">
+            <strong>{{ note_user.username }}</strong>
+            <span>· {{ note.updated_at.strftime('%Y-%m-%d %H:%M') }}</span>
+          </div>
+          <div class="small" style="white-space: pre-wrap">{{ note.text }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
     {% endif %}
 
     <div class="d-flex justify-content-between align-items-baseline mt-4 mb-2">

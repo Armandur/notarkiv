@@ -13,6 +13,7 @@ from app.models import (
     PieceImage,
     PiecePlacement,
     PieceTag,
+    PieceUserNote,
     ScanSession,
     StorageLocation,
     StorageUnit,
@@ -320,6 +321,20 @@ async def piece_detail(
         .order_by(Tag.kind, Tag.name)
     ).all()
 
+    # Användaranteckningar - min egen + andras
+    user_notes_with_user = session.exec(
+        select(PieceUserNote, User)
+        .join(User, User.id == PieceUserNote.user_id)
+        .where(PieceUserNote.piece_id == piece_id)
+        .order_by(PieceUserNote.updated_at.desc())
+    ).all()
+    my_note = next(
+        (note for note, u in user_notes_with_user if u.id == user.id), None
+    )
+    others_notes = [
+        (note, u) for note, u in user_notes_with_user if u.id != user.id
+    ]
+
     return render(
         request,
         "pieces/detail.html",
@@ -330,6 +345,8 @@ async def piece_detail(
             "contributors": contributors,
             "tags": tag_rows,
             "unit_options": _unit_path_options(session) if user.can_edit else [],
+            "my_note": my_note,
+            "others_notes": others_notes,
             "composer_role": ContributorRole.COMPOSER,
             "arranger_role": ContributorRole.ARRANGER,
             "lyricist_role": ContributorRole.LYRICIST,
@@ -719,6 +736,46 @@ async def delete_placement(
     session.delete(placement)
     session.commit()
     flash(request, "Placering borttagen", "success")
+    return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+
+@router.post("/{piece_id}/user-notes", dependencies=[Depends(verify_csrf)])
+async def upsert_user_note(
+    request: Request,
+    piece_id: int,
+    text: str = Form(...),
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Skapa eller uppdatera min egen anteckning på en not."""
+    piece = session.get(Piece, piece_id)
+    if not piece:
+        raise HTTPException(404)
+
+    text = text.strip()
+    existing = session.exec(
+        select(PieceUserNote)
+        .where(PieceUserNote.piece_id == piece_id)
+        .where(PieceUserNote.user_id == user.id)
+    ).first()
+
+    if not text:
+        if existing:
+            session.delete(existing)
+            session.commit()
+            flash(request, "Din anteckning är borttagen", "info")
+        return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+    if existing:
+        existing.text = text
+        existing.updated_at = datetime.utcnow()
+        session.add(existing)
+    else:
+        session.add(
+            PieceUserNote(piece_id=piece_id, user_id=user.id, text=text)
+        )
+    session.commit()
+    flash(request, "Din anteckning sparad", "success")
     return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
 
 
