@@ -50,15 +50,20 @@ granska -> spara -> hitta igen.
 
 - [x] Listvy med sökning (FTS5 på titel/kompositör/anteckningar)
 - [x] Detaljvy med all metadata och placeringar
-- [ ] Redigeringsvy (utöver via review-formuläret från skanning)
-- [ ] Borttagning av piece
+- [x] Redigeringsvy med metadata + bildhantering + MB-omsökning
+- [x] Manuell skapelse av not utan skanning, med valfri placering
+- [x] Borttagning av piece (admin, hård radering med cascade)
+- [x] List- och kortvy via ?view= toggle
+- [x] Tagghantering på piece (modal med pills, skapa ny tagg inline)
+- [x] Manuell MB-sökning (egen söksträng, fritt redigerbar)
 
 ### Lagringsplatser
 
 - [x] CRUD för `storage_locations` (fysisk/digital)
 - [x] CRUD för `storage_units` med nestning
 - [x] Trädvisning för administration
-- [x] Lägga till placeringar på en notpost via review
+- [x] Lägga till/redigera/ta bort placeringar på en notpost
+- [x] Flytta placering mellan enheter (med auto-sammanfogning vid kollision)
 - [x] Visa full sökväg i dropdown och listor
 - [x] UnitKind (typ av enhet) som autocomplete-entitet, dubletter blockerade
 
@@ -66,9 +71,15 @@ granska -> spara -> hitta igen.
 
 - [x] Mobil-anpassad snabbskanning (`/scan/quick`) med multi-bild,
       rotation och förhandsgranskning före upload
-- [x] Granskningskö (`/scan/queue`) med thumbnails och status
+- [x] Granskningskö (`/scan/queue`) med thumbnails och status,
+      kort- och list-vy
 - [x] Pre-noterad placering på ScanSession som förifylls i granskning
 - [x] Navbar-badge med antal väntande granskningar
+- [x] Avvisa/återställ skanningar i kön (granskaren slipper kasta dåliga
+      via vanlig CRUD)
+- [x] "Spara och nästa i kön" i granskning för flytt mellan poster
+- [x] Dubblettkoll vid granskning - föreslå "lägg till placering"
+      istället för ny piece
 
 ### Inventeringstillfälle
 
@@ -77,6 +88,8 @@ granska -> spara -> hitta igen.
 - [x] Auto-länkning av skanningar till aktiv session
 - [x] Aktivitetslogg med tidsstämplar (auto + manuell)
 - [x] Navbar-prick när session är aktiv
+- [x] Inventeringsläge: per-enhet checklista med ✓/⚠/✗-knappar,
+      InventoryCheck-poster för historik, progress-bar
 
 ### Admin
 
@@ -122,16 +135,16 @@ granska -> spara -> hitta igen.
       Hör ihop med auto-crop och OpenCV.js.
 - [ ] **Batch-skanningsläge**: skanna in flera *noter* i rad utan att gå
       tillbaka mellan varje (jfr nuvarande multi-foto som gäller samma not)
-- [ ] **Dubblettkoll**: vid skanning, jämför mot befintliga poster på
+- [x] **Dubblettkoll**: vid skanning, jämför mot befintliga poster på
       `(titel, kompositör, arrangör)`. Föreslå "lägg till placering"
       istället för "skapa ny post" om träff finns
-- [ ] **Inventeringsläge**: visa allt som ska ligga i en specifik
+- [x] **Inventeringsläge**: visa allt som ska ligga i en specifik
       storage_unit, checkbar lista, markera "saknas"
-- [ ] **Flytt- och omorganisationshantering**: redigera befintliga
-      placeringar (byt enhet eller antal exemplar), dela upp placering
-      ("5 ex stannar här, 10 ex flyttas dit"), bulk-flytt av allt från
-      en enhet till en annan vid omorganisation av notförrådet. Inkludera
-      audit-spår så det går att se vad som flyttats när och av vem.
+- [x] **Flytt- och omorganisationshantering (grundläggande)**: redigera
+      befintliga placeringar (byt enhet eller antal exemplar) med
+      auto-sammanfogning. Kvar: split av placering ("5 ex stannar här,
+      10 ex flyttas dit"), bulk-flytt av allt från en enhet, audit-spår
+      med PlacementEvent-tabell.
 - [ ] **PDF-katalog**: exportera hela eller filtrerad lista som PDF
       för utskrift (körpärm, allmän översikt)
 - [ ] **Trasiga URL-detektor**: nattlig HEAD-kontroll på digitala

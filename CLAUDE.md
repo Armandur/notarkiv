@@ -77,19 +77,23 @@ notarkiv/
       user.py               # User, Role
       piece.py              # Piece + Voicing/Accompaniment/CopyrightStatus
       piece_image.py        # PieceImage (flera bilder per not)
+      person.py             # Person + PieceContributor + ContributorRole
       storage.py            # StorageLocation, StorageUnit, PiecePlacement, UnitKind
       tag.py                # Tag, PieceTag
       scan_session.py       # ScanSession + ScanStatus
       scan_session_image.py # Extra bilder per skanning
       inventory.py          # InventorySession
+      inventory_check.py    # InventoryCheck (en check per placering inom session)
       app_setting.py        # Key-value-runtime-inställningar
     routes/
       pages.py              # GET / med översikt
       auth.py               # login/logout/change-password
-      pieces.py             # Lista, detalj, multi-bildhantering (add/rotate/delete/promote)
+      pieces.py             # CRUD, multi-bildhantering, MB-omsökning, taggar, placeringar (CRUD)
+      people.py             # Lista, detalj med "som composer/arranger" + redigera/radera
       scan.py               # /scan (vanlig), /scan/quick (mobil), /scan/queue, /scan/{id}/*
+                            # /scan/{id}/discard|restore för avvisning, manuell MB-sökning
       storage.py            # CRUD för locations, units, unit-kinds (autocomplete)
-      inventory.py          # CRUD för inventeringstillfällen + logg
+      inventory.py          # CRUD för inventeringstillfällen + logg + per-enhet check-läge
       admin/
         users.py            # Listning, roller, lösenord, radering
         settings.py         # API-nyckel, Claude-modell, OCR-default, MB User-Agent
@@ -101,6 +105,8 @@ notarkiv/
       musicbrainz.py        # Rate-limited klient + LRU-cache + scoring (rapidfuzz)
       app_settings.py       # Hämta runtime-värden (DB med env-fallback)
       inventory.py          # get_active_session, append_log
+      people.py             # find_or_create_person, replace_contributors, parse_names_field
+      duplicates.py         # find_duplicates: fuzzy-matchning vid skanning
     tasks/
       __init__.py           # get_pool/close_pool för web-processen
       worker.py             # arq WorkerSettings
@@ -111,18 +117,27 @@ notarkiv/
       base.html             # Navbar med badges, lightbox (med grupp-nav), confirm-modal
       auth/                 # login.html, change_password.html
       pages/                # index.html
-      pieces/               # list.html, detail.html (galleri + image-mgmt)
+      pieces/
+        list.html           # Kort- och list-vy via ?view=
+        detail.html         # Read-orienterad: metadata, galleri, placeringar, taggar
+        edit.html           # Metadata + bilder + MB-sökning (allt redigerbart)
+        new.html            # Manuell skapelse med valfri placering
+        _musicbrainz_modal.html  # HTMX-modal med söksformulär + förslag
+        _tag_modal.html, _tag_pill.html  # Tagghantering
       scan/
         capture.html        # Vanlig (dator) skanningssida
         quick.html          # Mobil snabbskanning, multi-bild + rotation
         processing.html     # HTMX-pollad statussida efter upload
-        review.html         # Granskningsformulär (efter OCR + MB)
-        queue.html          # Granskningskö (kort med thumbnails)
+        review.html         # Granskningsformulär (OCR + MB + dubbletter + "spara och nästa")
+        queue.html          # Granskningskö (kort/list-toggle, avvisa/återställ)
         _status.html        # HTMX-fragment
+        _musicbrainz_modal.html  # Manuell MB-sökning från granskning
+      people/               # list.html, detail.html
       storage/
         manage.html, _tree.html, _unit_form.html, _kind_results.html
       inventory/
         list.html, detail.html
+        check_pick.html, check.html, _check_row.html  # Per-enhet inventeringsläge
       admin/
         users.html, settings.html
     static/
@@ -253,14 +268,64 @@ användarna (manuella anteckningar) skriver tidsstämplade rader.
 
 En not kan ha flera bilder (PieceImage med kind = cover/back/title_page/
 inside/other). Den med lägst sort_order är primär (visas som thumbnail
-i listor). Bilder kan läggas till på piece-detaljsidan eller redan
+i listor). Bilder kan läggas till på piece-edit-sidan eller redan
 under skanningen via mobil quick-scan.
 
 Rotation görs på två sätt:
 - **Före upload**: client-side via HTML5 canvas i `quick.html` så
   användaren ser och rättar orienteringen innan filen lämnar enheten
 - **Efter upload**: server-side via PIL `Image.rotate(expand=True)` på
-  pieces/detail-sidan; thumbnailen regenereras
+  pieces/edit-sidan; thumbnailen regenereras
+
+### 10. Person som entitet, inte text-fält
+
+Kompositör, arrangör och textförfattare är inte text-fält på Piece
+utan Person-entiteter länkade via PieceContributor (med roll).
+Detta löser "Mendelssohn" vs "F. Mendelssohn" och möjliggör
+"alla noter av X". `Piece.contributors_cache` är en denormaliserad
+textsträng som indexeras av FTS5 för snabb sökning.
+
+`replace_contributors`-helpern i `services/people.py` är det enda
+stället där bidragslistorna sätts om - används av både scan-save,
+piece-edit och nytt-piece-flödet. Den parsar `"X; Y & Z"`-strängar
+och kör find-or-create per namn.
+
+### 11. Dubblettkoll vid skanning
+
+`services/duplicates.py::find_duplicates` körs när review_form öppnas.
+Använder rapidfuzz på titel + partial_ratio på contributors_cache,
+plus bonus +30 om edition_number matchar exakt. Förslag med
+score >= 60% visas som varningsbanner med möjlighet att lägga till
+placering på befintlig piece istället för att skapa ny.
+
+För 200-1000 noter laddas alla pieces in i minnet vid varje sökning -
+trivialt snabbt. Vid 10k+ behövs SQL-trigram (Postgres pg_trgm).
+
+### 12. Avvisning av skanningar + retry
+
+ScanSession.discarded (bool) markerar skanningar som granskaren
+avvisat (suddiga bilder, dubbletter mm). Audit-spår bevaras via
+discarded_at + discard_reason. Toggle "Visa avvisade" på /scan/queue
+för att hitta tillbaka och återställa.
+
+Misslyckade skanningar (Anthropic-fel, MB-fel) får en retry-knapp som
+kö:ar om jobbet. _humanize_error() i ocr_jobs städar bort HTML-skräp
+från Cloudflare-felsidor osv.
+
+### 13. Inventeringsläge med per-enhet checklista
+
+Inom en aktiv InventorySession kan användaren välja en storage_unit
+och få en checklista över alla placeringar som ska finnas där.
+Varje rad har snabbknappar ✓/⚠/✗ som skapar InventoryCheck-poster
+(historik bevaras - inga unique constraints). HTMX uppdaterar bara
+raden, statusen loggas automatiskt i sessionens fritext-logg.
+
+### 14. CRUD för placeringar med sammanfogning
+
+Placeringar kan läggas till, redigeras (inkl flyttas mellan units)
+och tas bort från piece-detalj. Om edit byter unit till en där
+samma piece redan har en placering så slås de samman (copies
+summeras, gamla raden raderas) - idiotsäker mot dubbel-placeringar.
 
 ### 5. Sökning byggs runt körledarens mentalmodell
 

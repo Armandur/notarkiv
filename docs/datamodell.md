@@ -21,18 +21,23 @@ Huvudsakliga koncept:
    utgåva/arrangemang
 2. **Bilder** (`piece_images`) - en eller flera bilder per not (omslag,
    baksida, försättsblad m.m.)
-3. **Lagringsplats** (`storage_locations` + `storage_units`) - var noten
+3. **Person** (`people` + `piece_contributors`) - kompositör, arrangör,
+   textförfattare som egna entiteter med relation till piece via roll
+4. **Lagringsplats** (`storage_locations` + `storage_units`) - var noten
    finns, fysiskt eller digitalt. Enhetstyper i `unit_kinds`.
-4. **Placering** (`piece_placements`) - många-till-många: en not kan
+5. **Placering** (`piece_placements`) - många-till-många: en not kan
    finnas på flera platser
-5. **Tagg** (`tags` + `piece_tags`) - liturgisk användning, tillfällen,
+6. **Tagg** (`tags` + `piece_tags`) - liturgisk användning, tillfällen,
    fria etiketter
-6. **Skanning** (`scan_sessions` + `scan_session_images`) - varje
-   uppladdning blir en session; OCR + MB-berikning körs som arq-jobb
-7. **Inventeringstillfälle** (`inventory_sessions`) - grupperar
+7. **Skanning** (`scan_sessions` + `scan_session_images`) - varje
+   uppladdning blir en session; OCR + MB-berikning körs som arq-jobb.
+   Avvisade scans markeras `discarded` istället för att raderas.
+8. **Inventeringstillfälle** (`inventory_sessions`) - grupperar
    skanningar gjorda i samma sammanhang, med planerad plats och logg
-8. **Inställningar** (`app_settings`) - runtime-värden ändringsbara via
-   admin-UI (Anthropic-nyckel, Claude-modell, MB User-Agent)
+9. **Inventeringskontroll** (`inventory_checks`) - en kontroll per
+   placering inom en session: ✓ hittad / ⚠ avvikande antal / ✗ saknas
+10. **Inställningar** (`app_settings`) - runtime-värden ändringsbara via
+    admin-UI (Anthropic-nyckel, Claude-modell, MB User-Agent)
 
 ## Tabeller
 
@@ -93,6 +98,51 @@ CREATE INDEX idx_pieces_title ON pieces(title);
 
 Notpost har inget eget `cover_image_path`-fält - alla bilder finns i
 `piece_images` med `sort_order` (lägst = primär).
+
+`contributors_cache` är en denormaliserad sökbar textrad byggd från
+`piece_contributors`-länkarna, t.ex. `"Felix Mendelssohn (composer); Hugo Distler (arranger)"`.
+Genereras om vid varje spara av piece eller person. FTS5 indexerar den.
+
+### `people` - Personer (kompositörer, arrangörer, textförfattare)
+
+```sql
+CREATE TABLE people (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,                    -- "Felix Mendelssohn"
+    sort_name TEXT NOT NULL,               -- "Mendelssohn, Felix"
+    birth_year INTEGER,
+    death_year INTEGER,
+    biography TEXT,
+    wikipedia_url TEXT,
+    musicbrainz_artist_id TEXT,            -- MBID från MusicBrainz
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_people_name ON people(name);
+CREATE INDEX idx_people_sort_name ON people(sort_name);
+CREATE INDEX idx_people_mbid ON people(musicbrainz_artist_id);
+```
+
+`sort_name` derivas automatiskt från `name` ("Felix Mendelssohn" ->
+"Mendelssohn, Felix") via `services/people.py::derive_sort_name` om
+det inte sätts explicit.
+
+### `piece_contributors` - Notpost ↔ Person med roll
+
+```sql
+CREATE TABLE piece_contributors (
+    id INTEGER PRIMARY KEY,
+    piece_id INTEGER NOT NULL REFERENCES pieces(id) ON DELETE CASCADE,
+    person_id INTEGER NOT NULL REFERENCES people(id),
+    role TEXT NOT NULL,                    -- composer, arranger, lyricist, editor, conductor, other
+    sort_order INTEGER NOT NULL DEFAULT 0
+);
+```
+
+Samma person kan vara både kompositör och arrangör av samma piece
+(två rader, olika roll). `sort_order` styr ordningen inom samma roll
+för "Hugo Distler & John Rutter".
 
 ### `piece_images` - Bilder per not
 
@@ -264,9 +314,7 @@ och `occasion`. `free` är tomt initialt.
 CREATE VIRTUAL TABLE pieces_fts USING fts5(
     title,
     original_title,
-    composer,
-    arranger,
-    lyricist,
+    contributors_cache,
     notes,
     content='pieces',
     content_rowid='id'
@@ -274,19 +322,10 @@ CREATE VIRTUAL TABLE pieces_fts USING fts5(
 
 -- Triggers för att hålla FTS-indexet i synk
 CREATE TRIGGER pieces_ai AFTER INSERT ON pieces BEGIN
-    INSERT INTO pieces_fts(rowid, title, original_title, composer, arranger, lyricist, notes)
-    VALUES (new.id, new.title, new.original_title, new.composer, new.arranger, new.lyricist, new.notes);
+    INSERT INTO pieces_fts(rowid, title, original_title, contributors_cache, notes)
+    VALUES (new.id, new.title, new.original_title, new.contributors_cache, new.notes);
 END;
-CREATE TRIGGER pieces_ad AFTER DELETE ON pieces BEGIN
-    INSERT INTO pieces_fts(pieces_fts, rowid, title, original_title, composer, arranger, lyricist, notes)
-    VALUES('delete', old.id, old.title, old.original_title, old.composer, old.arranger, old.lyricist, old.notes);
-END;
-CREATE TRIGGER pieces_au AFTER UPDATE ON pieces BEGIN
-    INSERT INTO pieces_fts(pieces_fts, rowid, title, original_title, composer, arranger, lyricist, notes)
-    VALUES('delete', old.id, old.title, old.original_title, old.composer, old.arranger, old.lyricist, old.notes);
-    INSERT INTO pieces_fts(rowid, title, original_title, composer, arranger, lyricist, notes)
-    VALUES (new.id, new.title, new.original_title, new.composer, new.arranger, new.lyricist, new.notes);
-END;
+-- (motsvarande pieces_ad och pieces_au; se app/db.py för faktiska definitioner)
 ```
 
 Använd `pieces_fts MATCH 'query'` för fritextsökning. Stöder
@@ -308,12 +347,17 @@ CREATE TABLE scan_sessions (
     pre_placement_copies INTEGER,
     inventory_session_id INTEGER REFERENCES inventory_sessions(id),
     resulting_piece_id INTEGER REFERENCES pieces(id),  -- null om ej granskad/sparad
+    discarded INTEGER NOT NULL DEFAULT 0,  -- soft-delete, döljs från kön
+    discarded_at TIMESTAMP,
+    discard_reason TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP
 );
 ```
 
-`resulting_piece_id IS NULL AND status='done'` definierar granskningskön.
+`resulting_piece_id IS NULL AND status='done' AND NOT discarded`
+definierar granskningskön. Avvisade skanningar visas via en toggle
+i UI:t och kan återställas.
 
 ### `scan_session_images` - Extra bilder under skanning
 
@@ -354,6 +398,28 @@ En aktiv session i taget globalt - vid `POST /inventory` med befintlig
 aktiv: sätt `ended_at` på den, skapa ny. Skanningar gjorda när en
 session är aktiv får automatiskt `inventory_session_id`.
 
+### `inventory_checks` - Per-placeringskontroll
+
+```sql
+CREATE TABLE inventory_checks (
+    id INTEGER PRIMARY KEY,
+    inventory_session_id INTEGER NOT NULL REFERENCES inventory_sessions(id) ON DELETE CASCADE,
+    placement_id INTEGER NOT NULL REFERENCES piece_placements(id),
+    status TEXT NOT NULL DEFAULT 'not_checked',  -- found, partial, missing, extra
+    actual_copies INTEGER,
+    notes TEXT,
+    checked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    checked_by INTEGER REFERENCES users(id)
+);
+
+CREATE INDEX idx_inventory_checks_session ON inventory_checks(inventory_session_id);
+```
+
+Inga unique-constraints - om en placering checkas om läggs en ny rad
+till. Senaste rad per `(session, placement)` är gällande status.
+Senare kan vi exportera "vad var saknat senast"-rapporter genom att
+joina med den senaste raden per placering.
+
 ### `app_settings` - Runtime-inställningar
 
 ```sql
@@ -372,19 +438,21 @@ env-värden som fallback.
 
 ## Dubblettkoll - logik
 
-Vid en ny skanning, innan post sparas, sök efter potentiella dubbletter:
+Implementerat i `app/services/duplicates.py::find_duplicates`.
 
-```sql
-SELECT * FROM pieces
-WHERE LOWER(title) = LOWER(?)
-  AND (composer IS NULL OR LOWER(composer) = LOWER(?))
-  AND (arranger IS NULL OR LOWER(arranger) = LOWER(?));
-```
+- Laddar alla pieces i minnet (trivialt för 200-1000 noter)
+- rapidfuzz.ratio på `title` (viktning 65%)
+- rapidfuzz.partial_ratio på `contributors_cache` mot ev. kompositör-input (35%)
+- +30 score om `edition_number` matchar exakt (samma utgåva = nästan
+  alltid dublett)
+- Filtrerar score >= 60, returnerar top 3
 
-Om träff: visa "Liknande post finns redan: [link]. Vill du lägga till
-placering där istället för att skapa ny post?"
+Vid review_form-rendering anropas denna med extraherade värden från
+OCR. Förslag visas som gul varningsbanner med "Lägg till placering"-
+knapp som expandererar inline-form. POST `/scan/{id}/add-placement/{piece_id}`
+kopplar skanningen till befintlig piece.
 
-V2: ersätt med trigram-similaritet eller embeddings för fuzzy match.
+Skala över 10k noter: byt till Postgres `pg_trgm` GIN-index.
 
 ## Migrationsstrategi
 

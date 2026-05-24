@@ -17,11 +17,13 @@ sedan via webben.
 
 ## Status
 
-MVP är funktionsmässigt på plats: skanning (med OCR + MusicBrainz),
+MVP är funktionsmässigt komplett: skanning med OCR och MusicBrainz,
 granskning, sökning, lagringsplatser, två-personers-flöde, inventerings-
-tillfällen, admin (användare och inställningar), multi-bilder per not.
-Återstår innan prod-deploy: redigering av piece efter skanning, backup
-via litestream. Se `ROADMAP.md` för fullständig status.
+tillfällen med per-enhet checklista, admin (användare och inställningar),
+multi-bilder per not med rotation, manuell skapelse, redigering,
+borttagning, taggar, dubblettkoll, kompositörer som egna entiteter,
+placeringshantering. Återstår innan prod-deploy: backup via litestream
+och eventuellt fler V2-finputs. Se `ROADMAP.md` för fullständig status.
 
 ## Tänkt drift
 
