@@ -103,7 +103,6 @@ async def create_unit(
     location_id: int = Form(...),
     name: str = Form(...),
     kind_id: int | None = Form(None),
-    url: str | None = Form(None),
     parent_id: int | None = Form(None),
     notes: str | None = Form(None),
     user: User = Depends(require_editor),
@@ -126,7 +125,6 @@ async def create_unit(
         parent_id=parent_id,
         name=name,
         kind_id=kind_id,
-        url=url or None,
         notes=notes or None,
     )
     session.add(unit)

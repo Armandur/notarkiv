@@ -147,8 +147,6 @@ granska -> spara -> hitta igen.
       med PlacementEvent-tabell.
 - [ ] **PDF-katalog**: exportera hela eller filtrerad lista som PDF
       för utskrift (körpärm, allmän översikt)
-- [ ] **Trasiga URL-detektor**: nattlig HEAD-kontroll på digitala
-      placeringars URL:er, flagga 404/redirects
 - [ ] **QR-kod på storage_units**: generera utskrivbara QR-koder som
       länkar till respektive enhet
 - [ ] **Anteckningsfält per användare på not** (t.ex. körledarens egna
@@ -172,7 +170,9 @@ granska -> spara -> hitta igen.
 
 ## Aktivt utanför scope
 
-- Hård integration mot SharePoint/Teams (bara URL räcker)
+- URL-fält på digitala storage_units (sökväg via nästlade enheter räcker,
+  t.ex. "Teams › Musikerteamet › Notermappen")
+- Hård integration mot SharePoint/Teams
 - Notrendering eller -spelning (det är vad MuseScore är till för)
 - Köp/inköpsförslag eller budgethantering
 - Versionshantering av arrangemang

@@ -9,7 +9,6 @@
       <span class="me-2">{% if location.kind == "digital" %}☁{% else %}■{% endif %}</span>
       <strong>{{ node.unit.name }}</strong>
       {% if node.kind %}<span class="badge bg-light text-muted">{{ node.kind.name }}</span>{% endif %}
-      {% if node.unit.url %}<a href="{{ node.unit.url }}" target="_blank" class="ms-2 small">öppna</a>{% endif %}
       {% if node.unit.notes %}<span class="text-muted small ms-2">{{ node.unit.notes }}</span>{% endif %}
     </div>
     <div class="btn-group btn-group-sm">

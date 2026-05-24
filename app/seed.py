@@ -168,7 +168,6 @@ def _seed_unit_recursive(
             parent_id=parent_id,
             name=unit_row["name"],
             kind_id=kind_id,
-            url=unit_row.get("url"),
             sort_order=unit_row.get("sort_order", 0),
             notes=unit_row.get("notes"),
         )

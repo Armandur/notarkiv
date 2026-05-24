@@ -221,7 +221,6 @@ CREATE TABLE storage_units (
     parent_id INTEGER REFERENCES storage_units(id),
     name TEXT NOT NULL,
     kind_id INTEGER REFERENCES unit_kinds(id),
-    url TEXT,                              -- valfri, för digitala enheter
     sort_order INTEGER NOT NULL DEFAULT 0,
     archived INTEGER NOT NULL DEFAULT 0,   -- soft delete
     notes TEXT,

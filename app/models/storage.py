@@ -42,7 +42,6 @@ class StorageUnit(SQLModel, table=True):
     parent_id: int | None = Field(default=None, foreign_key="storage_units.id", index=True)
     name: str
     kind_id: int | None = Field(default=None, foreign_key="unit_kinds.id")
-    url: str | None = None
     sort_order: int = Field(default=0)
     archived: bool = Field(default=False)
     notes: str | None = None

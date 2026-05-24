@@ -154,7 +154,6 @@
           {% if pv.location.kind == 'digital' %}☁{% else %}■{% endif %}
           {{ pv.path }}
           {% if pv.kind_name %}<span class="badge bg-light text-muted">{{ pv.kind_name }}</span>{% endif %}
-          {% if pv.unit.url %}<a href="{{ pv.unit.url }}" target="_blank" class="ms-2 small">öppna</a>{% endif %}
           {% if pv.placement.notes %}<div class="small text-muted">{{ pv.placement.notes }}</div>{% endif %}
         </div>
         <div class="d-flex align-items-center gap-2">
