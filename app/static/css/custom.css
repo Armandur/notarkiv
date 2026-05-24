@@ -16,6 +16,18 @@
   animation: mb-flash 1.5s ease-out;
 }
 
+.unit-picker-item {
+  border-radius: 4px;
+  transition: background-color 0.1s ease-in;
+  cursor: pointer;
+}
+.unit-picker-item:hover,
+.unit-picker-item:focus {
+  background-color: #cfe2ff;
+  color: #052c65 !important;
+  outline: none;
+}
+
 .storage-unit {
   margin-left: 0.5rem;
 }

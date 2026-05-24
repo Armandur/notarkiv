@@ -19,7 +19,7 @@
         <div class="ps-3 border-start">
           <div class="d-flex justify-content-between align-items-center py-1">
             <button type="button"
-                    class="btn btn-sm btn-link text-reset text-decoration-none p-1 text-start flex-grow-1"
+                    class="unit-picker-item btn btn-sm text-reset text-decoration-none p-2 text-start flex-grow-1 border-0"
                     data-unit-id="{{ node.unit.id }}"
                     data-unit-label="{{ location.name }} › {{ node.path|join(' › ') }}"
                     data-input-id="{{ input_id }}"
@@ -27,8 +27,8 @@
                     data-picker-id="{{ picker_id }}"
                     onclick="window._notarkivPickUnit(this)">
               {% if location.kind == 'digital' %}☁{% else %}■{% endif %}
-              {{ node.unit.name }}
-              {% if node.kind_name %}<span class="badge bg-light text-muted">{{ node.kind_name }}</span>{% endif %}
+              <strong>{{ node.unit.name }}</strong>
+              {% if node.kind_name %}<span class="badge bg-light text-muted ms-1">{{ node.kind_name }}</span>{% endif %}
             </button>
           </div>
           {% for child in node.children %}
