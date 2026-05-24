@@ -1,11 +1,9 @@
 {# Återanvändbar trädpickare för storage_units.
-   Användning:
-     {% with picker_id="addPlace", input_id="add-place-unit-id", input_name="storage_unit_id",
-              label_id="add-place-unit-label", tree=unit_tree %}
-       {% include "pieces/_unit_picker.html" %}
-     {% endwith %}
-   - input_id: id på <input type="hidden"> som får värdet
-   - label_id: id på <span> som visar den valda sökvägen
+   Två lägen:
+   - Default (input-läge): klick sätter värdet på en hidden input
+     {% with picker_id=..., input_id=..., label_id=..., tree=unit_tree %}
+   - Navigate-läge: klick navigerar till en URL där {unit_id} ersätts
+     {% with picker_id=..., nav_url="/pieces?unit={unit_id}", tree=unit_tree %}
 #}
 <div class="modal fade" id="{{ picker_id }}" tabindex="-1" data-return-to="{{ return_modal or '' }}">
   <div class="modal-dialog modal-lg">
@@ -22,10 +20,15 @@
                     class="unit-picker-item btn btn-sm text-reset text-decoration-none p-2 text-start flex-grow-1 border-0"
                     data-unit-id="{{ node.unit.id }}"
                     data-unit-label="{{ location.name }} › {{ node.path|join(' › ') }}"
+                    {% if nav_url %}
+                    data-nav-url="{{ nav_url|replace('{unit_id}', node.unit.id|string) }}"
+                    onclick="window.location = this.dataset.navUrl"
+                    {% else %}
                     data-input-id="{{ input_id }}"
                     data-label-id="{{ label_id }}"
                     data-picker-id="{{ picker_id }}"
-                    onclick="window._notarkivPickUnit(this)">
+                    onclick="window._notarkivPickUnit(this)"
+                    {% endif %}>
               {% if location.kind == 'digital' %}☁{% else %}■{% endif %}
               <strong>{{ node.unit.name }}</strong>
               {% if node.kind_name %}<span class="badge bg-light text-muted ms-1">{{ node.kind_name }}</span>{% endif %}

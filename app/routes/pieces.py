@@ -67,6 +67,7 @@ async def list_pieces(
     voicing: str | None = None,
     language: str | None = None,
     unit: int | None = None,
+    include_subunits: bool = False,
     user: User = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -91,11 +92,11 @@ async def list_pieces(
             pieces = []
         else:
             stmt = select(Piece).where(Piece.id.in_(candidate_ids))
-            stmt = _apply_filters(stmt, session, tag, voicing, language, unit)
+            stmt = _apply_filters(stmt, session, tag, voicing, language, unit, include_subunits)
             pieces = list(session.exec(stmt).all())
     else:
         stmt = select(Piece).order_by(Piece.created_at.desc())
-        stmt = _apply_filters(stmt, session, tag, voicing, language, unit)
+        stmt = _apply_filters(stmt, session, tag, voicing, language, unit, include_subunits)
         pieces = list(session.exec(stmt.limit(200)).all())
 
     covers = _covers_by_piece(session, [p.id for p in pieces])
@@ -165,6 +166,8 @@ async def list_pieces(
             "active_voicing": voicing or "",
             "languages": sorted(languages),
             "active_unit": unit_info,
+            "include_subunits": include_subunits,
+            "unit_tree": _unit_picker_tree(session),
             "active_language": language or "",
         },
         user=user,
@@ -250,7 +253,7 @@ async def print_list(
     if stmt is None:
         pieces = []
     else:
-        stmt = _apply_filters(stmt, session, tag, voicing, language, unit)
+        stmt = _apply_filters(stmt, session, tag, voicing, language, unit, include_subunits)
         pieces = list(session.exec(stmt.limit(2000)).all())
 
     # Hämta placeringar grupperade
@@ -294,7 +297,25 @@ async def print_list(
     )
 
 
-def _apply_filters(stmt, session, tags, voicing, language, unit=None):
+def _descendant_unit_ids(session: Session, root_id: int) -> list[int]:
+    """Returnera root_id plus alla rekursiva barn-ID:n. In-memory BFS."""
+    all_units = session.exec(select(StorageUnit.id, StorageUnit.parent_id)).all()
+    children_map: dict[int, list[int]] = {}
+    for uid, parent in all_units:
+        if parent is not None:
+            children_map.setdefault(parent, []).append(uid)
+
+    result = [root_id]
+    queue = [root_id]
+    while queue:
+        cur = queue.pop()
+        for child in children_map.get(cur, []):
+            result.append(child)
+            queue.append(child)
+    return result
+
+
+def _apply_filters(stmt, session, tags, voicing, language, unit=None, include_subunits=False):
     if tags:
         tag_ids = list(
             session.exec(select(Tag.id).where(Tag.name.in_(tags))).all()
@@ -318,10 +339,14 @@ def _apply_filters(stmt, session, tags, voicing, language, unit=None):
     if language:
         stmt = stmt.where(Piece.language == language)
     if unit:
+        if include_subunits:
+            unit_ids = _descendant_unit_ids(session, unit)
+        else:
+            unit_ids = [unit]
         piece_ids_in_unit = list(
             session.exec(
                 select(PiecePlacement.piece_id)
-                .where(PiecePlacement.storage_unit_id == unit)
+                .where(PiecePlacement.storage_unit_id.in_(unit_ids))
                 .distinct()
             ).all()
         )
