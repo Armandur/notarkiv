@@ -17,8 +17,11 @@ sedan via webben.
 
 ## Status
 
-Designfas. Inget implementerat ännu. Se `ROADMAP.md` för MVP-omfattning
-och `CLAUDE.md` + `docs/` för teknisk dokumentation.
+MVP är funktionsmässigt på plats: skanning (med OCR + MusicBrainz),
+granskning, sökning, lagringsplatser, två-personers-flöde, inventerings-
+tillfällen, admin (användare och inställningar), multi-bilder per not.
+Återstår innan prod-deploy: redigering av piece efter skanning, backup
+via litestream. Se `ROADMAP.md` för fullständig status.
 
 ## Tänkt drift
 

@@ -15,6 +15,7 @@ from app.models import (
     PieceImage,
     PiecePlacement,
     ScanSession,
+    ScanSessionImage,
     StorageLocation,
     StorageUnit,
     UnitKind,
@@ -85,22 +86,30 @@ async def quick_scan_page(
 @router.post("/quick", dependencies=[Depends(verify_csrf)])
 async def quick_scan_upload(
     request: Request,
-    image: UploadFile = File(...),
+    images: list[UploadFile] = File(...),
     placement_unit_id: str | None = Form(None),
     placement_copies: str | None = Form(None),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
-    content = await image.read()
-    if not content or len(content) > MAX_UPLOAD_BYTES:
-        flash(request, "Fil saknas eller är för stor", "danger")
+    if not images:
+        flash(request, "Inga bilder uppladdade", "danger")
         return RedirectResponse("/scan/quick", status.HTTP_302_FOUND)
 
-    try:
-        relative_path = save_uploaded_cover(content)
-    except Exception:
-        flash(request, "Kunde inte läsa bilden", "danger")
-        return RedirectResponse("/scan/quick", status.HTTP_302_FOUND)
+    saved_paths: list[str] = []
+    for upload in images:
+        content = await upload.read()
+        if not content or len(content) > MAX_UPLOAD_BYTES:
+            flash(request, f"Bild '{upload.filename}' saknas eller är för stor", "danger")
+            return RedirectResponse("/scan/quick", status.HTTP_302_FOUND)
+        try:
+            saved_paths.append(save_uploaded_cover(content))
+        except Exception:
+            flash(request, f"Kunde inte läsa '{upload.filename}'", "danger")
+            return RedirectResponse("/scan/quick", status.HTTP_302_FOUND)
+
+    primary_path = saved_paths[0]
+    extra_paths = saved_paths[1:]
 
     unit_id = (
         int(placement_unit_id)
@@ -114,7 +123,7 @@ async def quick_scan_upload(
     active_inv = get_active_session(session)
     scan = ScanSession(
         user_id=user.id,
-        image_path=relative_path,
+        image_path=primary_path,
         ocr_provider=get_ocr_provider(),
         status=ScanStatus.PENDING,
         pre_placement_unit_id=unit_id,
@@ -125,15 +134,28 @@ async def quick_scan_upload(
     session.commit()
     session.refresh(scan)
 
+    for i, extra in enumerate(extra_paths):
+        session.add(
+            ScanSessionImage(
+                scan_session_id=scan.id, image_path=extra, sort_order=i + 1
+            )
+        )
+    session.commit()
+
     pool = await get_pool()
     await pool.enqueue_job("extract_metadata_job", scan.id)
 
     if active_inv:
-        append_log(active_inv, f"Skanning #{scan.id} sparad", user.username)
+        suffix = f" ({len(images)} bilder)" if len(images) > 1 else ""
+        append_log(active_inv, f"Skanning #{scan.id} sparad{suffix}", user.username)
         session.add(active_inv)
         session.commit()
 
-    flash(request, "Skanning sparad - i kö för granskning", "success")
+    flash(
+        request,
+        f"Skanning sparad ({len(images)} bild{'er' if len(images) > 1 else ''}) - i kö för granskning",
+        "success",
+    )
     return RedirectResponse("/scan/quick", status.HTTP_302_FOUND)
 
 
@@ -308,7 +330,7 @@ async def save_piece(
     session.add(piece)
     session.flush()
 
-    # Skapa primärbilden från skanningsomslaget
+    # Skapa primärbilden från skanningens huvudbild
     session.add(
         PieceImage(
             piece_id=piece.id,
@@ -317,6 +339,22 @@ async def save_piece(
             sort_order=0,
         )
     )
+
+    # Överför ev. extra bilder från ScanSessionImage till PieceImage
+    extras = session.exec(
+        select(ScanSessionImage)
+        .where(ScanSessionImage.scan_session_id == scan_id)
+        .order_by(ScanSessionImage.sort_order)
+    ).all()
+    for i, extra in enumerate(extras, start=1):
+        session.add(
+            PieceImage(
+                piece_id=piece.id,
+                image_path=extra.image_path,
+                kind=PieceImageKind.OTHER,
+                sort_order=i,
+            )
+        )
 
     if placement_unit_id and placement_unit_id.isdigit():
         unit = session.get(StorageUnit, int(placement_unit_id))

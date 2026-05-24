@@ -18,19 +18,15 @@
 </div>
 {% endif %}
 
-<p class="text-muted small">
-  Skanna omslag och notera placering. Ingen granskning krävs här -
-  metadata fylls i av kollegan vid datorn via "Granskningskö".
-</p>
-
-<form method="post" action="/scan/quick" enctype="multipart/form-data" class="vstack gap-3">
+<form id="quickForm" method="post" action="/scan/quick" enctype="multipart/form-data" class="vstack gap-3">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-  <div>
-    <label class="form-label">Bild av omslag</label>
-    <input type="file" name="image" accept="image/*" capture="environment" class="form-control form-control-lg" required>
-    <div class="form-text">Kameran öppnas direkt på mobil. OCR-metod: <code>{{ ocr_provider }}</code></div>
-  </div>
+  <div id="capture-list" class="vstack gap-2"></div>
+
+  <input type="file" id="captureInput" accept="image/*" capture="environment" class="d-none">
+  <button type="button" id="addCaptureBtn" class="btn btn-outline-primary btn-lg">
+    📷 Lägg till bild
+  </button>
 
   <div class="card">
     <div class="card-body">
@@ -52,10 +48,132 @@
     </div>
   </div>
 
-  <button type="submit" class="btn btn-primary btn-lg">Skanna och fortsätt</button>
+  <button type="submit" id="submitBtn" class="btn btn-primary btn-lg" disabled>
+    Skanna och fortsätt
+  </button>
+  <div class="text-muted small">
+    OCR: <code>{{ ocr_provider }}</code>. Första bilden används för OCR, övriga sparas som extra bilder på noten.
+  </div>
 </form>
 
 <div class="mt-4 text-muted small text-center">
   Du har skannat <strong>{{ today_count }}</strong> {% if today_count == 1 %}not{% else %}noter{% endif %} idag.
 </div>
+
+<script>
+(function() {
+  const captures = []; // {file, rotation, blobUrl}
+  const list = document.getElementById('capture-list');
+  const input = document.getElementById('captureInput');
+  const addBtn = document.getElementById('addCaptureBtn');
+  const submitBtn = document.getElementById('submitBtn');
+  const form = document.getElementById('quickForm');
+
+  addBtn.addEventListener('click', () => input.click());
+
+  input.addEventListener('change', (e) => {
+    for (const file of e.target.files) {
+      captures.push({ file, rotation: 0, blobUrl: URL.createObjectURL(file) });
+    }
+    e.target.value = '';
+    render();
+  });
+
+  function render() {
+    list.innerHTML = '';
+    submitBtn.disabled = captures.length === 0;
+    captures.forEach((cap, idx) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="card-body p-2 d-flex align-items-center gap-2">
+          <div class="position-relative" style="width: 100px; height: 100px; overflow: hidden; flex-shrink: 0">
+            <img src="${cap.blobUrl}"
+                 style="width: 100%; height: 100%; object-fit: cover; transform: rotate(${cap.rotation}deg); transition: transform 0.2s">
+          </div>
+          <div class="flex-grow-1 small">
+            <div><strong>Bild ${idx + 1}</strong>${idx === 0 ? ' <span class="badge bg-primary">primär / OCR</span>' : ''}</div>
+            <div class="text-muted">${cap.file.name || 'foto.jpg'}</div>
+            ${cap.rotation !== 0 ? `<div class="badge bg-warning text-dark">roterad ${cap.rotation}°</div>` : ''}
+          </div>
+          <div class="btn-group-vertical btn-group-sm">
+            <button type="button" class="btn btn-outline-secondary" data-action="rotate-ccw" data-idx="${idx}" title="Rotera moturs">⟲</button>
+            <button type="button" class="btn btn-outline-secondary" data-action="rotate-cw" data-idx="${idx}" title="Rotera medurs">⟳</button>
+            <button type="button" class="btn btn-outline-danger" data-action="remove" data-idx="${idx}" title="Ta bort">×</button>
+          </div>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  list.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const idx = parseInt(btn.dataset.idx, 10);
+    if (btn.dataset.action === 'rotate-cw') {
+      captures[idx].rotation = (captures[idx].rotation + 90) % 360;
+    } else if (btn.dataset.action === 'rotate-ccw') {
+      captures[idx].rotation = (captures[idx].rotation + 270) % 360;
+    } else if (btn.dataset.action === 'remove') {
+      URL.revokeObjectURL(captures[idx].blobUrl);
+      captures.splice(idx, 1);
+    }
+    render();
+  });
+
+  // Rotera fil via canvas innan upload
+  async function rotateFile(file, angle) {
+    if (angle % 360 === 0) return file;
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const a = ((angle % 360) + 360) % 360;
+        if (a === 90 || a === 270) {
+          canvas.width = img.height; canvas.height = img.width;
+        } else {
+          canvas.width = img.width; canvas.height = img.height;
+        }
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((a * Math.PI) / 180);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        canvas.toBlob((blob) => {
+          if (!blob) return reject(new Error('Konvertering misslyckades'));
+          resolve(new File([blob], file.name || 'rotated.jpg', { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.92);
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  form.addEventListener('submit', async (e) => {
+    if (captures.length === 0) { e.preventDefault(); return; }
+    e.preventDefault();
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Laddar upp...';
+
+    const fd = new FormData();
+    fd.append('csrf_token', form.csrf_token.value);
+    const placement = form.querySelector('[name="placement_unit_id"]').value;
+    if (placement) fd.append('placement_unit_id', placement);
+    const copies = form.querySelector('[name="placement_copies"]').value;
+    if (copies) fd.append('placement_copies', copies);
+
+    for (const cap of captures) {
+      const file = await rotateFile(cap.file, cap.rotation);
+      fd.append('images', file, file.name);
+    }
+
+    const resp = await fetch(form.action, { method: 'POST', body: fd, redirect: 'follow' });
+    if (resp.redirected) {
+      window.location.href = resp.url;
+    } else {
+      window.location.reload();
+    }
+  });
+})();
+</script>
 {% endblock %}

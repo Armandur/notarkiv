@@ -16,6 +16,7 @@ from app.models import (  # noqa: F401
     PiecePlacement,
     PieceTag,
     ScanSession,
+    ScanSessionImage,
     StorageLocation,
     StorageUnit,
     Tag,

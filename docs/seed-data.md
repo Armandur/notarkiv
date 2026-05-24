@@ -39,12 +39,16 @@ Seed-data ligger i `seed_data/`:
 
 ```
 seed_data/
-  users.yaml              # Användare (admin, et al.)
-  storage_locations.yaml  # Fysiska och digitala lagringsplatser
-  tags.yaml               # Liturgiska kategorier, tillfällen
+  users.yaml              # Användare (admin, et al.) - valfri
+  storage_locations.yaml  # Fysiska och digitala lagringsplatser - valfri
+  tags.yaml               # Liturgiska kategorier, tillfällen - inkluderad
+  unit_kinds.yaml         # Typer av förvaringsenheter - inkluderad
   pieces.yaml             # (valfritt) Provnoter för testning
   covers/                 # (valfritt) Bilder kopplade till pieces.yaml
 ```
+
+`tags.yaml` och `unit_kinds.yaml` är pre-fyllda i repot och seedas
+alltid. Övriga skapas av användaren vid behov.
 
 YAML är förstaval eftersom det är trivialt att redigera för hand och
 stödjer kommentarer. JSON funkar också om det visar sig krångligare.
@@ -96,6 +100,17 @@ stödjer kommentarer. JSON funkar också om det visar sig krångligare.
   kind: occasion
   sort_order: 100
 ```
+
+### Exempel: `unit_kinds.yaml`
+
+```yaml
+- hylla
+- pärm
+- låda
+- mapp
+```
+
+Fler kinds skapas via UI:t (autocomplete-fältet i formuläret för ny enhet).
 
 ## Seed-skriptet
 

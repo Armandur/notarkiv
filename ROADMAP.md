@@ -6,78 +6,91 @@ omfattning ändras.
 ## MVP - "Kan ersätta dagens kaos"
 
 Målet med MVP:n är att verifiera grundflödet: skanna -> extrahera ->
-granska -> spara -> hitta igen. Allt annat är tillägg.
+granska -> spara -> hitta igen.
 
 ### Backend och infra
 
-- [ ] FastAPI-skelett med lifespan, settings, statiska filer, templates
-- [ ] SQLModel-modeller enligt `docs/datamodell.md`
-- [ ] `init_db()` med `metadata.create_all()` (ALTER-guards läggs till
-      vid prod-tröskeln, se `docs/seed-data.md`)
-- [ ] CLI (`app/cli.py`): `db reset`, `db seed`, `users create-admin`
-- [ ] Seed-skript som läser YAML från `seed_data/`, idempotent där
-      meningsfullt (se `docs/seed-data.md`)
-- [ ] Loguru-konfiguration, valfri Sentry-init via env-variabel
-- [ ] Användarhantering: User-modell, bcrypt-hashning, login/logout-flöde
-- [ ] Roller: `reader`, `editor`, `admin`
-- [ ] Initial admin-bootstrap via env-variabel eller CLI-kommando
-- [ ] arq-worker med Redis, registrera grundläggande jobs
-- [ ] Docker + docker-compose med tre tjänster (app, worker, redis),
-      volym-mappad SQLite och bildmapp
+- [x] FastAPI-skelett med lifespan, settings, statiska filer, templates
+- [x] SQLModel-modeller enligt `docs/datamodell.md`
+- [x] `init_db()` med `metadata.create_all()` + FTS5-triggers
+- [x] CLI (`app/cli.py`): `db init/reset/seed`, `users create/create-admin/reset-password`
+- [x] Seed-skript som läser YAML från `seed_data/`, idempotent
+- [x] Loguru-konfiguration, valfri Sentry-init via env-variabel
+- [x] Användarhantering: User-modell, bcrypt-hashning, login/logout-flöde
+- [x] Roller: `reader`, `editor`, `admin`
+- [x] Initial admin-bootstrap via env-variabel
+- [x] arq-worker med Redis
+- [x] Docker + docker-compose med tre tjänster
 
 ### Skanningsflöde
 
-- [ ] Mobilanpassad uppladdningssida med kamerakomponent (minimal vanilla JS)
-- [ ] OCR-abstraktion (`OCRProvider`-protocol)
-- [ ] Claude Vision-implementation (default)
-- [ ] Tesseract-implementation (fallback)
+- [x] Mobilanpassad uppladdningssida med kamerakomponent
+- [x] OCR-abstraktion (`OCRProvider`-protocol)
+- [x] Claude Vision-implementation (default)
+- [x] Tesseract-implementation (fallback)
 - [ ] Hybrid-implementation (Tesseract OCR + Claude för strukturering)
-- [ ] arq-job som kör OCR i bakgrunden, returnerar omedelbart med job-ID
-- [ ] HTMX-pollad jobbstatus med progress
-- [ ] Granskningsformulär med förifyllda fält och möjlighet att rätta
-- [ ] Bildlagring (originalbild + thumbnail)
+      - Fallar tillbaka till claude_vision tills implementerad
+- [x] arq-job som kör OCR i bakgrunden, returnerar omedelbart
+- [x] HTMX-pollad jobbstatus med progress
+- [x] Granskningsformulär med förifyllda fält och möjlighet att rätta
+- [x] Bildlagring (originalbild + thumbnail)
+- [x] Multi-bilder per not (PieceImage) - lägg till efter skanning eller
+      under quick-scan
+- [x] Klientside-rotation i mobil quick-scan + serverside-rotation på
+      detaljvy
 
 ### MusicBrainz-berikning
 
-- [ ] `services/musicbrainz.py` med rate-limited klient (1 req/sek)
-- [ ] Lokal cache (sqlite-baserad eller in-memory) för att undvika
-      upprepade lookups
-- [ ] arq-job som triggas efter OCR-extraktion, gör MB-lookup på
-      `(title, composer)` och bifogar förslag till granskningsformuläret
-- [ ] UI i granskningsformuläret: "Möjlig matchning: ... Använd?"
+- [x] `services/musicbrainz.py` med rate-limited klient (1 req/sek)
+- [x] In-memory LRU-cache för sökningar
+- [x] arq-job som triggas efter OCR-extraktion
+- [x] UI i granskningsformuläret: förslag med "Använd"-knapp
 
 ### Notpost-hantering
 
-- [ ] Listvy med sökning och filter (FTS5 på titel/kompositör/anteckningar)
-- [ ] Detaljvy med all metadata och placeringar
-- [ ] Redigeringsvy
-- [ ] Borttagning (med bekräftelse, soft delete eller hard delete -
-      bestäms vid implementation)
+- [x] Listvy med sökning (FTS5 på titel/kompositör/anteckningar)
+- [x] Detaljvy med all metadata och placeringar
+- [ ] Redigeringsvy (utöver via review-formuläret från skanning)
+- [ ] Borttagning av piece
 
 ### Lagringsplatser
 
-- [ ] CRUD för `storage_locations` (fysisk/digital)
-- [ ] CRUD för `storage_units` med nestning
-- [ ] Trädvisning för administration
-- [ ] Lägga till/ta bort placeringar på en notpost
-- [ ] Visa full sökväg i dropdown och listor
+- [x] CRUD för `storage_locations` (fysisk/digital)
+- [x] CRUD för `storage_units` med nestning
+- [x] Trädvisning för administration
+- [x] Lägga till placeringar på en notpost via review
+- [x] Visa full sökväg i dropdown och listor
+- [x] UnitKind (typ av enhet) som autocomplete-entitet, dubletter blockerade
+
+### Två-personers skanningsflöde
+
+- [x] Mobil-anpassad snabbskanning (`/scan/quick`) med multi-bild,
+      rotation och förhandsgranskning före upload
+- [x] Granskningskö (`/scan/queue`) med thumbnails och status
+- [x] Pre-noterad placering på ScanSession som förifylls i granskning
+- [x] Navbar-badge med antal väntande granskningar
+
+### Inventeringstillfälle
+
+- [x] InventorySession-modell med planerad plats, beskrivning, logg
+- [x] Lista, skapa, detalj, avsluta sessioner
+- [x] Auto-länkning av skanningar till aktiv session
+- [x] Aktivitetslogg med tidsstämplar (auto + manuell)
+- [x] Navbar-prick när session är aktiv
+
+### Admin
+
+- [x] Användarhantering: lista, skapa (auto-genererat lösenord), byt roll,
+      återställ lösenord, ta bort
+- [x] Inställningar: Anthropic API-nyckel, Claude-modell, OCR-default,
+      MusicBrainz User-Agent
+- [x] AppSetting-tabell med env-fallback - ändringar utan omstart
 
 ### Backup
 
 - [ ] `litestream` konfigurerat mot offsite-bucket
 - [ ] Nattlig cron för bilduppladdningsmapp (rsync till samma bucket)
 - [ ] Dokumenterad återställningsprocess
-
-### Två-personers skanningsflöde
-
-- [ ] Mobil-anpassad snabbskanning (`/scan/quick`): kamera + valfri
-      placering, sparar utan att tvinga granskning, retur till kamera
-      direkt
-- [ ] Granskningskö (`/scan/queue`): lista över skanningar som väntar
-      på granskning, med thumbnail, status och ev. för-noterad placering
-- [ ] Pre-noterad placering på ScanSession (placement_unit_id +
-      placement_copies) som förifylls i granskningsformuläret
-- [ ] Navbar-badge med antal väntande granskningar
 
 ### Klart-kriterier för MVP
 
@@ -94,8 +107,12 @@ granska -> spara -> hitta igen. Allt annat är tillägg.
 - [ ] **Auto-crop med jscanify**: webbläsare-baserad dokument-detektion
       via OpenCV.js, perspektivkorrigering, manuell hörnjustering.
       Ersätter standard `<input capture>` på mobil.
-- [ ] **Batch-skanningsläge**: skanna in flera noter i rad utan att gå
-      tillbaka mellan varje
+- [ ] **Dokumentfilter likt OneDrive-skannern**: efter crop, klientside-
+      filter för gråskala, svartvit (adaptiv tröskel), nivåjustering
+      och skärpa. Användaren väljer per skanning vilken filtertyp.
+      Hör ihop med auto-crop och OpenCV.js.
+- [ ] **Batch-skanningsläge**: skanna in flera *noter* i rad utan att gå
+      tillbaka mellan varje (jfr nuvarande multi-foto som gäller samma not)
 - [ ] **Dubblettkoll**: vid skanning, jämför mot befintliga poster på
       `(titel, kompositör, arrangör)`. Föreslå "lägg till placering"
       istället för "skapa ny post" om träff finns
@@ -115,8 +132,7 @@ granska -> spara -> hitta igen. Allt annat är tillägg.
 - [ ] **Utlåningshantering**: "körledare X har lånat 5 ex av Y till och
       med datum Z"
 - [ ] **Framförandehistorik**: spara vilka noter som använts vid vilka
-      gudstjänster/konserter, generera statistik ("vad sjöng vi på
-      advent senast?")
+      gudstjänster/konserter, generera statistik
 - [ ] **Offline-stöd via PWA**: cacha skanningar lokalt på mobilen och
       synca när uppkoppling finns
 - [ ] **IMSLP-integration** för fri sheet music där det finns
@@ -124,16 +140,12 @@ granska -> spara -> hitta igen. Allt annat är tillägg.
 - [ ] **Filuppladdning** för digitala noter (PDF, MusicXML, MP3) om
       behovet visar sig
 - [ ] **MS Graph API-integration** för att bläddra SharePoint direkt
-      från placeringsformuläret
 - [ ] **Postgres-migration**: när skalan eller behovet av bättre
-      fuzzy-search motiverar det. Se `docs/postgres-migration.md`.
+      fuzzy-search motiverar det
 
 ## Aktivt utanför scope
 
-Saker som diskuterats och avfärdats för att hålla projektet fokuserat:
-
-- Hård integration mot SharePoint/Teams (bara URL räcker, bekräftat
-  2026-05-24)
+- Hård integration mot SharePoint/Teams (bara URL räcker)
 - Notrendering eller -spelning (det är vad MuseScore är till för)
 - Köp/inköpsförslag eller budgethantering
 - Versionshantering av arrangemang

@@ -15,16 +15,24 @@ av medvetna kompromisser och migrationsstrategi.
 
 ## Översikt
 
-Fyra huvudsakliga koncept:
+Huvudsakliga koncept:
 
 1. **Notpost** (`pieces`) - en katalogpost för ett verk i en specifik
    utgåva/arrangemang
-2. **Lagringsplats** (`storage_locations` + `storage_units`) - var noten
-   finns, fysiskt eller digitalt
-3. **Placering** (`piece_placements`) - många-till-många: en not kan
-   finnas på flera platser, en plats innehåller flera noter
-4. **Tagg** (`tags` + `piece_tags`) - liturgisk användning, tillfällen,
+2. **Bilder** (`piece_images`) - en eller flera bilder per not (omslag,
+   baksida, försättsblad m.m.)
+3. **Lagringsplats** (`storage_locations` + `storage_units`) - var noten
+   finns, fysiskt eller digitalt. Enhetstyper i `unit_kinds`.
+4. **Placering** (`piece_placements`) - många-till-många: en not kan
+   finnas på flera platser
+5. **Tagg** (`tags` + `piece_tags`) - liturgisk användning, tillfällen,
    fria etiketter
+6. **Skanning** (`scan_sessions` + `scan_session_images`) - varje
+   uppladdning blir en session; OCR + MB-berikning körs som arq-jobb
+7. **Inventeringstillfälle** (`inventory_sessions`) - grupperar
+   skanningar gjorda i samma sammanhang, med planerad plats och logg
+8. **Inställningar** (`app_settings`) - runtime-värden ändringsbara via
+   admin-UI (Anthropic-nyckel, Claude-modell, MB User-Agent)
 
 ## Tabeller
 
@@ -72,7 +80,7 @@ CREATE TABLE pieces (
     difficulty INTEGER,                    -- 1-5, valfritt
     duration_seconds INTEGER,              -- valfritt
     copyright_status TEXT,                 -- original, licensed_copy, public_domain, unknown
-    cover_image_path TEXT,                 -- relativ sökväg i IMAGES_PATH
+    musicbrainz_work_id TEXT,              -- MBID om matchat
     notes TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -82,6 +90,31 @@ CREATE TABLE pieces (
 CREATE INDEX idx_pieces_composer ON pieces(composer);
 CREATE INDEX idx_pieces_title ON pieces(title);
 ```
+
+Notpost har inget eget `cover_image_path`-fält - alla bilder finns i
+`piece_images` med `sort_order` (lägst = primär).
+
+### `piece_images` - Bilder per not
+
+```sql
+CREATE TABLE piece_images (
+    id INTEGER PRIMARY KEY,
+    piece_id INTEGER NOT NULL REFERENCES pieces(id) ON DELETE CASCADE,
+    image_path TEXT NOT NULL,              -- relativ sökväg i IMAGES_PATH
+    kind TEXT NOT NULL DEFAULT 'cover',    -- cover, back, title_page, inside, other
+    label TEXT,                            -- fri text, t.ex. "Försättsblad"
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_piece_images_piece ON piece_images(piece_id);
+```
+
+- Den med lägst `sort_order` är primär (visas som thumbnail i listor).
+- "Gör primär" flyttar bilden till `sort_order=0` och skiftar övriga uppåt.
+- Rotation: PIL `Image.rotate(expand=True)` skriver om filen samt
+  regenererar thumbnail. Klientside-rotation görs också i mobil
+  quick-scan via HTML5 canvas före upload.
 
 **Designval**:
 
@@ -114,6 +147,21 @@ Exempel:
 - `SharePoint` (digital)
 - `Teams` (digital)
 
+### `unit_kinds` - Typ av förvaringsenhet
+
+```sql
+CREATE TABLE unit_kinds (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+Seedas alltid med `hylla`, `pärm`, `låda`, `mapp`. Nya kinds skapas via
+autocomplete-UI:t i formuläret för ny enhet (`/storage/unit-kinds/search`
++ `POST /storage/unit-kinds`). Dubletter blockeras (unique constraint +
+idempotent POST returnerar befintlig).
+
 ### `storage_units` - Förvaringsenhet (nästlad)
 
 ```sql
@@ -122,7 +170,7 @@ CREATE TABLE storage_units (
     location_id INTEGER NOT NULL REFERENCES storage_locations(id),
     parent_id INTEGER REFERENCES storage_units(id),
     name TEXT NOT NULL,
-    kind TEXT,                             -- hylla, parm, lada, mapp, skap, sharepoint_mapp, teams_kanal, ovrigt
+    kind_id INTEGER REFERENCES unit_kinds(id),
     url TEXT,                              -- valfri, för digitala enheter
     sort_order INTEGER NOT NULL DEFAULT 0,
     archived INTEGER NOT NULL DEFAULT 0,   -- soft delete
@@ -244,26 +292,83 @@ END;
 Använd `pieces_fts MATCH 'query'` för fritextsökning. Stöder
 prefixmatchning med `query*`.
 
-### `scan_sessions` - Spårning av skanningar (valfritt, för debugging)
+### `scan_sessions` - Skanningar
 
 ```sql
 CREATE TABLE scan_sessions (
     id INTEGER PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
-    image_path TEXT NOT NULL,
+    image_path TEXT NOT NULL,              -- primärbild för OCR
     ocr_provider TEXT NOT NULL,            -- claude_vision, tesseract, hybrid
-    raw_response TEXT,                     -- json från provider
-    resulting_piece_id INTEGER REFERENCES pieces(id),  -- null om kasserad
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    status TEXT NOT NULL DEFAULT 'pending', -- pending, extracting, enriching, done, failed
+    raw_response TEXT,                     -- JSON från OCR-providern
+    musicbrainz_suggestion TEXT,           -- JSON-array av förslag
+    error_message TEXT,                    -- om status=failed
+    pre_placement_unit_id INTEGER REFERENCES storage_units(id),
+    pre_placement_copies INTEGER,
+    inventory_session_id INTEGER REFERENCES inventory_sessions(id),
+    resulting_piece_id INTEGER REFERENCES pieces(id),  -- null om ej granskad/sparad
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP
 );
 ```
 
-Användbart för:
-- Felsökning ("varför extraherade den fel?")
-- Senare träning eller fine-tuning
-- Audit ("vem skannade in vilken not när?")
+`resulting_piece_id IS NULL AND status='done'` definierar granskningskön.
 
-Kan vara tomt initialt - lägg in om/när det behövs.
+### `scan_session_images` - Extra bilder under skanning
+
+```sql
+CREATE TABLE scan_session_images (
+    id INTEGER PRIMARY KEY,
+    scan_session_id INTEGER NOT NULL REFERENCES scan_sessions(id) ON DELETE CASCADE,
+    image_path TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_scan_session_images_session ON scan_session_images(scan_session_id);
+```
+
+Vid quick-scan kan användaren skanna fram, bak, försättsblad osv i en
+sittning. Första bilden går till `scan_sessions.image_path` (OCR-mål),
+resten lagras här. När piece sparas via granskningsformuläret blir alla
+till `PieceImage` med bevarad ordning.
+
+### `inventory_sessions` - Inventeringstillfälle
+
+```sql
+CREATE TABLE inventory_sessions (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    planned_location_id INTEGER REFERENCES storage_locations(id),
+    planned_unit_id INTEGER REFERENCES storage_units(id),
+    log TEXT,                              -- append-only fritext med tidsstämplar
+    started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ended_at TIMESTAMP,
+    started_by INTEGER REFERENCES users(id)
+);
+```
+
+En aktiv session i taget globalt - vid `POST /inventory` med befintlig
+aktiv: sätt `ended_at` på den, skapa ny. Skanningar gjorda när en
+session är aktiv får automatiskt `inventory_session_id`.
+
+### `app_settings` - Runtime-inställningar
+
+```sql
+CREATE TABLE app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_by INTEGER REFERENCES users(id)
+);
+```
+
+Nycklar som används idag: `anthropic_api_key`, `claude_model`,
+`musicbrainz_user_agent`, `ocr_provider`. Värden i klartext - skydda
+SQLite-filen på OS-nivå. `app/services/app_settings.py` läser via DB med
+env-värden som fallback.
 
 ## Dubblettkoll - logik
 
