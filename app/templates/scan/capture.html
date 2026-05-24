@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Skanna - Notarkiv{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4">Skanna ny not</h1>
+
+<div class="row g-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body">
+        <h2 class="h6">Ta bild av omslag</h2>
+        <form method="post" action="/scan/upload" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+          <div class="mb-3">
+            <input type="file" name="image" accept="image/*" capture="environment"
+                   class="form-control" required>
+            <div class="form-text">På mobil öppnas kameran direkt. På dator kan du välja en bildfil.</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">OCR-metod</label>
+            <select name="provider" class="form-select">
+              <option value="claude_vision" {% if ocr_provider == "claude_vision" %}selected{% endif %}>
+                Claude Vision (rekommenderad)
+              </option>
+              <option value="tesseract" {% if ocr_provider == "tesseract" %}selected{% endif %}>
+                Tesseract (lokalt, sämre kvalitet)
+              </option>
+              <option value="hybrid" {% if ocr_provider == "hybrid" %}selected{% endif %}>
+                Hybrid (faller tillbaka till Claude)
+              </option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100">Skanna</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <h2 class="h6">Senaste skanningar</h2>
+    {% if not recent %}
+    <p class="text-muted fst-italic">Inga skanningar än.</p>
+    {% else %}
+    <ul class="list-group">
+      {% for s in recent %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <a href="/scan/{{ s.id }}">#{{ s.id }} - {{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</a>
+        <span class="badge bg-{% if s.status == 'done' %}success{% elif s.status == 'failed' %}danger{% else %}secondary{% endif %}">
+          {{ s.status }}
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

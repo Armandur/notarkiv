@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Bearbetar skanning - Notarkiv{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4">Bearbetar skanning #{{ scan.id }}</h1>
+
+<div class="row g-4">
+  <div class="col-md-5">
+    <img src="/images/{{ scan.image_path }}" class="img-fluid rounded shadow-sm" alt="Skannat omslag">
+  </div>
+  <div class="col-md-7">
+    <div id="status-block"
+         hx-get="/scan/{{ scan.id }}/status"
+         hx-trigger="every 1s"
+         hx-swap="outerHTML">
+      {% include "scan/_status.html" %}
+    </div>
+  </div>
+</div>
+{% endblock %}

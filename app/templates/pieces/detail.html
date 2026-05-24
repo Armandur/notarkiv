@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ piece.title }} - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-md-4">
+    {% if cover_url %}
+    <img src="{{ cover_url }}" class="img-fluid rounded shadow-sm" alt="{{ piece.title }}">
+    {% else %}
+    <div class="bg-light rounded p-5 text-center text-muted">Ingen omslagsbild</div>
+    {% endif %}
+  </div>
+
+  <div class="col-md-8">
+    <h1 class="h3">{{ piece.title }}</h1>
+    {% if piece.original_title %}<div class="text-muted">{{ piece.original_title }}</div>{% endif %}
+
+    <dl class="row mt-3">
+      {% if piece.composer %}<dt class="col-sm-3">Kompositör</dt><dd class="col-sm-9">{{ piece.composer }}</dd>{% endif %}
+      {% if piece.arranger %}<dt class="col-sm-3">Arrangör</dt><dd class="col-sm-9">{{ piece.arranger }}</dd>{% endif %}
+      {% if piece.lyricist %}<dt class="col-sm-3">Textförfattare</dt><dd class="col-sm-9">{{ piece.lyricist }}</dd>{% endif %}
+      {% if piece.voicing %}<dt class="col-sm-3">Besättning</dt><dd class="col-sm-9">{{ piece.voicing }}</dd>{% endif %}
+      {% if piece.accompaniment %}<dt class="col-sm-3">Ackompanjemang</dt><dd class="col-sm-9">{{ piece.accompaniment }}</dd>{% endif %}
+      {% if piece.language %}<dt class="col-sm-3">Språk</dt><dd class="col-sm-9">{{ piece.language }}</dd>{% endif %}
+      {% if piece.psalm_number %}<dt class="col-sm-3">Psalm</dt><dd class="col-sm-9">{{ piece.psalm_number }}</dd>{% endif %}
+      {% if piece.publisher %}<dt class="col-sm-3">Förlag</dt><dd class="col-sm-9">{{ piece.publisher }}{% if piece.edition_number %} / {{ piece.edition_number }}{% endif %}</dd>{% endif %}
+      {% if piece.musicbrainz_work_id %}
+      <dt class="col-sm-3">MusicBrainz</dt>
+      <dd class="col-sm-9"><a href="https://musicbrainz.org/work/{{ piece.musicbrainz_work_id }}" target="_blank">{{ piece.musicbrainz_work_id }}</a></dd>
+      {% endif %}
+    </dl>
+
+    {% if piece.notes %}
+    <h2 class="h6 mt-3">Anteckningar</h2>
+    <p>{{ piece.notes }}</p>
+    {% endif %}
+
+    <h2 class="h6 mt-4">Placeringar</h2>
+    {% if placements %}
+    <ul class="list-group">
+      {% for pv in placements %}
+      <li class="list-group-item d-flex justify-content-between">
+        <div>
+          {% if pv.location.kind == 'digital' %}☁{% else %}■{% endif %}
+          {{ pv.path }}
+          {% if pv.kind_name %}<span class="badge bg-light text-muted">{{ pv.kind_name }}</span>{% endif %}
+          {% if pv.unit.url %}<a href="{{ pv.unit.url }}" target="_blank" class="ms-2 small">öppna</a>{% endif %}
+        </div>
+        <div>
+          {% if pv.placement.copies %}<span class="badge bg-secondary">{{ pv.placement.copies }} ex</span>{% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-muted fst-italic">Inga placeringar registrerade.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

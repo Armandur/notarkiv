@@ -41,7 +41,7 @@
           <div class="form-text">Sök eller skapa ny - dubletter tillåts inte</div>
         </div>
 
-        {% if location.kind.value == "digital" %}
+        {% if location.kind == "digital" %}
         <div class="mb-3">
           <label class="form-label">URL (valfritt)</label>
           <input type="url" name="url" class="form-control" placeholder="https://...">

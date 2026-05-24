@@ -11,7 +11,10 @@ from app.logging_setup import setup_logging
 from app.middleware import EnsureCSRFTokenMiddleware
 from app.routes import auth as auth_routes
 from app.routes import pages as pages_routes
+from app.routes import pieces as pieces_routes
+from app.routes import scan as scan_routes
 from app.routes import storage as storage_routes
+from app.tasks import close_pool
 
 
 @asynccontextmanager
@@ -20,6 +23,7 @@ async def lifespan(_app: FastAPI):
     logger.info("Startar notarkiv ({})", settings.app_env)
     init_db()
     yield
+    await close_pool()
     logger.info("Stoppar notarkiv")
 
 
@@ -38,10 +42,13 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/images", StaticFiles(directory=str(settings.images_path)), name="images")
 
 app.include_router(pages_routes.router)
 app.include_router(auth_routes.router)
 app.include_router(storage_routes.router)
+app.include_router(scan_routes.router)
+app.include_router(pieces_routes.router)
 
 
 @app.get("/healthz")

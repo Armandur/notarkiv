@@ -35,7 +35,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       DATABASE_PATH: /app/data/notarkiv.db
       IMAGES_PATH: /app/data/images
-    command: ["sh", "-c", "echo 'Worker startas i commit 3 - lägger sig att sova för nu' && sleep infinity"]
+    command: ["arq", "app.tasks.worker.WorkerSettings"]
 
   redis:
     image: redis:7-alpine

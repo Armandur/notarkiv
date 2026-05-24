@@ -6,7 +6,7 @@
 <div class="storage-unit ps-3 border-start">
   <div class="d-flex align-items-center justify-content-between py-1">
     <div>
-      <span class="me-2">{% if location.kind.value == "digital" %}☁{% else %}■{% endif %}</span>
+      <span class="me-2">{% if location.kind == "digital" %}☁{% else %}■{% endif %}</span>
       <strong>{{ node.unit.name }}</strong>
       {% if node.kind %}<span class="badge bg-light text-muted">{{ node.kind.name }}</span>{% endif %}
       {% if node.unit.url %}<a href="{{ node.unit.url }}" target="_blank" class="ms-2 small">öppna</a>{% endif %}
@@ -36,8 +36,8 @@
   <div class="card-header d-flex justify-content-between align-items-center">
     <div>
       <strong>{{ branch.location.name }}</strong>
-      <span class="badge bg-{% if branch.location.kind.value == 'digital' %}info{% else %}secondary{% endif %}">
-        {{ "Digital" if branch.location.kind.value == "digital" else "Fysisk" }}
+      <span class="badge bg-{% if branch.location.kind == 'digital' %}info{% else %}secondary{% endif %}">
+        {{ "Digital" if branch.location.kind == "digital" else "Fysisk" }}
       </span>
       {% if branch.location.description %}
       <div class="text-muted small">{{ branch.location.description }}</div>

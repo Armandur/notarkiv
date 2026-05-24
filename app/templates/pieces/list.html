@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Noter - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Noter</h1>
+  {% if user.can_edit %}
+  <a href="/scan" class="btn btn-primary btn-sm">Skanna ny</a>
+  {% endif %}
+</div>
+
+<form method="get" action="/pieces" class="mb-3">
+  <div class="input-group">
+    <input type="search" name="q" class="form-control" placeholder="Sök titel, kompositör, anteckningar..." value="{{ q }}">
+    <button class="btn btn-outline-secondary" type="submit">Sök</button>
+    {% if q %}<a href="/pieces" class="btn btn-outline-secondary">Rensa</a>{% endif %}
+  </div>
+</form>
+
+{% if not pieces %}
+<p class="text-muted fst-italic">
+  {% if q %}Inga träffar för "{{ q }}".{% else %}Inga noter registrerade än.{% endif %}
+</p>
+{% else %}
+<div class="row g-3">
+  {% for p in pieces %}
+  <div class="col-md-6 col-lg-4">
+    <a href="/pieces/{{ p.id }}" class="text-decoration-none text-reset">
+      <div class="card h-100">
+        <div class="row g-0">
+          <div class="col-4">
+            {% set t = thumb(p.cover_image_path) %}
+            {% if t %}
+            <img src="{{ t }}" class="rounded-start h-100 w-100" style="object-fit: cover" alt="{{ p.title }}">
+            {% else %}
+            <div class="bg-light h-100 d-flex align-items-center justify-content-center text-muted small">ingen bild</div>
+            {% endif %}
+          </div>
+          <div class="col-8">
+            <div class="card-body p-2">
+              <div class="fw-bold text-truncate">{{ p.title }}</div>
+              {% if p.composer %}<div class="small text-muted text-truncate">{{ p.composer }}</div>{% endif %}
+              <div class="small">
+                {% if p.voicing %}<span class="badge bg-secondary">{{ p.voicing }}</span>{% endif %}
+                {% if p.language %}<span class="badge bg-light text-muted">{{ p.language }}</span>{% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
