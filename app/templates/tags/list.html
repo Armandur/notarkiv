@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Taggar - Notarkiv{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-3">Taggar</h1>
+
+<p class="text-muted small">
+  Klicka på en tagg för att se alla noter som har den. Taggar kan
+  läggas till/tas bort per not via "hantera"-knappen på piece-detalj.
+</p>
+
+{% set kind_labels = {'liturgical': 'Kyrkoåret', 'occasion': 'Tillfällen', 'free': 'Fria taggar'} %}
+{% set kind_colors = {'liturgical': 'primary', 'occasion': 'success', 'free': 'secondary'} %}
+
+{% for kind, label in kind_labels.items() %}
+{% if by_kind.get(kind) %}
+<h2 class="h5 mt-4">{{ label }}</h2>
+<div class="d-flex flex-wrap gap-2">
+  {% for item in by_kind[kind] %}
+  {% set color = kind_colors.get(kind, 'secondary') %}
+  <a href="/pieces?tag={{ item.tag.name }}"
+     class="btn btn-sm {% if item.count %}btn-outline-{{ color }}{% else %}btn-outline-secondary text-muted{% endif %}">
+    {{ item.tag.name }}
+    <span class="badge bg-{% if item.count %}{{ color }}{% else %}light text-muted{% endif %} ms-1">{{ item.count }}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endfor %}
+{% endblock %}

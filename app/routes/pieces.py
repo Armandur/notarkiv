@@ -69,6 +69,9 @@ async def list_pieces(
     user: User = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> Response:
+    if view == "tree":
+        return await _list_tree(request, user, session)
+
     from sqlalchemy import func as sqlf
 
     # Bygg basquery - använd FTS om q givet, annars vanlig select
@@ -147,6 +150,51 @@ async def list_pieces(
         },
         user=user,
     )
+
+
+async def _list_tree(request: Request, user: User, session: Session) -> Response:
+    """Trädvy: lagringsplatser och enheter hierarkiskt, med antal placeringar."""
+    from sqlalchemy import func as sqlf
+
+    locations = session.exec(
+        select(StorageLocation).order_by(StorageLocation.sort_order, StorageLocation.name)
+    ).all()
+    units = session.exec(
+        select(StorageUnit)
+        .where(StorageUnit.archived == False)  # noqa: E712
+        .order_by(StorageUnit.sort_order, StorageUnit.name)
+    ).all()
+
+    # Räkna placeringar per unit
+    counts: dict[int, int] = {}
+    rows = session.exec(
+        select(PiecePlacement.storage_unit_id, sqlf.count(PiecePlacement.id))
+        .group_by(PiecePlacement.storage_unit_id)
+    ).all()
+    counts = dict(rows)
+
+    # Bygg träd
+    units_by_parent: dict[tuple[int, int | None], list[StorageUnit]] = {}
+    for u in units:
+        units_by_parent.setdefault((u.location_id, u.parent_id), []).append(u)
+
+    def build_subtree(location_id: int, parent_id: int | None) -> list[dict]:
+        children = units_by_parent.get((location_id, parent_id), [])
+        result = []
+        for c in children:
+            subtree = build_subtree(location_id, c.id)
+            # Aggregera count (egen + alla under)
+            total = counts.get(c.id, 0) + sum(s["total"] for s in subtree)
+            result.append({"unit": c, "own": counts.get(c.id, 0), "total": total, "children": subtree})
+        return result
+
+    tree = []
+    for loc in locations:
+        subtree = build_subtree(loc.id, None)
+        total = sum(s["total"] for s in subtree)
+        tree.append({"location": loc, "total": total, "units": subtree})
+
+    return render(request, "pieces/list_tree.html", {"tree": tree, "view": "tree"}, user=user)
 
 
 @router.get("/print")

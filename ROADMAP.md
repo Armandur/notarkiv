@@ -150,8 +150,18 @@ granska -> spara -> hitta igen.
       med PlacementEvent-tabell.
 - [ ] **PDF-katalog**: exportera hela eller filtrerad lista som PDF
       för utskrift (körpärm, allmän översikt)
-- [ ] **QR-kod på storage_units**: generera utskrivbara QR-koder som
-      länkar till respektive enhet
+- [x] **QR-kod på storage_units**: utskrivbara etiketter, varje QR
+      pekar på enhetens detaljvy. Webbläsarens kamera räcker.
+
+### V2-utvidgning av QR-flödet
+
+- [ ] **In-browser QR-läsare**: live kameravy direkt i webbappen
+      (getUserMedia + jsQR eller html5-qrcode-biblioteket) så
+      användaren slipper växla mellan kameraappen och webbläsaren.
+      Med detta blir det också naturligt att låta QR-koderna kodifiera
+      en stabil UUID istället för full URL - då går etiketterna inte
+      sönder om appen flyttar till annan domän. Krav: live-detection
+      som funkar smidigt på mobil (testning behövs).
 - [ ] **Anteckningsfält per användare på not** (t.ex. körledarens egna
       tonarter, framförandetempo)
 

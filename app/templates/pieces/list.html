@@ -10,6 +10,7 @@
          class="btn btn-outline-secondary {% if view == 'grid' %}active{% endif %}">Kort</a>
       <a href="{{ request.url.include_query_params(view='list') }}"
          class="btn btn-outline-secondary {% if view == 'list' %}active{% endif %}">Lista</a>
+      <a href="/pieces?view=tree" class="btn btn-outline-secondary {% if view == 'tree' %}active{% endif %}">Träd</a>
     </div>
     <a href="{{ request.url.replace(path='/pieces/print') }}" class="btn btn-sm btn-outline-secondary">Skriv ut</a>
     {% if user.can_edit %}
@@ -54,32 +55,41 @@
   </div>
 </form>
 
-{# Tag-chips: klick togglar taggen i URL:en #}
-<div class="mb-3">
-  {% for kind, kind_tags in tags_by_kind.items() %}
-  <div class="d-flex gap-1 flex-wrap mb-1">
-    {% set kind_color = {'liturgical': 'primary', 'occasion': 'success', 'free': 'secondary'}.get(kind, 'secondary') %}
-    <span class="text-muted small me-1">{{ {'liturgical': 'Kyrkoåret', 'occasion': 'Tillfälle', 'free': 'Fritt'}.get(kind, kind) }}:</span>
-    {% for t in kind_tags %}
-      {% set is_active = t.name in active_tags %}
-      {% if is_active %}
-        {% set new_tags = active_tags|reject('equalto', t.name)|list %}
-      {% else %}
-        {% set new_tags = (active_tags|list) + [t.name] %}
-      {% endif %}
-      {# Bygg URL manuellt med alla aktiva tags utom/inklusive denna #}
-      {% set base_params = {'view': view} %}
-      {% if q %}{% set _ = base_params.update({'q': q}) %}{% endif %}
-      {% if active_voicing %}{% set _ = base_params.update({'voicing': active_voicing}) %}{% endif %}
-      {% if active_language %}{% set _ = base_params.update({'language': active_language}) %}{% endif %}
-      <a href="?{% for k, v in base_params.items() %}{{ k }}={{ v }}&{% endfor %}{% for nt in new_tags %}tag={{ nt }}{% if not loop.last %}&{% endif %}{% endfor %}"
-         class="btn btn-sm {% if is_active %}btn-{{ kind_color }}{% else %}btn-outline-{{ kind_color }}{% endif %}">
-        {% if is_active %}✓ {% endif %}{{ t.name }}
-      </a>
-    {% endfor %}
-  </div>
+{# Tag-filter: aktiva som chips + autocomplete för att lägga till. /tags för översikt. #}
+<div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
+  <span class="text-muted small">Taggar:</span>
+  {% for at in active_tags %}
+    {# Bygg URL utan denna tagg #}
+    {% set remaining = active_tags|reject('equalto', at)|list %}
+    {% set base_params = {'view': view} %}
+    {% if q %}{% set _ = base_params.update({'q': q}) %}{% endif %}
+    {% if active_voicing %}{% set _ = base_params.update({'voicing': active_voicing}) %}{% endif %}
+    {% if active_language %}{% set _ = base_params.update({'language': active_language}) %}{% endif %}
+    <a href="?{% for k, v in base_params.items() %}{{ k }}={{ v }}&{% endfor %}{% for nt in remaining %}tag={{ nt }}{% if not loop.last %}&{% endif %}{% endfor %}"
+       class="btn btn-sm btn-primary">
+      {{ at }} <span class="ms-1">×</span>
+    </a>
   {% endfor %}
+
+  <form method="get" action="/pieces" class="d-flex gap-1 align-items-center">
+    <input type="hidden" name="view" value="{{ view }}">
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    {% if active_voicing %}<input type="hidden" name="voicing" value="{{ active_voicing }}">{% endif %}
+    {% if active_language %}<input type="hidden" name="language" value="{{ active_language }}">{% endif %}
+    {% for at in active_tags %}<input type="hidden" name="tag" value="{{ at }}">{% endfor %}
+    <input type="text" name="tag" list="all-tags-options" class="form-control form-control-sm"
+           placeholder="+ tagg..." style="width: 12em">
+    <button type="submit" class="btn btn-sm btn-outline-secondary">Lägg till</button>
+  </form>
+
+  <a href="/tags" class="small text-muted ms-auto">Alla taggar →</a>
 </div>
+
+<datalist id="all-tags-options">
+  {% for kind, kind_tags in tags_by_kind.items() %}
+    {% for t in kind_tags %}<option value="{{ t.name }}">{% endfor %}
+  {% endfor %}
+</datalist>
 
 {% if not pieces %}
 <p class="text-muted fst-italic">
