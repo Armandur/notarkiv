@@ -241,6 +241,33 @@ async def scan_status_page(
     return render(request, "scan/processing.html", {"scan": scan}, user=user)
 
 
+@router.post("/{scan_id}/retry", dependencies=[Depends(verify_csrf)])
+async def retry_scan(
+    request: Request,
+    scan_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Kö om en misslyckad eller hängande skanning."""
+    scan = session.get(ScanSession, scan_id)
+    if not scan:
+        raise HTTPException(404)
+    if scan.resulting_piece_id:
+        flash(request, "Skanningen är redan kopplad till en sparad not", "info")
+        return RedirectResponse(f"/scan/{scan_id}", status.HTTP_302_FOUND)
+
+    scan.status = ScanStatus.PENDING
+    scan.error_message = None
+    scan.completed_at = None
+    session.add(scan)
+    session.commit()
+
+    pool = await get_pool()
+    await pool.enqueue_job("extract_metadata_job", scan_id)
+    flash(request, "Skanningen läggs i kön igen", "info")
+    return RedirectResponse(f"/scan/{scan_id}", status.HTTP_302_FOUND)
+
+
 @router.get("/{scan_id}/status")
 async def scan_status_fragment(
     request: Request,

@@ -37,8 +37,12 @@
       {% elif status == 'failed' %}
       <div class="alert alert-danger mb-0">
         <strong>Misslyckades.</strong>
-        <div class="small">{{ scan.error_message or "Okänt fel" }}</div>
-        <a href="/scan" class="btn btn-sm btn-outline-secondary mt-2">Försök igen</a>
+        <div class="small mt-1">{{ scan.error_message or "Okänt fel" }}</div>
+        <form method="post" action="/scan/{{ scan.id }}/retry" class="d-inline mt-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-sm btn-warning">Försök igen</button>
+        </form>
+        <a href="/scan" class="btn btn-sm btn-outline-secondary mt-2">Ny skanning</a>
       </div>
       {% endif %}
     </div>

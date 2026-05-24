@@ -71,7 +71,30 @@ def _mark_failed(scan_session_id: int, error: str) -> None:
         scan = session.get(ScanSession, scan_session_id)
         if scan:
             scan.status = ScanStatus.FAILED
-            scan.error_message = error
+            scan.error_message = _humanize_error(error)
             scan.completed_at = datetime.utcnow()
             session.add(scan)
             session.commit()
+
+
+def _humanize_error(error: str) -> str:
+    """Förkorta tekniska fel till något läsbart för användaren."""
+    if not error:
+        return "Okänt fel"
+
+    # HTML-svar från proxy/CDN-felsidor (typ Cloudflare 502)
+    if "<html" in error.lower() or "<!doctype" in error.lower():
+        import re
+
+        title_match = re.search(r"<title>([^<]+)</title>", error, re.IGNORECASE)
+        h1_match = re.search(r"<h1[^>]*>([^<]+)</h1>", error, re.IGNORECASE)
+        center = re.search(r"<center>([^<]+)</center>", error, re.IGNORECASE)
+        bits = [m.group(1).strip() for m in (title_match, h1_match, center) if m]
+        if bits:
+            # Vanligast: Cloudflare 502 -> "502 Bad Gateway · cloudflare"
+            return "Anthropic API tillfälligt otillgängligt: " + " · ".join(dict.fromkeys(bits))
+        return "Externt API returnerade ett HTML-felsvar"
+
+    if len(error) > 280:
+        return error[:277] + "..."
+    return error
