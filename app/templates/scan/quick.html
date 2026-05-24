@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Snabbskanning - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3">
+  <h1 class="h4 mb-0">Snabbskanning</h1>
+  <a href="/scan/queue" class="small">Granskningskö ({{ pending_count }}) →</a>
+</div>
+
+<p class="text-muted small">
+  Skanna omslag och notera placering. Ingen granskning krävs här -
+  metadata fylls i av kollegan vid datorn via "Granskningskö".
+</p>
+
+<form method="post" action="/scan/quick" enctype="multipart/form-data" class="vstack gap-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+  <div>
+    <label class="form-label">Bild av omslag</label>
+    <input type="file" name="image" accept="image/*" capture="environment" class="form-control form-control-lg" required>
+    <div class="form-text">Kameran öppnas direkt på mobil. OCR-metod: <code>{{ ocr_provider }}</code></div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-8">
+          <label class="form-label small mb-1">Placering (valfri)</label>
+          <select name="placement_unit_id" class="form-select">
+            <option value="">(inget val nu)</option>
+            {% for opt in unit_options %}
+            <option value="{{ opt.id }}">{{ opt.label }}{% if opt.kind %} ({{ opt.kind }}){% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-4">
+          <label class="form-label small mb-1">Antal ex.</label>
+          <input type="text" name="placement_copies" class="form-control" inputmode="numeric" placeholder="1">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary btn-lg">Skanna och fortsätt</button>
+</form>
+
+<div class="mt-4 text-muted small text-center">
+  Du har skannat <strong>{{ today_count }}</strong> {% if today_count == 1 %}not{% else %}noter{% endif %} idag.
+</div>
+{% endblock %}

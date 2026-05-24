@@ -99,14 +99,17 @@
       </div>
 
       <hr class="my-4">
-      <h2 class="h6">Placering (valfritt)</h2>
+      <h2 class="h6">
+        Placering (valfritt)
+        {% if prefill_placement_unit_id %}<span class="badge bg-info ms-2">Förnoterad vid skanning</span>{% endif %}
+      </h2>
       <div class="row g-3">
         <div class="col-md-8">
           <label class="form-label">Var ligger noten?</label>
           <select name="placement_unit_id" id="placement_unit" class="form-select">
             <option value="">(ingen placering än)</option>
             {% for opt in unit_options %}
-            <option value="{{ opt.id }}" data-location-kind="{{ opt.location_kind }}">
+            <option value="{{ opt.id }}" data-location-kind="{{ opt.location_kind }}" {% if opt.id == prefill_placement_unit_id %}selected{% endif %}>
               {{ opt.label }}{% if opt.kind %} ({{ opt.kind }}){% endif %}
             </option>
             {% endfor %}
@@ -114,7 +117,7 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Antal exemplar (fysisk)</label>
-          <input type="text" name="placement_copies" class="form-control" inputmode="numeric">
+          <input type="text" name="placement_copies" class="form-control" inputmode="numeric" value="{{ prefill_placement_copies or '' }}">
         </div>
       </div>
 

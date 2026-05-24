@@ -23,6 +23,14 @@
         <li class="nav-item"><a class="nav-link" href="/pieces">Noter</a></li>
         {% if user.can_edit %}
         <li class="nav-item"><a class="nav-link" href="/scan">Skanna</a></li>
+        <li class="nav-item">
+          <a class="nav-link" href="/scan/queue">
+            Granskningskö
+            {% if pending_review_count %}
+            <span class="badge bg-warning text-dark">{{ pending_review_count }}</span>
+            {% endif %}
+          </a>
+        </li>
         <li class="nav-item"><a class="nav-link" href="/storage">Lagringsplatser</a></li>
         {% endif %}
         {% if user.is_admin %}

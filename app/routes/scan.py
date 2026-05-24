@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import RedirectResponse, Response
 from sqlmodel import Session, select
 
+from sqlalchemy import func
+
 from app.deps import get_session, require_editor, verify_csrf
 from app.services.app_settings import get_ocr_provider
 from app.models import Piece, PiecePlacement, ScanSession, StorageLocation, StorageUnit, UnitKind, User
@@ -27,12 +29,112 @@ async def scan_index(
     recent = session.exec(
         select(ScanSession).order_by(ScanSession.created_at.desc()).limit(10)
     ).all()
+    pending_count = _count_pending(session)
     return render(
         request,
         "scan/capture.html",
-        {"recent": recent, "ocr_provider": get_ocr_provider()},
+        {
+            "recent": recent,
+            "ocr_provider": get_ocr_provider(),
+            "pending_count": pending_count,
+        },
         user=user,
     )
+
+
+@router.get("/quick")
+async def quick_scan_page(
+    request: Request,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Mobil-anpassad snabbskanning: tar bild + valfri placering, ingen granskning."""
+    today_count = session.exec(
+        select(func.count(ScanSession.id))
+        .where(ScanSession.user_id == user.id)
+        .where(func.date(ScanSession.created_at) == func.date(func.current_timestamp()))
+    ).one()
+    unit_options = _load_unit_options(session)
+    pending_count = _count_pending(session)
+    return render(
+        request,
+        "scan/quick.html",
+        {
+            "today_count": today_count,
+            "unit_options": unit_options,
+            "ocr_provider": get_ocr_provider(),
+            "pending_count": pending_count,
+        },
+        user=user,
+    )
+
+
+@router.post("/quick", dependencies=[Depends(verify_csrf)])
+async def quick_scan_upload(
+    request: Request,
+    image: UploadFile = File(...),
+    placement_unit_id: str | None = Form(None),
+    placement_copies: str | None = Form(None),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    content = await image.read()
+    if not content or len(content) > MAX_UPLOAD_BYTES:
+        flash(request, "Fil saknas eller är för stor", "danger")
+        return RedirectResponse("/scan/quick", status.HTTP_302_FOUND)
+
+    try:
+        relative_path = save_uploaded_cover(content)
+    except Exception:
+        flash(request, "Kunde inte läsa bilden", "danger")
+        return RedirectResponse("/scan/quick", status.HTTP_302_FOUND)
+
+    unit_id = (
+        int(placement_unit_id)
+        if placement_unit_id and placement_unit_id.isdigit()
+        else None
+    )
+    copies = (
+        int(placement_copies) if placement_copies and placement_copies.isdigit() else None
+    )
+
+    scan = ScanSession(
+        user_id=user.id,
+        image_path=relative_path,
+        ocr_provider=get_ocr_provider(),
+        status=ScanStatus.PENDING,
+        pre_placement_unit_id=unit_id,
+        pre_placement_copies=copies,
+    )
+    session.add(scan)
+    session.commit()
+    session.refresh(scan)
+
+    pool = await get_pool()
+    await pool.enqueue_job("extract_metadata_job", scan.id)
+
+    flash(request, "Skanning sparad - i kö för granskning", "success")
+    return RedirectResponse("/scan/quick", status.HTTP_302_FOUND)
+
+
+@router.get("/queue")
+async def scan_queue(
+    request: Request,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    pending = session.exec(
+        select(ScanSession)
+        .where(ScanSession.resulting_piece_id.is_(None))
+        .order_by(ScanSession.created_at)
+    ).all()
+    return render(request, "scan/queue.html", {"items": pending}, user=user)
+
+
+def _count_pending(session: Session) -> int:
+    return session.exec(
+        select(func.count(ScanSession.id)).where(ScanSession.resulting_piece_id.is_(None))
+    ).one()
 
 
 @router.post("/upload", dependencies=[Depends(verify_csrf)])
@@ -131,6 +233,8 @@ async def review_form(
             "extracted": extracted,
             "suggestions": suggestions,
             "unit_options": tree,
+            "prefill_placement_unit_id": scan.pre_placement_unit_id,
+            "prefill_placement_copies": scan.pre_placement_copies,
         },
         user=user,
     )

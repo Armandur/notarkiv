@@ -68,6 +68,17 @@ granska -> spara -> hitta igen. Allt annat är tillägg.
 - [ ] Nattlig cron för bilduppladdningsmapp (rsync till samma bucket)
 - [ ] Dokumenterad återställningsprocess
 
+### Två-personers skanningsflöde
+
+- [ ] Mobil-anpassad snabbskanning (`/scan/quick`): kamera + valfri
+      placering, sparar utan att tvinga granskning, retur till kamera
+      direkt
+- [ ] Granskningskö (`/scan/queue`): lista över skanningar som väntar
+      på granskning, med thumbnail, status och ev. för-noterad placering
+- [ ] Pre-noterad placering på ScanSession (placement_unit_id +
+      placement_copies) som förifylls i granskningsformuläret
+- [ ] Navbar-badge med antal väntande granskningar
+
 ### Klart-kriterier för MVP
 
 - Användaren kan skanna in 50 noter på en kvällsstund utan friktion
@@ -76,6 +87,13 @@ granska -> spara -> hitta igen. Allt annat är tillägg.
 
 ## V2 - "Riktigt användbart"
 
+- [ ] **Kompositörer/personer som egna entiteter**: Person-tabell med
+      sort_name, biografi, MB-artist-MBID, Wikipedia-länk.
+      PieceContributor-länkning med roll (composer/arranger/lyricist).
+      Auto-import via MusicBrainz när MB-träff finns.
+- [ ] **Auto-crop med jscanify**: webbläsare-baserad dokument-detektion
+      via OpenCV.js, perspektivkorrigering, manuell hörnjustering.
+      Ersätter standard `<input capture>` på mobil.
 - [ ] **Batch-skanningsläge**: skanna in flera noter i rad utan att gå
       tillbaka mellan varje
 - [ ] **Dubblettkoll**: vid skanning, jämför mot befintliga poster på

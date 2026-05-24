@@ -23,10 +23,30 @@ def render(
         "csrf_token": request.session.get("csrf_token", ""),
         "user": user,
         "flash": _pop_flash(request),
+        "pending_review_count": _pending_review_count() if user and user.can_edit else 0,
     }
     if context:
         ctx.update(context)
     return templates.TemplateResponse(request, name, ctx, status_code=status_code)
+
+
+def _pending_review_count() -> int:
+    """Globalt antal skanningar som väntar på granskning - för navbar-badge."""
+    from sqlalchemy import func as sqlf
+    from sqlmodel import Session, select
+
+    from app.db import engine
+    from app.models import ScanSession
+
+    try:
+        with Session(engine) as session:
+            return session.exec(
+                select(sqlf.count(ScanSession.id)).where(
+                    ScanSession.resulting_piece_id.is_(None)
+                )
+            ).one()
+    except Exception:
+        return 0
 
 
 def flash(request: Request, message: str, kind: str = "info") -> None:

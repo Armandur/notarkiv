@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Granskningskö - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3">
+  <h1 class="h3 mb-0">Granskningskö</h1>
+  <div class="text-muted small">{{ items|length }} väntande</div>
+</div>
+
+{% if not items %}
+<div class="alert alert-light text-center py-4">
+  Inget i kön just nu. Ta en kopp kaffe.
+</div>
+{% else %}
+<div class="row g-3">
+  {% for s in items %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card h-100">
+      <a href="{% if s.status == 'done' %}/scan/{{ s.id }}/review{% else %}/scan/{{ s.id }}{% endif %}" class="text-decoration-none text-reset">
+        <img src="/images/thumbnails/{{ s.image_path.split('/')[-1] }}" class="card-img-top" style="object-fit: cover; max-height: 200px" alt="Skanning #{{ s.id }}">
+      </a>
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-baseline">
+          <strong>#{{ s.id }}</strong>
+          <span class="badge bg-{% if s.status == 'done' %}success{% elif s.status == 'failed' %}danger{% else %}secondary{% endif %}">
+            {{ s.status }}
+          </span>
+        </div>
+        <div class="small text-muted">
+          {{ s.created_at.strftime('%Y-%m-%d %H:%M') }}
+          {% if s.pre_placement_unit_id %}
+          <div>📍 placering förnoterad</div>
+          {% endif %}
+        </div>
+        {% if s.error_message %}
+        <div class="small text-danger mt-1">{{ s.error_message }}</div>
+        {% endif %}
+        <a href="{% if s.status == 'done' %}/scan/{{ s.id }}/review{% else %}/scan/{{ s.id }}{% endif %}" class="btn btn-sm btn-primary mt-2 w-100">
+          {% if s.status == 'done' %}Granska{% else %}Visa status{% endif %}
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
