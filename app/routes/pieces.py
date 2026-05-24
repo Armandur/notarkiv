@@ -473,7 +473,6 @@ async def piece_detail(
             "placements": placement_views,
             "contributors": contributors,
             "tags": tag_rows,
-            "unit_options": _unit_path_options(session) if user.can_edit else [],
             "my_note": my_note,
             "others_notes": others_notes,
             "composer_role": ContributorRole.COMPOSER,
@@ -507,6 +506,36 @@ async def edit_piece_form(
         .where(PieceImage.piece_id == piece_id)
         .order_by(PieceImage.sort_order, PieceImage.id)
     ).all()
+
+    # Placeringar för redigering
+    placements = session.exec(
+        select(PiecePlacement).where(PiecePlacement.piece_id == piece_id)
+    ).all()
+    locations = {loc.id: loc for loc in session.exec(select(StorageLocation)).all()}
+    units = {u.id: u for u in session.exec(select(StorageUnit)).all()}
+    placement_views = []
+    for p in placements:
+        unit = units.get(p.storage_unit_id)
+        if not unit:
+            continue
+        parts = [unit.name]
+        cur = unit
+        while cur.parent_id:
+            cur = units.get(cur.parent_id)
+            if not cur:
+                break
+            parts.append(cur.name)
+        loc = locations.get(unit.location_id)
+        if loc:
+            parts.append(loc.name)
+        placement_views.append(
+            {
+                "placement": p,
+                "path": " > ".join(reversed(parts)),
+                "location_kind": loc.kind if loc else "",
+            }
+        )
+
     return render(
         request,
         "pieces/edit.html",
@@ -518,6 +547,8 @@ async def edit_piece_form(
             "images": images,
             "image_kinds": [k.value for k in PieceImageKind],
             "people_names": all_people_names(session),
+            "placements": placement_views,
+            "unit_options": _unit_path_options(session),
         },
         user=user,
     )

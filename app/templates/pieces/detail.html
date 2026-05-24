@@ -138,14 +138,7 @@
     </div>
     {% endif %}
 
-    <div class="d-flex justify-content-between align-items-baseline mt-4 mb-2">
-      <h2 class="h6 mb-0">Placeringar</h2>
-      {% if user.can_edit %}
-      <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addPlacementModal">
-        + Lägg till placering
-      </button>
-      {% endif %}
-    </div>
+    <h2 class="h6 mt-4 mb-2">Placeringar</h2>
     {% if placements %}
     <ul class="list-group">
       {% for pv in placements %}
@@ -156,105 +149,14 @@
           {% if pv.kind_name %}<span class="badge bg-light text-muted">{{ pv.kind_name }}</span>{% endif %}
           {% if pv.placement.notes %}<div class="small text-muted">{{ pv.placement.notes }}</div>{% endif %}
         </div>
-        <div class="d-flex align-items-center gap-2">
-          {% if pv.placement.copies %}<span class="badge bg-secondary">{{ pv.placement.copies }} ex</span>{% endif %}
-          {% if user.can_edit %}
-          <button class="btn btn-sm btn-outline-secondary"
-                  data-bs-toggle="modal"
-                  data-bs-target="#editPlacementModal-{{ pv.placement.id }}">
-            Redigera
-          </button>
-          <button class="btn btn-sm btn-outline-danger"
-                  onclick="confirmAction('/pieces/{{ piece.id }}/placements/{{ pv.placement.id }}/delete', 'Ta bort denna placering?')">
-            Ta bort
-          </button>
-          {% endif %}
-        </div>
+        {% if pv.placement.copies %}<span class="badge bg-secondary">{{ pv.placement.copies }} ex</span>{% endif %}
       </li>
       {% endfor %}
     </ul>
     {% else %}
-    <p class="text-muted fst-italic">Inga placeringar registrerade.</p>
+    <p class="text-muted fst-italic">Inga placeringar registrerade.{% if user.can_edit %} Lägg till via "Redigera".{% endif %}</p>
     {% endif %}
 
-    {% if user.can_edit %}
-    <!-- Modaler för redigera + lägg till -->
-    {% for pv in placements %}
-    <div class="modal fade" id="editPlacementModal-{{ pv.placement.id }}" tabindex="-1">
-      <div class="modal-dialog">
-        <form class="modal-content" method="post"
-              action="/pieces/{{ piece.id }}/placements/{{ pv.placement.id }}/update">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <div class="modal-header">
-            <h2 class="modal-title h5">Redigera placering</h2>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <div class="mb-3">
-              <label class="form-label">Lagringsplats</label>
-              <select name="storage_unit_id" class="form-select" required>
-                {% for opt in unit_options %}
-                <option value="{{ opt.id }}" {% if opt.id == pv.placement.storage_unit_id %}selected{% endif %}>
-                  {{ opt.label }}
-                </option>
-                {% endfor %}
-              </select>
-              <div class="form-text">Om du väljer en annan enhet som redan har en placering av denna not slås de samman.</div>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Antal exemplar</label>
-              <input type="number" name="copies" class="form-control" min="0" value="{{ pv.placement.copies or '' }}">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Anteckning (valfritt)</label>
-              <textarea name="notes" class="form-control" rows="2">{{ pv.placement.notes or '' }}</textarea>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
-            <button type="submit" class="btn btn-primary">Spara</button>
-          </div>
-        </form>
-      </div>
-    </div>
-    {% endfor %}
-
-    <div class="modal fade" id="addPlacementModal" tabindex="-1">
-      <div class="modal-dialog">
-        <form class="modal-content" method="post" action="/pieces/{{ piece.id }}/placements">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <div class="modal-header">
-            <h2 class="modal-title h5">Lägg till placering</h2>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <div class="mb-3">
-              <label class="form-label">Lagringsplats</label>
-              <select name="storage_unit_id" class="form-select" required>
-                <option value="">(välj)</option>
-                {% for opt in unit_options %}
-                <option value="{{ opt.id }}">{{ opt.label }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Antal exemplar (lämna tomt för digital)</label>
-              <input type="number" name="copies" class="form-control" min="0">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Anteckning (valfritt)</label>
-              <textarea name="notes" class="form-control" rows="2"
-                        placeholder="T.ex. 'körledarens arbetsexemplar'"></textarea>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
-            <button type="submit" class="btn btn-primary">Lägg till</button>
-          </div>
-        </form>
-      </div>
-    </div>
-    {% endif %}
   </div>
 </div>
 
