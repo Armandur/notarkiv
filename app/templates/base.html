@@ -25,6 +25,15 @@
         <li class="nav-item"><a class="nav-link" href="/scan">Skanna</a></li>
         <li class="nav-item"><a class="nav-link" href="/storage">Lagringsplatser</a></li>
         {% endif %}
+        {% if user.is_admin %}
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Admin</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="/admin/users">Användare</a></li>
+            <li><a class="dropdown-item" href="/admin/settings">Inställningar</a></li>
+          </ul>
+        </li>
+        {% endif %}
       </ul>
       <ul class="navbar-nav ms-auto align-items-center">
         <li class="nav-item me-3">
@@ -80,6 +89,19 @@
   </div>
 </div>
 
+<!-- Lightbox för att förstora bilder. Trigga via window.openLightbox(src, alt) -->
+<div class="modal fade" id="lightboxModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content bg-transparent border-0">
+      <div class="modal-body p-0 text-center position-relative">
+        <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-2"
+                data-bs-dismiss="modal" aria-label="Stäng" style="z-index: 1"></button>
+        <img id="lightboxImage" src="" class="img-fluid rounded shadow" style="max-height: 90vh" alt="">
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 window.confirmAction = function(url, message, opts) {
@@ -92,6 +114,22 @@ window.confirmAction = function(url, message, opts) {
   submit.className = 'btn ' + (opts.submitClass || 'btn-danger');
   bootstrap.Modal.getOrCreateInstance(document.getElementById('confirmModal')).show();
 };
+
+window.openLightbox = function(src, alt) {
+  var img = document.getElementById('lightboxImage');
+  img.src = src;
+  img.alt = alt || '';
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('lightboxModal')).show();
+};
+
+// Aktivera automatiskt på alla img.lightbox-image
+document.addEventListener('click', function(evt) {
+  var el = evt.target.closest && evt.target.closest('img.lightbox-image');
+  if (el) {
+    evt.preventDefault();
+    window.openLightbox(el.src, el.alt);
+  }
+});
 </script>
 </body>
 </html>

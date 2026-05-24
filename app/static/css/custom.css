@@ -1,5 +1,13 @@
 /* Notarkiv custom styles - kompletterar Bootstrap */
 
+.lightbox-image {
+  cursor: zoom-in;
+  transition: opacity 0.15s;
+}
+.lightbox-image:hover {
+  opacity: 0.85;
+}
+
 .storage-unit {
   margin-left: 0.5rem;
 }

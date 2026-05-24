@@ -14,6 +14,8 @@ from app.routes import pages as pages_routes
 from app.routes import pieces as pieces_routes
 from app.routes import scan as scan_routes
 from app.routes import storage as storage_routes
+from app.routes.admin import settings as admin_settings_routes
+from app.routes.admin import users as admin_users_routes
 from app.tasks import close_pool
 
 
@@ -49,6 +51,8 @@ app.include_router(auth_routes.router)
 app.include_router(storage_routes.router)
 app.include_router(scan_routes.router)
 app.include_router(pieces_routes.router)
+app.include_router(admin_users_routes.router)
+app.include_router(admin_settings_routes.router)
 
 
 @app.get("/healthz")

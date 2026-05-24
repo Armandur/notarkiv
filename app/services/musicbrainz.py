@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from rapidfuzz import fuzz
 
 from app.config import settings
+from app.services.app_settings import get_musicbrainz_user_agent
 
 BASE_URL = "https://musicbrainz.org/ws/2"
 
@@ -29,7 +30,7 @@ class MusicBrainzClient:
         self._lock = asyncio.Lock()
         self._client = httpx.AsyncClient(
             base_url=BASE_URL,
-            headers={"User-Agent": settings.musicbrainz_user_agent},
+            headers={"User-Agent": get_musicbrainz_user_agent()},
             timeout=15.0,
         )
 

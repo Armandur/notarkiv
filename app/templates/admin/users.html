@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Användare - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Användare</h1>
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newUserModal">
+    Ny användare
+  </button>
+</div>
+
+<div class="card">
+  <table class="table table-hover mb-0">
+    <thead>
+      <tr>
+        <th>Användarnamn</th>
+        <th>E-post</th>
+        <th>Roll</th>
+        <th>Senast inloggad</th>
+        <th class="text-end">Åtgärder</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>
+          <strong>{{ u.username }}</strong>
+          {% if u.must_change_password %}<span class="badge bg-warning text-dark ms-1">tvingad bytt</span>{% endif %}
+        </td>
+        <td class="text-muted small">{{ u.email or "" }}</td>
+        <td>
+          <form method="post" action="/admin/users/{{ u.id }}/role" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <select name="role" class="form-select form-select-sm d-inline w-auto" onchange="this.form.submit()" {% if u.id == user.id %}disabled{% endif %}>
+              {% for r in roles %}
+              <option value="{{ r }}" {% if u.role == r %}selected{% endif %}>{{ r }}</option>
+              {% endfor %}
+            </select>
+          </form>
+        </td>
+        <td class="text-muted small">
+          {{ u.last_login_at.strftime('%Y-%m-%d %H:%M') if u.last_login_at else "" }}
+        </td>
+        <td class="text-end">
+          <form method="post" action="/admin/users/{{ u.id }}/reset-password" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="btn btn-sm btn-outline-secondary"
+                    onclick="event.preventDefault(); confirmAction('/admin/users/{{ u.id }}/reset-password', 'Återställ lösenord för {{ u.username }}? Ett nytt tillfälligt lösenord visas i en flash-meddelande.', {submitLabel: 'Återställ', submitClass: 'btn-warning'})">
+              Återställ lösen
+            </button>
+          </form>
+          {% if u.id != user.id %}
+          <button class="btn btn-sm btn-outline-danger"
+                  onclick="confirmAction('/admin/users/{{ u.id }}/delete', 'Radera {{ u.username }} permanent?')">
+            ×
+          </button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="modal fade" id="newUserModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="/admin/users">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Ny användare</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Användarnamn</label>
+          <input type="text" name="username" class="form-control" required pattern="[a-zA-Z0-9_\-\.]+">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">E-post (valfritt)</label>
+          <input type="email" name="email" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Roll</label>
+          <select name="role" class="form-select">
+            {% for r in roles %}
+            <option value="{{ r }}" {% if r == "reader" %}selected{% endif %}>{{ r }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Initialt lösenord (valfritt)</label>
+          <input type="text" name="password" class="form-control" placeholder="Lämna tomt för auto-genererat">
+          <div class="form-text">Lämnas tomt genereras ett tillfälligt lösenord som visas i bekräftelsen. Användaren måste byta vid första login.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+        <button type="submit" class="btn btn-primary">Skapa</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

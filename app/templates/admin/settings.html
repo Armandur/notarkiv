@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Inställningar - Notarkiv{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4">Inställningar</h1>
+
+<form method="post" action="/admin/settings" class="row g-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="h6 mb-0">Anthropic Claude</h2>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label">API-nyckel</label>
+          <div class="input-group">
+            <input type="password"
+                   name="anthropic_api_key"
+                   class="form-control"
+                   placeholder="{% if has_anthropic_key %}{{ settings.anthropic_api_key }} (lämna tomt för att behålla){% else %}sk-ant-...{% endif %}"
+                   autocomplete="off">
+            {% if has_anthropic_key %}
+            <div class="input-group-text">
+              <input type="checkbox" name="clear_anthropic_key" value="1" id="clear_anthropic_key">
+              <label for="clear_anthropic_key" class="ms-2 mb-0 small">Rensa</label>
+            </div>
+            {% endif %}
+          </div>
+          <div class="form-text">
+            {% if has_anthropic_key %}
+              Nyckel finns sparad. Fyll i en ny för att ersätta, eller bocka i "Rensa" för att ta bort.
+            {% else %}
+              Inställning saknas. Skannningar med Claude Vision kommer att misslyckas tills nyckel anges.
+            {% endif %}
+            Lagras i klartext i SQLite-filen.
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Claude-modell</label>
+          <input type="text" name="claude_model" class="form-control" value="{{ settings.claude_model }}" list="model-options">
+          <datalist id="model-options">
+            <option value="claude-haiku-4-5">
+            <option value="claude-sonnet-4-6">
+            <option value="claude-opus-4-7">
+          </datalist>
+          <div class="form-text">Haiku räcker för notomslag och är billigast.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><h2 class="h6 mb-0">OCR</h2></div>
+      <div class="card-body">
+        <label class="form-label">Default-provider</label>
+        <select name="ocr_provider" class="form-select">
+          {% for p in providers %}
+          <option value="{{ p }}" {% if settings.ocr_provider == p %}selected{% endif %}>{{ p }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-text">
+          Visas som förvald i skanningsformuläret. Användaren kan välja annan per skanning.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><h2 class="h6 mb-0">MusicBrainz</h2></div>
+      <div class="card-body">
+        <label class="form-label">User-Agent</label>
+        <input type="text" name="musicbrainz_user_agent" class="form-control" value="{{ settings.musicbrainz_user_agent }}">
+        <div class="form-text">
+          MB kräver en identifierande User-Agent med kontaktinfo, t.ex.
+          <code>notarkiv/0.1 (din@email.tld)</code>.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <button type="submit" class="btn btn-primary">Spara inställningar</button>
+  </div>
+</form>
+{% endblock %}

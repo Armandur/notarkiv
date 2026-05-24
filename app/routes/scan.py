@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import RedirectResponse, Response
 from sqlmodel import Session, select
 
-from app.config import settings
 from app.deps import get_session, require_editor, verify_csrf
+from app.services.app_settings import get_ocr_provider
 from app.models import Piece, PiecePlacement, ScanSession, StorageLocation, StorageUnit, UnitKind, User
 from app.models.scan_session import ScanStatus
 from app.tasks import get_pool
@@ -30,7 +30,7 @@ async def scan_index(
     return render(
         request,
         "scan/capture.html",
-        {"recent": recent, "ocr_provider": settings.ocr_provider},
+        {"recent": recent, "ocr_provider": get_ocr_provider()},
         user=user,
     )
 

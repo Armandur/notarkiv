@@ -5,7 +5,7 @@ import base64
 from anthropic import AsyncAnthropic
 from loguru import logger
 
-from app.config import settings
+from app.services.app_settings import get_anthropic_api_key, get_claude_model
 from app.services.ocr.base import ExtractedMetadata
 
 _SYSTEM_PROMPT = (
@@ -54,14 +54,15 @@ class ClaudeVisionProvider:
     name = "claude_vision"
 
     def __init__(self) -> None:
-        if not settings.anthropic_api_key:
-            logger.warning("ANTHROPIC_API_KEY saknas - claude_vision kommer att misslyckas")
-        self._client = AsyncAnthropic(api_key=settings.anthropic_api_key or "missing")
+        api_key = get_anthropic_api_key()
+        if not api_key:
+            logger.warning("Anthropic API-nyckel saknas - claude_vision kommer att misslyckas")
+        self._client = AsyncAnthropic(api_key=api_key or "missing")
 
     async def extract(self, image_bytes: bytes) -> ExtractedMetadata:
         b64 = base64.standard_b64encode(image_bytes).decode("ascii")
         response = await self._client.messages.create(
-            model=settings.claude_model,
+            model=get_claude_model(),
             max_tokens=1024,
             system=_SYSTEM_PROMPT,
             tools=[_TOOL],
