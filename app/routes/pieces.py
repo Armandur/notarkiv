@@ -13,8 +13,10 @@ from app.models import (
     PieceContributor,
     PieceImage,
     PiecePlacement,
+    PiecePsalmRef,
     PieceTag,
     PieceUserNote,
+    PsalmBook,
     ScanSession,
     StorageLocation,
     StorageUnit,
@@ -598,6 +600,14 @@ async def piece_detail(
     # Användarlista för låntagar-dropdown i utlåningsmodalen
     loan_users = session.exec(select(User).order_by(User.username)).all()
 
+    # Psalm-referenser till denna not
+    psalm_refs = session.exec(
+        select(PiecePsalmRef, PsalmBook)
+        .join(PsalmBook, PsalmBook.id == PiecePsalmRef.book_id)
+        .where(PiecePsalmRef.piece_id == piece_id)
+        .order_by(PsalmBook.sort_order, PsalmBook.name, PiecePsalmRef.number)
+    ).all()
+
     return render(
         request,
         "pieces/detail.html",
@@ -615,6 +625,7 @@ async def piece_detail(
             "lyricist_role": ContributorRole.LYRICIST,
             "image_kinds": [k.value for k in PieceImageKind],
             "loan_users": loan_users,
+            "psalm_refs": psalm_refs,
         },
         user=user,
     )
@@ -699,6 +710,15 @@ async def edit_piece_form(
             "unit_options": _unit_path_options(session),
             "unit_tree": _unit_picker_tree(session),
             "language_options": all_languages(),
+            "psalm_refs": session.exec(
+                select(PiecePsalmRef, PsalmBook)
+                .join(PsalmBook, PsalmBook.id == PiecePsalmRef.book_id)
+                .where(PiecePsalmRef.piece_id == piece_id)
+                .order_by(PsalmBook.sort_order, PsalmBook.name, PiecePsalmRef.number)
+            ).all(),
+            "psalm_books": session.exec(
+                select(PsalmBook).order_by(PsalmBook.sort_order, PsalmBook.name)
+            ).all(),
         },
         user=user,
     )
@@ -1295,6 +1315,63 @@ async def upsert_user_note(
     session.commit()
     flash(request, "Din anteckning sparad", "success")
     return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+
+@router.post("/{piece_id}/psalmrefs", dependencies=[Depends(verify_csrf)])
+async def add_psalmref(
+    request: Request,
+    piece_id: int,
+    book_id: int = Form(...),
+    edition: str | None = Form(None),
+    number: int = Form(...),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    piece = session.get(Piece, piece_id)
+    book = session.get(PsalmBook, book_id)
+    if not piece or not book:
+        raise HTTPException(404)
+
+    edition_val = (edition or "").strip() or None
+    existing = session.exec(
+        select(PiecePsalmRef)
+        .where(PiecePsalmRef.piece_id == piece_id)
+        .where(PiecePsalmRef.book_id == book_id)
+        .where(PiecePsalmRef.edition == edition_val)
+        .where(PiecePsalmRef.number == number)
+    ).first()
+    if existing:
+        flash(request, "Den referensen finns redan", "info")
+    else:
+        session.add(
+            PiecePsalmRef(
+                piece_id=piece_id,
+                book_id=book_id,
+                edition=edition_val,
+                number=number,
+            )
+        )
+        session.commit()
+        flash(request, f"Lade till {book.name}:{edition_val or '-'}:{number}", "success")
+
+    return RedirectResponse(f"/pieces/{piece_id}/edit", status.HTTP_302_FOUND)
+
+
+@router.post("/{piece_id}/psalmrefs/{ref_id}/delete", dependencies=[Depends(verify_csrf)])
+async def delete_psalmref(
+    request: Request,
+    piece_id: int,
+    ref_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    ref = session.get(PiecePsalmRef, ref_id)
+    if not ref or ref.piece_id != piece_id:
+        raise HTTPException(404)
+    session.delete(ref)
+    session.commit()
+    flash(request, "Psalmreferens borttagen", "success")
+    return RedirectResponse(f"/pieces/{piece_id}/edit", status.HTTP_302_FOUND)
 
 
 @router.get("/{piece_id}/tags")

@@ -184,6 +184,14 @@ granska -> spara -> hitta igen.
       "Extern person" kopplar bort dropdownen och visar fritext-input
       för vikarierande körledare etc. borrower_user_id sätts vid
       användarval, annars sparas borrower_name som fritext.
+- [ ] **Bulk-utlån / kundvagn för många noter samtidigt**: körledare
+      plockar ofta 5-30 noter till en konsert. Idag måste utlån
+      registreras per placering. Alternativ: (a) "Låna ut härifrån"
+      på en storage_unit som listar pieces med kryssrutor, (b)
+      kundvagn med session-state ("Lägg i utlåningskorg") som låter
+      användaren plocka från flera platser innan slutregistrering,
+      (c) multi-select i /pieces-listan + "Låna ut valda".
+      Vid implementation: överväg även PDF-utskrift av låneblankett.
 - [x] **MB-berikning av personer direkt i granskningsflödet**: en samlad
       "Hämta MB-förslag"-knapp i review-vyn som söker för både verk och
       alla namn (composer/arranger/lyricist), visar topp-träffar med
@@ -208,13 +216,12 @@ granska -> spara -> hitta igen.
       USB-handskannrar fungerar som tangentbordsemulering så de skriver
       koden i ett input-fält direkt. För kamera-baserad skanning krävs
       HTTPS (kopplat till in-browser-QR-läsare-itemet ovan).
-- [ ] **Psalmnummer som strukturerad tagg-referens istället för fritext-fält**:
-      idag är `Piece.psalm_number` en enkel int. Bättre design:
-      taggar/referenser i formen `Svenska Psalmboken:1986:246` eller
-      `Psalmer i 2000-talet:NN` så samma not kan referera till flera
-      psalmböcker/utgåvor. Behöver: dropdown för psalmbok (kuraterad
-      lista), utgåva-fält, nummer-fält. Migrering av befintliga
-      psalm_number → tagg-rad med användarens default-psalmbok.
+- [x] **Psalmnummer som strukturerad psalmref istället för fritext-fält**:
+      ny PsalmBook + PiecePsalmRef-modell. Admin-CRUD på
+      /admin/psalmbooks. Flera referenser per not via lägg-till-form
+      på piece/edit (bok + utgåva + nummer). Visning som badge-pillar
+      på detail/edit. psalm_number-fältet borttaget från forms men
+      lämnat i Piece-modellen (för senare datamigrering).
 - [ ] **Besättning som strukturerad entitet/taggar istället för fritext**:
       idag är `Piece.voicing` ett fritextfält ("SATB", "SAB" etc.) vilket ger
       stavvarianter och inkonsekvens. Alternativ att diskutera: (a) enum med

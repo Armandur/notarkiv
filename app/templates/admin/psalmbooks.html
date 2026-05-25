@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Psalmböcker - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Psalmböcker</h1>
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newBookModal">
+    Ny psalmbok
+  </button>
+</div>
+
+<p class="text-muted small">
+  Lägg till psalmböcker och sångböcker som era noter refererar till.
+  Format för referens på en not: bok + utgåva (valfri) + nummer,
+  t.ex. <em>Den svenska psalmboken · 1986 · 246</em>.
+</p>
+
+{% if not books %}
+<div class="alert alert-light">Inga psalmböcker än. Skapa den första via knappen ovan.</div>
+{% else %}
+<div class="card">
+  <table class="table table-hover mb-0">
+    <thead>
+      <tr>
+        <th>Namn</th>
+        <th>Beskrivning</th>
+        <th class="text-end">Antal noter</th>
+        <th class="text-end">Sort.</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in books %}
+      <tr>
+        <td><strong>{{ b.name }}</strong></td>
+        <td class="text-muted small">{{ b.description or "" }}</td>
+        <td class="text-end small">{{ counts.get(b.id, 0) }}</td>
+        <td class="text-end small">{{ b.sort_order }}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-secondary"
+                  data-bs-toggle="modal" data-bs-target="#editBookModal-{{ b.id }}">✏</button>
+          <button class="btn btn-sm btn-outline-danger"
+                  onclick="confirmAction('/admin/psalmbooks/{{ b.id }}/delete', 'Radera \'{{ b.name|e }}\'?')">×</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- Ny psalmbok-modal -->
+<div class="modal fade" id="newBookModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="/admin/psalmbooks">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Ny psalmbok</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Namn</label>
+          <input type="text" name="name" class="form-control" required
+                 placeholder="t.ex. Den svenska psalmboken">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Beskrivning (valfri)</label>
+          <textarea name="description" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Sorteringsordning</label>
+          <input type="number" name="sort_order" class="form-control" value="0">
+          <div class="form-text">Lägre värde visas först.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+        <button type="submit" class="btn btn-primary">Skapa</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit-modaler -->
+{% for b in books %}
+<div class="modal fade" id="editBookModal-{{ b.id }}" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="/admin/psalmbooks/{{ b.id }}/update">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Redigera psalmbok</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Namn</label>
+          <input type="text" name="name" class="form-control" value="{{ b.name }}" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Beskrivning</label>
+          <textarea name="description" class="form-control" rows="2">{{ b.description or "" }}</textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Sorteringsordning</label>
+          <input type="number" name="sort_order" class="form-control" value="{{ b.sort_order }}">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+        <button type="submit" class="btn btn-primary">Spara</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

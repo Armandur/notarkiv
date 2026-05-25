@@ -47,10 +47,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-3">
-          <label class="form-label">Psalmnummer</label>
-          <input type="text" name="psalm_number" class="form-control" inputmode="numeric" value="{{ piece.psalm_number or '' }}">
-        </div>
+        <input type="hidden" name="psalm_number" value="{{ piece.psalm_number or '' }}">
         <div class="col-md-4">
           <label class="form-label">Besättning</label>
           <input type="text" name="voicing" class="form-control" value="{{ piece.voicing or '' }}" list="voicing-options">
@@ -161,6 +158,54 @@
         <button type="submit" class="btn btn-sm btn-primary w-100">+</button>
       </div>
     </form>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <div class="card-header"><h2 class="h6 mb-0">Psalmreferenser</h2></div>
+  <div class="card-body">
+    {% if psalm_refs %}
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      {% for ref, book in psalm_refs %}
+      <span class="badge bg-light text-dark border d-flex align-items-center gap-1">
+        {{ book.name }}{% if ref.edition %} · {{ ref.edition }}{% endif %} · <strong>{{ ref.number }}</strong>
+        <form method="post" action="/pieces/{{ piece.id }}/psalmrefs/{{ ref.id }}/delete" class="d-inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn-close btn-close-sm" title="Ta bort"></button>
+        </form>
+      </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not psalm_books %}
+    <p class="text-muted small fst-italic">
+      Inga psalmböcker registrerade. <a href="/admin/psalmbooks">Lägg till en</a> innan du kan koppla referenser.
+    </p>
+    {% else %}
+    <form method="post" action="/pieces/{{ piece.id }}/psalmrefs" class="row g-2 align-items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="col-md-5">
+        <label class="form-label small mb-1">Psalmbok</label>
+        <select name="book_id" class="form-select form-select-sm" required>
+          {% for b in psalm_books %}
+          <option value="{{ b.id }}">{{ b.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Utgåva (valfri)</label>
+        <input type="text" name="edition" class="form-control form-control-sm" placeholder="t.ex. 1986">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Nummer</label>
+        <input type="number" name="number" class="form-control form-control-sm" min="1" required>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button type="submit" class="btn btn-sm btn-primary">Lägg till</button>
+      </div>
+    </form>
+    {% endif %}
   </div>
 </div>
 
