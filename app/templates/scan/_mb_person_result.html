@@ -1,0 +1,17 @@
+{# Resultat efter applicering av MB-data på en person via /apply-person-mb #}
+<div class="border rounded p-2 mb-2 {% if ok %}border-success bg-success-subtle{% else %}border-danger{% endif %}">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <strong>{{ name }}</strong>
+      {% if ok %}
+      <span class="badge bg-success ms-2">applicerad</span>
+      <a href="/people/{{ person_id }}" target="_blank" class="small ms-2">visa personen</a>
+      {% else %}
+      <span class="badge bg-danger ms-2">misslyckades</span>
+      {% endif %}
+    </div>
+  </div>
+  {% if error %}
+  <div class="small text-danger mt-1">{{ error }}</div>
+  {% endif %}
+</div>

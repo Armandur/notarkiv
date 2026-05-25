@@ -25,19 +25,27 @@
         <div class="col-md-6">
           <label class="form-label">Kompositör</label>
           <input type="text" name="composer" id="composer" class="form-control" value="{{ composers_str }}" list="people-options">
+          <input type="text" name="composer_sort" id="composer_sort" class="form-control form-control-sm mt-1" value="{{ composer_sorts_str }}" placeholder="Sort-namn (auto, klicka för att ändra)">
           <div class="form-text">Flera separeras med <code>;</code> eller <code>&amp;</code></div>
         </div>
         <div class="col-md-6">
           <label class="form-label">Arrangör</label>
-          <input type="text" name="arranger" class="form-control" value="{{ arrangers_str }}" list="people-options">
+          <input type="text" name="arranger" id="arranger" class="form-control" value="{{ arrangers_str }}" list="people-options">
+          <input type="text" name="arranger_sort" id="arranger_sort" class="form-control form-control-sm mt-1" value="{{ arranger_sorts_str }}" placeholder="Sort-namn (auto, klicka för att ändra)">
         </div>
         <div class="col-md-6">
           <label class="form-label">Textförfattare</label>
-          <input type="text" name="lyricist" class="form-control" value="{{ lyricists_str }}" list="people-options">
+          <input type="text" name="lyricist" id="lyricist" class="form-control" value="{{ lyricists_str }}" list="people-options">
+          <input type="text" name="lyricist_sort" id="lyricist_sort" class="form-control form-control-sm mt-1" value="{{ lyricist_sorts_str }}" placeholder="Sort-namn (auto, klicka för att ändra)">
         </div>
         <div class="col-md-3">
           <label class="form-label">Språk</label>
-          <input type="text" name="language" class="form-control" value="{{ piece.language or '' }}" placeholder="sv, en, la ...">
+          <select name="language" class="form-select">
+            <option value="">(inget)</option>
+            {% for l in language_options %}
+            <option value="{{ l.code }}" {% if piece.language == l.code %}selected{% endif %}>{{ l.label }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-3">
           <label class="form-label">Psalmnummer</label>
@@ -296,7 +304,7 @@ document.addEventListener('hidden.bs.modal', function(evt) {
 </script>
 
 <datalist id="people-options">
-  {% for name in people_names %}<option value="{{ name }}">{% endfor %}
+  {% for p in people_options %}<option value="{{ p.name }}" label="{{ p.label }}">{% endfor %}
 </datalist>
 
 <div id="mb-modal-target"></div>

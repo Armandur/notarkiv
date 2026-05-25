@@ -11,10 +11,28 @@ from app.deps import get_session, require_editor, verify_csrf
 from app.services.app_settings import get_ocr_provider
 from app.services.duplicates import find_duplicates
 from app.services.inventory import append_log, get_active_session
-from app.services.musicbrainz import get_client, to_suggestions
-from app.services.people import all_people_names, parse_names_field, replace_contributors
+from app.services.musicbrainz import (
+    commons_file_to_thumb_url,
+    download_image_bytes,
+    extract_image_url,
+    fetch_wikipedia_summary,
+    get_client,
+    get_wikipedia_url,
+    to_suggestions,
+)
+from app.services.people import (
+    all_people_for_autocomplete,
+    all_people_names,
+    derive_sort_name,
+    enrich_person_from_mb,
+    find_or_create_person,
+    parse_names_field,
+    parse_sort_field,
+    replace_contributors,
+)
 from app.models import (
     InventorySession,
+    Person,
     Piece,
     PieceImage,
     PiecePlacement,
@@ -376,6 +394,15 @@ async def review_form(
         edition_number=extracted.get("edition_number"),
     )
 
+    person_sections = await _build_person_sections(
+        session,
+        composer=extracted.get("composer") or "",
+        arranger=extracted.get("arranger") or "",
+        lyricist=extracted.get("lyricist") or "",
+    )
+
+    from app.utils.languages import all_languages
+
     return render(
         request,
         "scan/review.html",
@@ -383,14 +410,65 @@ async def review_form(
             "scan": scan,
             "extracted": extracted,
             "suggestions": suggestions,
+            "person_sections": person_sections,
             "unit_options": tree,
             "duplicates": duplicates,
             "prefill_placement_unit_id": scan.pre_placement_unit_id,
             "prefill_placement_copies": scan.pre_placement_copies,
             "people_names": all_people_names(session),
+            "people_options": all_people_for_autocomplete(session),
+            "language_options": all_languages(),
         },
         user=user,
     )
+
+
+async def _build_person_sections(
+    session: Session,
+    *,
+    composer: str,
+    arranger: str,
+    lyricist: str,
+) -> list[dict]:
+    """Slå upp MB-kandidater för composer/arranger/lyricist-namn. Returnerar
+    sektioner: [{label, role, entries: [{name, candidates, error, ...}]}]."""
+    client = get_client()
+
+    async def search_person(name: str) -> dict:
+        if not name:
+            return {"name": "", "candidates": [], "error": None}
+        try:
+            results = await client.search_artist(name)
+        except Exception as exc:
+            return {"name": name, "candidates": [], "error": str(exc)}
+        candidates = []
+        for r in results[:3]:
+            if r.get("type") and r["type"].lower() != "person":
+                continue
+            candidates.append(r)
+        return {"name": name, "candidates": candidates, "error": None}
+
+    sections: list[dict] = []
+    for role_label, role_key, names_field in [
+        ("Kompositör", "composer", composer),
+        ("Arrangör", "arranger", arranger),
+        ("Textförfattare", "lyricist", lyricist),
+    ]:
+        names = parse_names_field(names_field)
+        entries = []
+        for name in names:
+            existing = session.exec(
+                select(Person).where(Person.name.ilike(name))
+            ).first()
+            res = await search_person(name)
+            res["existing_person_id"] = existing.id if existing else None
+            res["has_mbid"] = bool(existing and existing.musicbrainz_artist_id)
+            entries.append(res)
+        if entries:
+            sections.append(
+                {"label": role_label, "role": role_key, "entries": entries}
+            )
+    return sections
 
 
 @router.post("/{scan_id}/add-placement/{piece_id}", dependencies=[Depends(verify_csrf)])
@@ -466,6 +544,87 @@ async def add_placement_to_existing(
     return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
 
 
+@router.post("/{scan_id}/apply-person-mb", dependencies=[Depends(verify_csrf)])
+async def apply_person_mb(
+    request: Request,
+    scan_id: int,
+    name: str = Form(...),
+    role: str = Form(...),
+    mbid: str = Form(...),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Hitta eller skapa Person med givet namn, applicera MB-data direkt.
+    Returnerar ett litet HTMX-fragment som ersätter förslagskortet."""
+    scan = session.get(ScanSession, scan_id)
+    if not scan:
+        raise HTTPException(404)
+
+    name = name.strip()
+    if not name:
+        raise HTTPException(400, "name saknas")
+
+    try:
+        client = get_client()
+        artist = await client.get_artist_with_urls(mbid)
+    except Exception as exc:
+        return render(
+            request,
+            "scan/_mb_person_result.html",
+            {"name": name, "role": role, "error": f"MB-fel: {exc}", "ok": False},
+            user=user,
+        )
+
+    if not artist:
+        return render(
+            request,
+            "scan/_mb_person_result.html",
+            {"name": name, "role": role, "error": "MB returnerade inget", "ok": False},
+            user=user,
+        )
+
+    person = find_or_create_person(session, name, musicbrainz_artist_id=mbid)
+    if not person:
+        raise HTTPException(400, "kunde inte skapa Person")
+
+    # Hämta Wikipedia + porträtt
+    wiki_url = await get_wikipedia_url(artist)
+    wiki_bio = await fetch_wikipedia_summary(wiki_url) if wiki_url else None
+
+    if not person.portrait_image_path:
+        image_page_url = extract_image_url(artist)
+        if image_page_url:
+            thumb_url = commons_file_to_thumb_url(image_page_url, width=600)
+            if thumb_url:
+                img_bytes = await download_image_bytes(thumb_url)
+                if img_bytes:
+                    try:
+                        person.portrait_image_path = save_uploaded_cover(img_bytes)
+                        person.portrait_source_url = image_page_url
+                    except Exception:
+                        pass
+
+    # Eventuellt uppdatera namn till MB:s kanoniska form
+    if artist.get("name") and artist["name"] != person.name:
+        person.name = artist["name"]
+
+    enrich_person_from_mb(
+        session,
+        person,
+        mb_artist=artist,
+        wikipedia_url=wiki_url,
+        biography=wiki_bio,
+    )
+    session.commit()
+
+    return render(
+        request,
+        "scan/_mb_person_result.html",
+        {"name": person.name, "role": role, "person_id": person.id, "ok": True},
+        user=user,
+    )
+
+
 @router.get("/{scan_id}/musicbrainz")
 async def review_musicbrainz_modal(
     request: Request,
@@ -522,6 +681,9 @@ async def save_piece(
     composer: str | None = Form(None),
     arranger: str | None = Form(None),
     lyricist: str | None = Form(None),
+    composer_sort: str | None = Form(None),
+    arranger_sort: str | None = Form(None),
+    lyricist_sort: str | None = Form(None),
     language: str | None = Form(None),
     voicing: str | None = Form(None),
     accompaniment: str | None = Form(None),
@@ -564,6 +726,9 @@ async def save_piece(
         composers=parse_names_field(composer),
         arrangers=parse_names_field(arranger),
         lyricists=parse_names_field(lyricist),
+        composer_sorts=parse_sort_field(composer_sort),
+        arranger_sorts=parse_sort_field(arranger_sort),
+        lyricist_sorts=parse_sort_field(lyricist_sort),
     )
     piece.contributors_cache = cache or None
     session.add(piece)

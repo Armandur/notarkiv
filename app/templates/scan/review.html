@@ -81,7 +81,7 @@
 
 <div class="row g-4">
   <div class="col-md-4">
-    <img src="/images/{{ scan.image_path }}" class="img-fluid rounded shadow-sm sticky-top lightbox-image" style="top: 1rem" alt="Skannat omslag">
+    <img src="/images/{{ scan.image_path }}" class="img-fluid rounded shadow-sm lightbox-image" alt="Skannat omslag">
 
     <div class="d-grid mt-3">
       <button type="button" class="btn btn-sm btn-outline-secondary"
@@ -92,23 +92,77 @@
       </button>
     </div>
 
-    {% if suggestions %}
+    {% if suggestions or person_sections %}
     <div class="card mt-3">
       <div class="card-header">MusicBrainz-förslag</div>
-      <div class="list-group list-group-flush">
-        {% for s in suggestions %}
-        <div class="list-group-item">
-          <div class="d-flex justify-content-between">
-            <strong>{{ s.title }}</strong>
-            <span class="badge bg-secondary">{{ s.score }}</span>
+      <div class="card-body p-2">
+
+        {% if suggestions %}
+        <div class="small text-muted text-uppercase mb-1">Verk</div>
+        <div class="list-group list-group-flush mb-3">
+          {% for s in suggestions %}
+          <div class="list-group-item px-2">
+            <div class="d-flex justify-content-between">
+              <strong class="small">{{ s.title }}</strong>
+              <span class="badge bg-secondary">{{ s.score }}</span>
+            </div>
+            {% if s.composer %}<div class="small text-muted">{{ s.composer }}</div>{% endif %}
+            <button type="button" class="btn btn-sm btn-outline-primary mt-1"
+                    onclick="applyMbSuggestion('{{ s.mbid }}', '{{ s.title|e }}', '{{ s.composer or ''|e }}', this)">
+              Använd
+            </button>
           </div>
-          {% if s.composer %}<div class="small text-muted">{{ s.composer }}</div>{% endif %}
-          <button type="button" class="btn btn-sm btn-outline-primary mt-1"
-                  onclick="applyMbSuggestion('{{ s.mbid }}', '{{ s.title|e }}', '{{ s.composer or ''|e }}', this)">
-            Använd
-          </button>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% for section in person_sections %}
+        <div class="small text-muted text-uppercase mb-1">{{ section.label }}</div>
+        {% for item in section.entries %}
+        {% set person_card_id = 'mb-person-' ~ section.role ~ '-' ~ loop.index0 %}
+        <div id="{{ person_card_id }}" class="border rounded p-2 mb-2">
+          <div class="small mb-1">
+            <strong>{{ item.name }}</strong>
+            {% if item.has_mbid %}
+            <span class="badge bg-success ms-1">redan berikad</span>
+            {% elif item.existing_person_id %}
+            <span class="badge bg-secondary ms-1">finns sedan tidigare</span>
+            {% endif %}
+          </div>
+          {% if item.error %}
+          <div class="alert alert-warning small mb-0 py-1">MB-fel: {{ item.error }}</div>
+          {% elif item.has_mbid %}
+          <div class="small text-muted">Hoppa över - MBID redan satt.</div>
+          {% elif not item.candidates %}
+          <div class="small text-muted fst-italic">Inga MB-träffar.</div>
+          {% else %}
+          {% for c in item.candidates %}
+          <div class="d-flex justify-content-between align-items-start small border-top pt-1 mt-1">
+            <div>
+              <strong>{{ c.name }}</strong>
+              {% if c['life-span'] %}
+                {% set ls = c['life-span'] %}
+                <span class="text-muted">({{ ls.begin or '?' }}{% if ls.end %}-{{ ls.end }}{% endif %})</span>
+              {% endif %}
+              {% if c.country %}<div>{{ country_display(c.country) }}</div>{% endif %}
+              {% if c.disambiguation %}<div class="text-muted">{{ c.disambiguation }}</div>{% endif %}
+            </div>
+            <form hx-post="/scan/{{ scan.id }}/apply-person-mb"
+                  hx-target="#{{ person_card_id }}"
+                  hx-swap="outerHTML">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="name" value="{{ item.name }}">
+              <input type="hidden" name="role" value="{{ section.role }}">
+              <input type="hidden" name="mbid" value="{{ c.id }}">
+              <button type="submit" class="btn btn-sm btn-outline-primary">Använd</button>
+            </form>
+          </div>
+          {% endfor %}
+          {% endif %}
         </div>
         {% endfor %}
+        {% endfor %}
+
       </div>
     </div>
     {% endif %}
@@ -130,19 +184,27 @@
         </div>
         <div class="col-md-6">
           <label class="form-label">Kompositör</label>
-          <input type="text" name="composer" id="composer" class="form-control" value="{{ extracted.composer or '' }}" list="people-options">
+          <input type="text" name="composer" id="composer" class="form-control sort-name-source" data-sort-target="composer_sort" value="{{ extracted.composer or '' }}" list="people-options">
+          <input type="text" name="composer_sort" id="composer_sort" class="form-control form-control-sm mt-1 sort-name-target" data-sort-source="composer" placeholder="Sort-namn (auto, klicka för att ändra)">
         </div>
         <div class="col-md-6">
           <label class="form-label">Arrangör</label>
-          <input type="text" name="arranger" class="form-control" value="{{ extracted.arranger or '' }}" list="people-options">
+          <input type="text" name="arranger" id="arranger" class="form-control sort-name-source" data-sort-target="arranger_sort" value="{{ extracted.arranger or '' }}" list="people-options">
+          <input type="text" name="arranger_sort" id="arranger_sort" class="form-control form-control-sm mt-1 sort-name-target" data-sort-source="arranger" placeholder="Sort-namn (auto, klicka för att ändra)">
         </div>
         <div class="col-md-6">
           <label class="form-label">Textförfattare</label>
-          <input type="text" name="lyricist" class="form-control" value="{{ extracted.lyricist or '' }}" list="people-options">
+          <input type="text" name="lyricist" id="lyricist" class="form-control sort-name-source" data-sort-target="lyricist_sort" value="{{ extracted.lyricist or '' }}" list="people-options">
+          <input type="text" name="lyricist_sort" id="lyricist_sort" class="form-control form-control-sm mt-1 sort-name-target" data-sort-source="lyricist" placeholder="Sort-namn (auto, klicka för att ändra)">
         </div>
         <div class="col-md-3">
           <label class="form-label">Språk</label>
-          <input type="text" name="language" class="form-control" value="{{ extracted.language or '' }}" placeholder="sv, en, la ...">
+          <select name="language" class="form-select">
+            <option value="">(inget)</option>
+            {% for l in language_options %}
+            <option value="{{ l.code }}" {% if extracted.language == l.code %}selected{% endif %}>{{ l.label }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-3">
           <label class="form-label">Psalmnummer</label>
@@ -269,9 +331,10 @@ function applyMbSuggestion(mbid, title, composer, btn) {
     setTimeout(() => banner.classList.add('d-none'), 2500);
   }
 }
+
 </script>
 <datalist id="people-options">
-  {% for name in people_names %}<option value="{{ name }}">{% endfor %}
+  {% for p in people_options %}<option value="{{ p.name }}" label="{{ p.label }}">{% endfor %}
 </datalist>
 
 <div id="mb-applied-banner"

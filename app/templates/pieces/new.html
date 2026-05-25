@@ -32,20 +32,28 @@
         </div>
         <div class="col-md-6">
           <label class="form-label">Kompositör</label>
-          <input type="text" name="composer" class="form-control" list="people-options">
+          <input type="text" name="composer" id="composer" class="form-control" list="people-options">
+          <input type="text" name="composer_sort" id="composer_sort" class="form-control form-control-sm mt-1" placeholder="Sort-namn (auto, klicka för att ändra)">
           <div class="form-text">Flera separeras med <code>;</code> eller <code>&amp;</code></div>
         </div>
         <div class="col-md-6">
           <label class="form-label">Arrangör</label>
-          <input type="text" name="arranger" class="form-control" list="people-options">
+          <input type="text" name="arranger" id="arranger" class="form-control" list="people-options">
+          <input type="text" name="arranger_sort" id="arranger_sort" class="form-control form-control-sm mt-1" placeholder="Sort-namn (auto, klicka för att ändra)">
         </div>
         <div class="col-md-6">
           <label class="form-label">Textförfattare</label>
-          <input type="text" name="lyricist" class="form-control" list="people-options">
+          <input type="text" name="lyricist" id="lyricist" class="form-control" list="people-options">
+          <input type="text" name="lyricist_sort" id="lyricist_sort" class="form-control form-control-sm mt-1" placeholder="Sort-namn (auto, klicka för att ändra)">
         </div>
         <div class="col-md-3">
           <label class="form-label">Språk</label>
-          <input type="text" name="language" class="form-control" placeholder="sv, en, la ...">
+          <select name="language" class="form-select">
+            <option value="">(inget)</option>
+            {% for l in language_options %}
+            <option value="{{ l.code }}">{{ l.label }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-3">
           <label class="form-label">Psalmnummer</label>
@@ -124,6 +132,6 @@
 </form>
 
 <datalist id="people-options">
-  {% for name in people_names %}<option value="{{ name }}">{% endfor %}
+  {% for p in people_options %}<option value="{{ p.name }}" label="{{ p.label }}">{% endfor %}
 </datalist>
 {% endblock %}

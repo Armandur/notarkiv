@@ -6,6 +6,7 @@ from loguru import logger
 from app.config import settings
 from app.logging_setup import setup_logging
 from app.tasks.ocr_jobs import extract_metadata_job
+from app.tasks.person_jobs import enrich_person_job
 
 
 async def startup(ctx: dict) -> None:
@@ -24,7 +25,7 @@ async def shutdown(ctx: dict) -> None:
 
 
 class WorkerSettings:
-    functions = [extract_metadata_job]
+    functions = [extract_metadata_job, enrich_person_job]
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
