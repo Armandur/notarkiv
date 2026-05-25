@@ -27,6 +27,7 @@
 
 <form method="post" action="/people/{{ person.id }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="mb_bio_applied" id="mb-bio-applied" value="">
 
   <div class="card">
     <div class="card-header"><h2 class="h6 mb-0">Metadata</h2></div>
@@ -310,6 +311,11 @@ document.addEventListener('click', (e) => {
     if (el) { el.value = inp.dataset.value; el.dispatchEvent(new Event('input', {bubbles: true})); }
     inp.classList.add('btn-success');
     inp.classList.remove('btn-outline-primary');
+    // Markera att MB-bio applicerades så update_person kan tidsstämpla
+    if (inp.dataset.target === 'biography') {
+      const flag = document.getElementById('mb-bio-applied');
+      if (flag) flag.value = '1';
+    }
     return;
   }
   const sel = e.target.closest('.mb-apply-select');

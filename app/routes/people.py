@@ -553,6 +553,7 @@ async def update_person(
     biography: str | None = Form(None),
     musicbrainz_artist_id: str | None = Form(None),
     wikidata_id: str | None = Form(None),
+    mb_bio_applied: str | None = Form(None),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -569,7 +570,12 @@ async def update_person(
     person.country = ((country or "").strip() or None)
     if person.country:
         person.country = person.country.upper()[:2]
-    person.biography = (biography or "").strip() or None
+    new_bio = (biography or "").strip() or None
+    if new_bio != person.biography:
+        person.biography = new_bio
+        if mb_bio_applied == "1":
+            # Biografi just applicerades från Wikipedia-förslaget
+            person.biography_fetched_at = datetime.utcnow()
     person.musicbrainz_artist_id = (musicbrainz_artist_id or "").strip() or None
     person.wikidata_id = (wikidata_id or "").strip() or None
     person.updated_at = datetime.utcnow()
