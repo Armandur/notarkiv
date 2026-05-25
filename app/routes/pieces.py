@@ -785,16 +785,14 @@ async def edit_piece_form(
                     .where(Tag.kind == "accompaniment")
                 ).all()
             ),
-            # Övriga taggar (inte voicing/accompaniment) grupperade per kind
-            "other_tags_by_kind": _other_tags_grouped(session),
-            "selected_other_tag_ids": set(
-                session.exec(
-                    select(PieceTag.tag_id)
-                    .join(Tag, Tag.id == PieceTag.tag_id)
-                    .where(PieceTag.piece_id == piece_id)
-                    .where(Tag.kind.not_in(["voicing", "accompaniment"]))
-                ).all()
-            ),
+            # Aktiva non-voicing/non-accompaniment-taggar för tag-area
+            "piece_active_other_tags": session.exec(
+                select(Tag)
+                .join(PieceTag, PieceTag.tag_id == Tag.id)
+                .where(PieceTag.piece_id == piece_id)
+                .where(Tag.kind.not_in(["voicing", "accompaniment"]))
+                .order_by(Tag.kind, Tag.sort_order, Tag.name)
+            ).all(),
         },
         user=user,
     )
@@ -833,7 +831,6 @@ async def edit_piece_save(
     spotify_url: str | None = Form(None),
     voicing_tag_id: list[int] = Form(default=[]),
     accompaniment_tag_id: list[int] = Form(default=[]),
-    tag_id: list[int] = Form(default=[]),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -867,20 +864,8 @@ async def edit_piece_save(
     _set_kind_tags(session, piece_id, "voicing", voicing_tag_id)
     _set_kind_tags(session, piece_id, "accompaniment", accompaniment_tag_id)
 
-    # Övriga taggar (liturgical/occasion/free) - rensa befintliga + sätt nya
-    existing_other = session.exec(
-        select(PieceTag, Tag)
-        .join(Tag, Tag.id == PieceTag.tag_id)
-        .where(PieceTag.piece_id == piece_id)
-        .where(Tag.kind.not_in(["voicing", "accompaniment"]))
-    ).all()
-    for pt, _t in existing_other:
-        session.delete(pt)
-    session.flush()
-    for tid in tag_id:
-        t = session.get(Tag, tid)
-        if t and t.kind not in ("voicing", "accompaniment"):
-            session.add(PieceTag(piece_id=piece_id, tag_id=t.id))
+    # Övriga taggar (liturgical/occasion/free) sätts inte här - de togglas
+    # direkt via HTMX i tag-area och sparas omedelbart vid klick.
 
     session.commit()
 
@@ -1663,6 +1648,75 @@ async def delete_psalmref(
     return RedirectResponse(f"/pieces/{piece_id}/edit", status.HTTP_302_FOUND)
 
 
+def _render_tag_area(request, session: Session, user: User, piece_id: int) -> Response:
+    piece = session.get(Piece, piece_id)
+    if not piece:
+        raise HTTPException(404)
+    active = session.exec(
+        select(Tag)
+        .join(PieceTag, PieceTag.tag_id == Tag.id)
+        .where(PieceTag.piece_id == piece_id)
+        .where(Tag.kind.not_in(["voicing", "accompaniment"]))
+        .order_by(Tag.kind, Tag.sort_order, Tag.name)
+    ).all()
+    return render(
+        request,
+        "pieces/_tag_area.html",
+        {"piece": piece, "active_tags": active},
+        user=user,
+    )
+
+
+@router.get("/{piece_id}/tags/area")
+async def tag_area(
+    request: Request,
+    piece_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    return _render_tag_area(request, session, user, piece_id)
+
+
+@router.get("/{piece_id}/tags/search")
+async def search_tags_for_piece(
+    request: Request,
+    piece_id: int,
+    q: str = "",
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """HTMX-fragment: lista taggar som matchar q (case-insensitive), exklusive
+    voicing/accompaniment som hanteras via egna dropdowns. Markerar de som
+    redan är kopplade till piecen så användaren ser om en tagg redan finns."""
+    query = q.strip()
+    active_ids = set(
+        session.exec(
+            select(PieceTag.tag_id).where(PieceTag.piece_id == piece_id)
+        ).all()
+    )
+    stmt = select(Tag).where(Tag.kind.not_in(["voicing", "accompaniment"]))
+    if query:
+        stmt = stmt.where(Tag.name.ilike(f"%{query}%"))
+    stmt = stmt.order_by(Tag.kind, Tag.sort_order, Tag.name).limit(15)
+    results = session.exec(stmt).all()
+    # Tillåt skapa ny tagg om query inte exakt matchar någon träff
+    can_create = bool(query) and not any(
+        t.name.lower() == query.lower() for t in results
+    )
+    return render(
+        request,
+        "pieces/_tag_search_results.html",
+        {
+            "piece_id": piece_id,
+            "results": results,
+            "active_ids": active_ids,
+            "query": query,
+            "can_create": can_create,
+        },
+        user=user,
+    )
+
+
 @router.get("/{piece_id}/tags")
 async def tag_modal(
     request: Request,
@@ -1716,20 +1770,13 @@ async def toggle_tag(
 
     if existing:
         session.delete(existing)
-        active = False
     else:
         session.add(PieceTag(piece_id=piece_id, tag_id=tag_id))
-        active = True
     session.commit()
 
     if request.headers.get("HX-Request"):
-        return render(
-            request,
-            "pieces/_tag_pill.html",
-            {"piece": piece, "tag": tag, "active": active},
-            user=user,
-        )
-    return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+        return _render_tag_area(request, session, user, piece_id)
+    return RedirectResponse(f"/pieces/{piece_id}/edit", status.HTTP_302_FOUND)
 
 
 @router.post("/{piece_id}/tags/new", dependencies=[Depends(verify_csrf)])
@@ -1770,8 +1817,10 @@ async def create_and_attach_tag(
         session.add(PieceTag(piece_id=piece_id, tag_id=tag.id))
     session.commit()
 
+    if request.headers.get("HX-Request"):
+        return _render_tag_area(request, session, user, piece_id)
     flash(request, f"Tagg '{tag.name}' tillagd", "success")
-    return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+    return RedirectResponse(f"/pieces/{piece_id}/edit", status.HTTP_302_FOUND)
 
 
 @router.post("/{piece_id}/images", dependencies=[Depends(verify_csrf)])

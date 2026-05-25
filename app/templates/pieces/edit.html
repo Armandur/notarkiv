@@ -133,44 +133,20 @@
     </div>
   </div>
 
-  {# Taggar - liturgiska, tillfällen, fria. Voicing/accompaniment finns
-     som egna fält i metadata-sektionen ovan. #}
-  <div class="card mt-3">
-    <div class="card-header"><h2 class="h6 mb-0">Taggar</h2></div>
-    <div class="card-body">
-      {% set kind_labels = {'liturgical': 'Liturgisk', 'occasion': 'Tillfälle', 'free': 'Fri'} %}
-      {% if not other_tags_by_kind %}
-      <p class="text-muted small fst-italic mb-0">
-        Inga taggar registrerade än. Skapa via <a href="/tags">/tags</a>.
-      </p>
-      {% else %}
-      {% for kind, kind_tags in other_tags_by_kind.items() %}
-      <div class="mb-2">
-        <div class="small text-muted text-uppercase mb-1">{{ kind_labels.get(kind, kind) }}</div>
-        <div class="d-flex flex-wrap gap-1">
-          {% for t in kind_tags %}
-          <label class="badge bg-{{ {'liturgical': 'primary', 'occasion': 'success', 'free': 'secondary'}.get(t.kind, 'secondary') }} {% if t.id not in selected_other_tag_ids %}opacity-50{% endif %}"
-                 style="cursor: pointer; user-select: none">
-            <input type="checkbox" name="tag_id" value="{{ t.id }}"
-                   class="d-none"
-                   {% if t.id in selected_other_tag_ids %}checked{% endif %}
-                   onchange="this.parentElement.classList.toggle('opacity-50', !this.checked)">
-            {{ t.name }}
-          </label>
-          {% endfor %}
-        </div>
-      </div>
-      {% endfor %}
-      <div class="form-text">Klicka för att toggla. Pillar med svag färg är inte markerade.</div>
-      {% endif %}
-    </div>
-  </div>
-
   <div class="mt-4 d-flex gap-2">
     <button type="submit" class="btn btn-primary">Spara metadata</button>
     <a href="/pieces/{{ piece.id }}" class="btn btn-link">Avbryt</a>
   </div>
 </form>
+
+{# Taggar utanför huvudformuläret - togglas direkt via HTMX, inte vid spara #}
+<div class="card mt-3">
+  <div class="card-header"><h2 class="h6 mb-0">Taggar</h2></div>
+  <div class="card-body">
+    {% set active_tags = piece_active_other_tags %}
+    {% include "pieces/_tag_area.html" %}
+  </div>
+</div>
 
 <div class="card mt-4">
   <div class="card-header"><h2 class="h6 mb-0">Bilder</h2></div>

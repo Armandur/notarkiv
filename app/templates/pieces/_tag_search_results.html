@@ -1,0 +1,35 @@
+{% for t in results %}
+{% set color = {'liturgical': 'primary', 'occasion': 'success', 'free': 'secondary'}.get(t.kind, 'secondary') %}
+<button type="button"
+        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+        hx-post="/pieces/{{ piece_id }}/tags/{{ t.id }}/toggle"
+        hx-include="#tag-area-csrf"
+        hx-target="#tag-area"
+        hx-swap="outerHTML">
+  <span>
+    <span class="badge bg-{{ color }} me-1">{{ t.kind }}</span>
+    {{ t.name }}
+  </span>
+  {% if t.id in active_ids %}
+  <span class="text-danger small">aktiv - klicka för att ta bort</span>
+  {% else %}
+  <span class="text-success small">+ lägg till</span>
+  {% endif %}
+</button>
+{% endfor %}
+
+{% if can_create %}
+<button type="button"
+        class="list-group-item list-group-item-action text-success"
+        hx-post="/pieces/{{ piece_id }}/tags/new"
+        hx-vals='{"name": {{ query|tojson }}, "kind": "free"}'
+        hx-include="#tag-area-csrf"
+        hx-target="#tag-area"
+        hx-swap="outerHTML">
+  + Skapa ny tagg: <strong>{{ query }}</strong> (fri)
+</button>
+{% endif %}
+
+{% if not results and not can_create %}
+<div class="list-group-item text-muted fst-italic">Skriv för att söka eller skapa</div>
+{% endif %}
