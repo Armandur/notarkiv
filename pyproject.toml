@@ -24,6 +24,7 @@ dependencies = [
     "rapidfuzz>=3.10",
     "qrcode[pil]>=8.0",
     "babel>=2.16",
+    "markdown>=3.10.2",
 ]
 
 [project.optional-dependencies]

@@ -116,6 +116,7 @@
         <div class="col-12">
           <label class="form-label">Biografi</label>
           <textarea name="biography" id="biography" class="form-control" rows="8">{{ person.biography or '' }}</textarea>
+          <div class="form-text">Markdown stöds: <code>**fet**</code>, <code>*kursiv*</code>, <code>## Rubrik</code>, listor osv.</div>
           {% if person.biography_source_url %}
           <div class="form-text">
             Importerad från <a href="{{ person.biography_source_url }}" target="_blank">{{ person.biography_source_url }}</a>

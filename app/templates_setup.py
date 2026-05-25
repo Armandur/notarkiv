@@ -36,6 +36,19 @@ def to_paragraphs(text: str | None) -> list[dict]:
     return out
 
 
+def _markdown(text: str | None) -> str:
+    """Rendera markdown till HTML. Tom sträng om None."""
+    if not text:
+        return ""
+    import markdown as md
+
+    return md.markdown(
+        text,
+        extensions=["nl2br", "sane_lists", "tables"],
+        output_format="html",
+    )
+
+
 templates = Jinja2Templates(directory="app/templates")
 templates.env.globals["country_display"] = country_display
 templates.env.globals["country_flag_emoji"] = country_flag_emoji
@@ -43,6 +56,7 @@ templates.env.globals["country_name_sv"] = country_name_sv
 templates.env.globals["language_display"] = language_display
 templates.env.globals["language_name_sv"] = language_name_sv
 templates.env.globals["to_paragraphs"] = to_paragraphs
+templates.env.filters["markdown"] = _markdown
 
 
 def render(

@@ -260,13 +260,13 @@ granska -> spara -> hitta igen.
 
 ### V2 - infrastruktur
 
-- [ ] **Markdown-stöd för fritextfält**: biografier, anteckningar
-      (på not, placering, scan-session) och inventerings-loggar är
-      idag rena strängar med viss radbrytnings-hantering. Bygg på
-      `python-markdown` för rendering och en lättviktig markdown-
-      editor (EasyMDE eller liknande, vanilla JS) för redigering.
-      Visa renderad HTML i visnings-vyer. Existerande text fungerar
-      som vanlig text utan ändring.
+- [x] **Markdown-stöd för fritextfält**: python-markdown med nl2br,
+      sane_lists och tables. Jinja-filter `| markdown | safe` används
+      för biografi (person-detalj) och anteckningar (piece-detalj).
+      Wikipedia ==-rubriker normaliseras till markdown-rubriker före
+      rendering. Form-hjälp-texter informerar om format-stöd. Ingen
+      editor-widget än - plain textarea räcker, EasyMDE kan läggas
+      till senare om behov uppstår.
 
 ## V3 - "Långt fram"
 

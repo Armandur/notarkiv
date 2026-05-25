@@ -37,29 +37,19 @@
 
   <div class="col-md-5">
     {% if person.biography %}
-    {% set _bio_paragraphs = to_paragraphs(person.biography) %}
-    {% macro render_bio_block(p) %}
-      {% if p.kind == 'heading' %}
-        {% set tag = 'h' ~ (p.level + 2) %}
-        <{{ tag }} class="h6 mt-3 mb-2 text-muted">{{ p.text }}</{{ tag }}>
-      {% else %}
-        <p>{{ p.text }}</p>
-      {% endif %}
-    {% endmacro %}
-    {% set _bio_long = person.biography|length > 600 or _bio_paragraphs|length > 2 %}
+    {# Wikipedia-extracter har ==-rubriker, normalisera till markdown #}
+    {% set _bio_md = person.biography | replace('======', '###### ') | replace('=====', '##### ') | replace('====', '#### ') | replace('===', '### ') | replace('==', '## ') %}
+    {% set _bio_long = person.biography|length > 600 %}
     {% if _bio_long %}
-    {% set _first_p_text = (_bio_paragraphs[0].text or '')[:400] %}
     <div class="bio-collapsible">
       <div class="bio-preview">
-        <p>{{ _first_p_text }}{% if _bio_paragraphs|length > 1 or _bio_paragraphs[0].text|length > 400 %}…{% endif %}</p>
+        <p>{{ person.biography[:400] }}…</p>
       </div>
-      <div class="bio-full d-none">
-        {% for p in _bio_paragraphs %}{{ render_bio_block(p) }}{% endfor %}
-      </div>
+      <div class="bio-full d-none">{{ _bio_md | markdown | safe }}</div>
       <button type="button" class="btn btn-link btn-sm p-0 bio-toggle">Visa mer</button>
     </div>
     {% else %}
-    {% for p in _bio_paragraphs %}{{ render_bio_block(p) }}{% endfor %}
+    <div>{{ _bio_md | markdown | safe }}</div>
     {% endif %}
     {% if person.biography_source_url %}
     <p class="small text-muted">

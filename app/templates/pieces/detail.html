@@ -123,8 +123,9 @@
     {% endif %}
 
     {% if piece.notes %}
+    {% set _notes_block = piece.notes %}
     <h2 class="h6 mt-3">Gemensamma anteckningar</h2>
-    <p>{{ piece.notes }}</p>
+    <div>{{ piece.notes | markdown | safe }}</div>
     {% endif %}
 
     <h2 class="h6 mt-3 mb-2">Mina anteckningar</h2>
