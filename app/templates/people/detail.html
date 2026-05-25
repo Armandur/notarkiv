@@ -81,16 +81,6 @@
   </div>
 
   <div class="col-md-4">
-    {% if user.can_edit and person.musicbrainz_artist_id %}
-    <form method="post" action="/people/{{ person.id }}/refresh" class="mb-3 d-grid">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <button type="submit" class="btn btn-sm btn-outline-secondary"
-              onclick="this.textContent='Hämtar från MusicBrainz...'; this.disabled=true; this.form.submit();">
-        Hämta om data från MusicBrainz
-      </button>
-    </form>
-    {% endif %}
-
     <div class="card">
       <div class="card-header"><h2 class="h6 mb-0">Externa länkar</h2></div>
       <div class="list-group list-group-flush">
