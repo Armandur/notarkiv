@@ -7,6 +7,7 @@ from sqlmodel import Field, SQLModel
 class TagKind(StrEnum):
     LITURGICAL = "liturgical"
     OCCASION = "occasion"
+    VOICING = "voicing"
     FREE = "free"
 
 

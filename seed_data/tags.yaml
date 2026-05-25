@@ -89,3 +89,20 @@
 - name: konsert
   kind: occasion
   sort_order: 120
+
+# Besättningar (voicing) - tagg-formade så de kan kombineras
+# (t.ex. "SATB" + "soprano solo" på samma not).
+- { name: SATB, kind: voicing, sort_order: 10 }
+- { name: SAB, kind: voicing, sort_order: 20 }
+- { name: SSA, kind: voicing, sort_order: 30 }
+- { name: SSAA, kind: voicing, sort_order: 40 }
+- { name: SSAATTBB, kind: voicing, sort_order: 50 }
+- { name: TTBB, kind: voicing, sort_order: 60 }
+- { name: TB, kind: voicing, sort_order: 70 }
+- { name: ATB, kind: voicing, sort_order: 80 }
+- { name: SA, kind: voicing, sort_order: 90 }
+- { name: unison, kind: voicing, sort_order: 100 }
+- { name: kanon, kind: voicing, sort_order: 110 }
+- { name: solo, kind: voicing, sort_order: 120 }
+- { name: solo + kör, kind: voicing, sort_order: 130 }
+- { name: barnkör, kind: voicing, sort_order: 140 }

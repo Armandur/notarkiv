@@ -222,12 +222,12 @@ granska -> spara -> hitta igen.
       på piece/edit (bok + utgåva + nummer). Visning som badge-pillar
       på detail/edit. psalm_number-fältet borttaget från forms men
       lämnat i Piece-modellen (för senare datamigrering).
-- [ ] **Besättning som strukturerad entitet/taggar istället för fritext**:
-      idag är `Piece.voicing` ett fritextfält ("SATB", "SAB" etc.) vilket ger
-      stavvarianter och inkonsekvens. Alternativ att diskutera: (a) enum med
-      fast lista (SATB, SAB, SSA, SSAA, TTBB, unison, kanon ...), (b) tagg-
-      kind "voicing" med autocomplete + förvalda alternativ, (c) två fält
-      (typ + antal stämmor). Påverkar filter, sökning och OCR-extraktion.
+- [x] **Besättning som strukturerade taggar**: voicing är nu TagKind.VOICING
+      istället för fritext på Piece. 14 vanliga voicings (SATB, SAB, SSA,
+      SSAA, TTBB, ATB, SA, unison, kanon, solo, solo + kör, barnkör m.fl.)
+      seedas via tags.yaml. Filtret på /pieces filtrerar tags med
+      kind=voicing. /pieces visar voicing-pillar via _voicings_by_piece.
+      Sätts via samma tag-modal som andra taggar.
 - [x] **Sök och sortera /pieces på inläggningsdatum**:
       sort-dropdown (nyast/äldst/titel A-Ö/Ö-A) + period-dropdown
       (alltid/7/30/90 dagar).

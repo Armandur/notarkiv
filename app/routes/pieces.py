@@ -139,6 +139,7 @@ async def list_pieces(
     covers = _covers_by_piece(session, [p.id for p in pieces])
 
     placement_summary = _placement_summaries(session, [p.id for p in pieces])
+    voicings_by_piece = _voicings_by_piece(session, [p.id for p in pieces])
 
     def cover_thumb(piece_id: int) -> str | None:
         cover = covers.get(piece_id)
@@ -152,11 +153,11 @@ async def list_pieces(
     for t in all_tags:
         tags_by_kind.setdefault(t.kind, []).append(t)
 
-    # Distinkta voicings + languages för dropdown-filter
+    # Voicings = taggar med kind=voicing (sorterade på sort_order)
     voicings = [
-        v for v in session.exec(
-            select(Piece.voicing).where(Piece.voicing.is_not(None)).distinct()
-        ).all() if v
+        t.name for t in session.exec(
+            select(Tag).where(Tag.kind == "voicing").order_by(Tag.sort_order, Tag.name)
+        ).all()
     ]
     languages = [
         lang for lang in session.exec(
@@ -190,6 +191,7 @@ async def list_pieces(
             "view": "grid" if view == "grid" else "list",
             "cover_thumb": cover_thumb,
             "placement_summary": placement_summary,
+            "voicings_by_piece": voicings_by_piece,
             "tags_by_kind": tags_by_kind,
             "active_tags": set(tag or []),
             "voicings": sorted(voicings),
@@ -377,7 +379,27 @@ def _apply_filters(stmt, session, tags, voicings, languages, unit=None, include_
     if voicings:
         valid = [v for v in voicings if v]
         if valid:
-            stmt = stmt.where(Piece.voicing.in_(valid))
+            voicing_tag_ids = list(
+                session.exec(
+                    select(Tag.id)
+                    .where(Tag.kind == "voicing")
+                    .where(Tag.name.in_(valid))
+                ).all()
+            )
+            if voicing_tag_ids:
+                piece_ids_with_voicing = list(
+                    session.exec(
+                        select(PieceTag.piece_id)
+                        .where(PieceTag.tag_id.in_(voicing_tag_ids))
+                        .distinct()
+                    ).all()
+                )
+                if piece_ids_with_voicing:
+                    stmt = stmt.where(Piece.id.in_(piece_ids_with_voicing))
+                else:
+                    stmt = stmt.where(Piece.id == -1)
+            else:
+                stmt = stmt.where(Piece.id == -1)
     if languages:
         valid = [l for l in languages if l]
         if valid:
@@ -434,7 +456,6 @@ async def new_piece_save(
     arranger_sort: str | None = Form(None),
     lyricist_sort: str | None = Form(None),
     language: str | None = Form(None),
-    voicing: str | None = Form(None),
     accompaniment: str | None = Form(None),
     publisher: str | None = Form(None),
     edition_number: str | None = Form(None),
@@ -450,7 +471,6 @@ async def new_piece_save(
         title=title.strip(),
         original_title=(original_title or "").strip() or None,
         language=(language or "").strip() or None,
-        voicing=(voicing or "").strip() or None,
         accompaniment=(accompaniment or "").strip() or None,
         publisher=(publisher or "").strip() or None,
         edition_number=(edition_number or "").strip() or None,
@@ -734,7 +754,6 @@ async def edit_piece_save(
     arranger_sort: str | None = Form(None),
     lyricist_sort: str | None = Form(None),
     language: str | None = Form(None),
-    voicing: str | None = Form(None),
     accompaniment: str | None = Form(None),
     publisher: str | None = Form(None),
     edition_number: str | None = Form(None),
@@ -750,7 +769,6 @@ async def edit_piece_save(
     piece.title = title.strip()
     piece.original_title = (original_title or "").strip() or None
     piece.language = (language or "").strip() or None
-    piece.voicing = (voicing or "").strip() or None
     piece.accompaniment = (accompaniment or "").strip() or None
     piece.publisher = (publisher or "").strip() or None
     piece.edition_number = (edition_number or "").strip() or None
@@ -1068,6 +1086,24 @@ def _unit_picker_tree(session: Session) -> list[dict]:
         {"location": loc, "units": build(loc.id, None, [])}
         for loc in locations
     ]
+
+
+def _voicings_by_piece(session: Session, piece_ids: list[int]) -> dict[int, list[str]]:
+    """Returnera dict piece_id -> lista av voicing-tag-namn, sorterade på
+    Tag.sort_order. Tom dict om inga pieces."""
+    if not piece_ids:
+        return {}
+    rows = session.exec(
+        select(PieceTag.piece_id, Tag.name)
+        .join(Tag, Tag.id == PieceTag.tag_id)
+        .where(PieceTag.piece_id.in_(piece_ids))
+        .where(Tag.kind == "voicing")
+        .order_by(Tag.sort_order, Tag.name)
+    ).all()
+    out: dict[int, list[str]] = {}
+    for piece_id, name in rows:
+        out.setdefault(piece_id, []).append(name)
+    return out
 
 
 def _placement_summaries(session: Session, piece_ids: list[int]) -> dict[int, dict]:

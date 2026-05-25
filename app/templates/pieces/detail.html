@@ -72,7 +72,6 @@
       <dt class="col-sm-3">Textförfattare</dt>
       <dd class="col-sm-9">{{ people_links(contributors[lyricist_role]) }}</dd>
       {% endif %}
-      {% if piece.voicing %}<dt class="col-sm-3">Besättning</dt><dd class="col-sm-9">{{ piece.voicing }}</dd>{% endif %}
       {% if piece.accompaniment %}<dt class="col-sm-3">Ackompanjemang</dt><dd class="col-sm-9">{{ piece.accompaniment }}</dd>{% endif %}
       {% if piece.language %}<dt class="col-sm-3">Språk</dt><dd class="col-sm-9">{{ language_display(piece.language) }}</dd>{% endif %}
       {% if psalm_refs %}

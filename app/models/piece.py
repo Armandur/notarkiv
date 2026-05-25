@@ -43,7 +43,6 @@ class Piece(SQLModel, table=True):
     # Format: "Felix Mendelssohn (composer); Bob Smith (arranger)"
     contributors_cache: str | None = None
     language: str | None = None
-    voicing: str | None = None
     accompaniment: Accompaniment | None = Field(default=None, sa_type=String)
     publisher: str | None = None
     edition_number: str | None = None

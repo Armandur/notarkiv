@@ -17,7 +17,7 @@ from app.models import (
     User,
 )
 from app.models.storage import LocationKind
-from app.routes.pieces import _placement_summaries
+from app.routes.pieces import _placement_summaries, _voicings_by_piece
 from app.templates_setup import flash, render
 
 router = APIRouter(prefix="/storage", tags=["storage"])
@@ -463,6 +463,7 @@ async def unit_detail(
         return thumbnail_url_path(cover.image_path) if cover else None
 
     placement_summary = _placement_summaries(session, [p.id for p in pieces])
+    voicings_by_piece = _voicings_by_piece(session, [p.id for p in pieces])
 
     children = session.exec(
         select(StorageUnit)
@@ -489,6 +490,7 @@ async def unit_detail(
             "view": "grid" if view == "grid" else "list",
             "cover_thumb": cover_thumb,
             "placement_summary": placement_summary,
+            "voicings_by_piece": voicings_by_piece,
             "children": children,
             "images": images,
         },
