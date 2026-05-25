@@ -237,13 +237,18 @@
           <div class="dropdown">
             <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
                     data-bs-toggle="dropdown" data-bs-auto-close="outside">
-              välj ackompanjemang
+              {% if matched_accompaniment_ids %}{{ matched_accompaniment_ids|length }} val{% else %}välj ackompanjemang{% endif %}
             </button>
             <ul class="dropdown-menu w-100 px-2" style="max-height: 260px; overflow-y: auto">
+              {% if extracted_accompaniment_raw %}
+              <li class="small text-muted px-1 mb-1">OCR-förslag: <em>{{ extracted_accompaniment_raw }}</em></li>
+              <li><hr class="dropdown-divider my-1"></li>
+              {% endif %}
               {% for t in accompaniment_tags %}
               <li>
                 <label class="form-check">
-                  <input class="form-check-input me-1" type="checkbox" name="accompaniment_tag_id" value="{{ t.id }}">
+                  <input class="form-check-input me-1" type="checkbox" name="accompaniment_tag_id" value="{{ t.id }}"
+                         {% if t.id in matched_accompaniment_ids %}checked{% endif %}>
                   {{ t.name }}
                 </label>
               </li>

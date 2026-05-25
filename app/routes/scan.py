@@ -427,6 +427,22 @@ async def review_form(
             if t.name.lower() == extracted_voicing.lower():
                 matched_voicing_ids.add(t.id)
 
+    # Ackompanjemang: matcha mot tag-namn case-insensitive. Stödjer också
+    # gamla enum-värden från tidigare Claude-promptar.
+    _ACC_ALIAS = {
+        "a_cappella": "a cappella",
+        "organ": "orgel",
+        "other": "",
+    }
+    extracted_acc = (extracted.get("accompaniment") or "").strip().lower()
+    extracted_acc = _ACC_ALIAS.get(extracted_acc, extracted_acc)
+    extracted_accompaniment_raw = extracted.get("accompaniment") or ""
+    matched_accompaniment_ids: set[int] = set()
+    if extracted_acc:
+        for t in accompaniment_tags:
+            if t.name.lower() == extracted_acc:
+                matched_accompaniment_ids.add(t.id)
+
     return render(
         request,
         "scan/review.html",
@@ -445,6 +461,8 @@ async def review_form(
             "matched_voicing_ids": matched_voicing_ids,
             "extracted_voicing_raw": extracted_voicing,
             "accompaniment_tags": accompaniment_tags,
+            "matched_accompaniment_ids": matched_accompaniment_ids,
+            "extracted_accompaniment_raw": extracted_accompaniment_raw,
             "language_options": all_languages(),
         },
         user=user,

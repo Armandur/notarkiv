@@ -17,6 +17,8 @@ _SYSTEM_PROMPT = (
     "arrangör som 'Arr. X' eller 'Arranged by X'; "
     "besättning står ofta som 'SATB', 'for mixed choir', 'SSA' osv.; "
     "förlagsnummer är vanligen i hörnet, t.ex. 'GH-1234'. "
+    "Använd svenska för voicing och accompaniment där det matchar våra "
+    "fasta värden (se beskrivning i verktyget). "
     "Returnera resultatet via verktyget extract_score_metadata."
 )
 
@@ -33,11 +35,19 @@ _TOOL = {
             "lyricist": {"type": "string"},
             "voicing": {
                 "type": "string",
-                "description": "SATB, SAB, SSA, unison, solo, etc.",
+                "description": (
+                    "Använd ETT av: SATB, SAB, SSA, SSAA, SSAATTBB, TTBB, TB, "
+                    "ATB, SA, unison, kanon, solo, solo + kör, barnkör. "
+                    "Lämna tomt om besättningen inte tydligt matchar dessa."
+                ),
             },
             "accompaniment": {
                 "type": "string",
-                "enum": ["a_cappella", "piano", "organ", "other"],
+                "description": (
+                    "Använd ETT av (svenska): a cappella, piano, orgel, cembalo, "
+                    "gitarr, stråkkvartett, stråkar, mässing, blåsensemble, "
+                    "orkester, ensemble. Lämna tomt om det inte tydligt matchar."
+                ),
             },
             "publisher": {"type": "string"},
             "edition_number": {"type": "string"},
