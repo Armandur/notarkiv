@@ -117,17 +117,18 @@
 <div class="modal fade" id="lightboxModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered">
     <div class="modal-content bg-transparent border-0">
-      <div class="modal-body p-0 text-center position-relative">
-        <button type="button" class="btn-close btn-close-white"
-                data-bs-dismiss="modal" aria-label="Stäng"
-                style="position: fixed; top: 1rem; right: 1rem; z-index: 1070; opacity: 0.85;"></button>
-        <button type="button" id="lightboxPrev"
-                class="btn btn-dark position-absolute top-50 start-0 translate-middle-y ms-2"
-                style="z-index: 2; opacity: 0.7">‹</button>
-        <button type="button" id="lightboxNext"
-                class="btn btn-dark position-absolute top-50 end-0 translate-middle-y me-2"
-                style="z-index: 2; opacity: 0.7">›</button>
-        <img id="lightboxImage" src="" class="img-fluid rounded shadow" style="max-height: 90vh" alt="">
+      <div class="modal-body p-0 text-center" data-bs-dismiss="modal" style="cursor: zoom-out">
+        <div class="lightbox-wrap position-relative d-inline-block">
+          <button type="button" class="btn-close btn-close-white lightbox-close"
+                  data-bs-dismiss="modal" aria-label="Stäng"></button>
+          <button type="button" id="lightboxPrev"
+                  class="btn btn-dark position-absolute top-50 start-0 translate-middle-y ms-2 lightbox-nav"
+                  onclick="event.stopPropagation()">‹</button>
+          <button type="button" id="lightboxNext"
+                  class="btn btn-dark position-absolute top-50 end-0 translate-middle-y me-2 lightbox-nav"
+                  onclick="event.stopPropagation()">›</button>
+          <img id="lightboxImage" src="" class="img-fluid rounded shadow d-block" style="max-height: 90vh; max-width: 100%" alt="">
+        </div>
       </div>
     </div>
   </div>

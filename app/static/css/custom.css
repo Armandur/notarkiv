@@ -8,6 +8,34 @@
   opacity: 0.85;
 }
 
+/* Lightbox - dölj kontroller tills musen är över, alltid synliga på touch */
+.lightbox-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.15s;
+  background-color: rgba(0, 0, 0, 0.45);
+  border-radius: 50%;
+  padding: 0.5rem;
+}
+.lightbox-nav {
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.lightbox-wrap:hover .lightbox-close,
+.lightbox-wrap:hover .lightbox-nav {
+  opacity: 0.85;
+}
+@media (hover: none) {
+  .lightbox-close,
+  .lightbox-nav {
+    opacity: 0.7;
+  }
+}
+
 @keyframes mb-flash {
   0%   { background-color: #fff3cd; border-color: #ffc107; }
   100% { background-color: transparent; }
