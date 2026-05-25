@@ -334,6 +334,11 @@ async def edit_person_form(
             ).all()
 
             wd_already_linked = bool(wd)
+            # Commons thumb-URL för att kunna förhandsvisa bilden inline
+            image_thumb_url = None
+            if image_page_url:
+                image_thumb_url = commons_file_to_thumb_url(image_page_url, width=200)
+
             mb_preview = {
                 "name": artist.get("name") or "",
                 "sort_name": artist.get("sort-name") or artist.get("sort_name") or "",
@@ -344,6 +349,7 @@ async def edit_person_form(
                 "biography_source_url": wiki_url or "",
                 "wikipedia_url": wiki_url or "",
                 "image_page_url": image_page_url or "",
+                "image_thumb_url": image_thumb_url or "",
                 "wikidata_url": wd or "",
                 "wd_already_linked": wd_already_linked,
             }

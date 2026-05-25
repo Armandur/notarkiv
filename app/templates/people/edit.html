@@ -165,15 +165,25 @@
     </form>
   </div>
   {% if mb_preview and mb_preview.image_page_url %}
-  <div class="card-footer">
-    <form method="post" action="/people/{{ person.id }}/apply-mb-portrait" class="d-inline">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <input type="hidden" name="image_url" value="{{ mb_preview.image_page_url }}">
-      <button type="submit" class="btn btn-sm btn-outline-primary">
-        Hämta porträtt från metadatakällor
-      </button>
-      <span class="form-text ms-1">({{ mb_preview.image_page_url|truncate(50) }})</span>
-    </form>
+  <div class="card-footer d-flex gap-3 align-items-center flex-wrap">
+    {% if mb_preview.image_thumb_url %}
+    <img src="{{ mb_preview.image_thumb_url }}" alt="Förslag från metadatakällor"
+         style="width: 120px; height: 120px; object-fit: cover" class="rounded border">
+    {% endif %}
+    <div class="flex-grow-1">
+      <div class="small text-muted mb-1">
+        Förslag från metadatakällor
+        {% if mb_preview.wikipedia_url %}(via Wikidata/Wikipedia){% endif %}
+      </div>
+      <form method="post" action="/people/{{ person.id }}/apply-mb-portrait">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="image_url" value="{{ mb_preview.image_page_url }}">
+        <button type="submit" class="btn btn-sm btn-primary">
+          {% if person.portrait_image_path %}Ersätt med denna bild{% else %}Använd som porträtt{% endif %}
+        </button>
+        <a href="{{ mb_preview.image_page_url }}" target="_blank" class="small text-muted ms-2">visa källan</a>
+      </form>
+    </div>
   </div>
   {% endif %}
 </div>
