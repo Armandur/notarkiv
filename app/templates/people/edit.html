@@ -248,7 +248,10 @@
     </button>
   </div>
   <div class="card-body small text-muted">
-    {% for para in to_paragraphs(mb_preview.biography) %}<p class="mb-2">{{ para }}</p>{% endfor %}
+    {% for p in to_paragraphs(mb_preview.biography) %}
+      {% if p.kind == 'heading' %}<h6 class="mt-2 mb-1">{{ p.text }}</h6>
+      {% else %}<p class="mb-2">{{ p.text }}</p>{% endif %}
+    {% endfor %}
     {% if mb_preview.wikipedia_url %}
     <div class="mt-2">
       Källa: <a href="{{ mb_preview.wikipedia_url }}" target="_blank">{{ mb_preview.wikipedia_url }}</a>

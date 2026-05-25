@@ -132,13 +132,12 @@ async def fetch_wikipedia_summary(url: str) -> str | None:
         "action": "query",
         "format": "json",
         "prop": "extracts",
-        "exintro": "1",
         "explaintext": "1",
         "redirects": "1",
         "titles": title,
     }
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(
                 api_url, params=params,
                 headers={"User-Agent": get_musicbrainz_user_agent()},
@@ -148,11 +147,49 @@ async def fetch_wikipedia_summary(url: str) -> str | None:
             pages = (data.get("query") or {}).get("pages") or {}
             for page in pages.values():
                 extract = page.get("extract")
-                if extract:
-                    return extract.strip()
+                if not extract:
+                    continue
+                return _truncate_wiki_extract(extract.strip())
     except (httpx.HTTPError, ValueError) as exc:
         logger.warning("Wikipedia-extract misslyckades för {}: {}", url, exc)
     return None
+
+
+def _truncate_wiki_extract(text: str, max_chars: int = 8000) -> str:
+    """Behåll inledning + biografi-relevanta sektioner men dropa
+    "Verklista", "Referenser", "Källor", "Externa länkar" m.fl. som
+    sällan är intressanta som biografi-text."""
+    import re
+
+    stop_headings = (
+        "Verk", "Verklista", "Verkförteckning", "Inspelningar", "Verkurval",
+        "Referenser", "Källor", "Noter", "Citat", "Externa länkar",
+        "Vidare läsning", "Bibliografi", "Diskografi", "Se även", "Litteratur",
+        "Works", "Selected works", "Recordings", "References", "Notes",
+        "External links", "Further reading", "Bibliography", "Discography",
+        "See also", "Sources",
+    )
+    # MediaWiki plaintext markerar rubriker som "== Rubrik ==" eller djupare
+    # nivåer "=== Rubrik ===". Hitta första stoppord och klipp där.
+    cut_at = len(text)
+    for h in stop_headings:
+        pattern = re.compile(
+            rf"^={{2,}}\s*{re.escape(h)}\s*={{2,}}\s*$", re.MULTILINE
+        )
+        m = pattern.search(text)
+        if m and m.start() < cut_at:
+            cut_at = m.start()
+    text = text[:cut_at].rstrip()
+    if len(text) > max_chars:
+        # Truncera vid sista styckesbrytning innan gränsen
+        cut = text.rfind("\n\n", 0, max_chars)
+        if cut < max_chars * 0.5:
+            cut = text.rfind(". ", 0, max_chars)
+        if cut > 0:
+            text = text[:cut].rstrip() + "\n\n…"
+        else:
+            text = text[:max_chars].rstrip() + "…"
+    return text
 
 
 def extract_wikipedia_url(artist: dict) -> str | None:

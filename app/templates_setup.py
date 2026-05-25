@@ -9,10 +9,11 @@ from app.utils.countries import country_display, country_flag_emoji, country_nam
 from app.utils.languages import language_display, language_name_sv
 
 
-def to_paragraphs(text: str | None) -> list[str]:
-    """Dela en text i stycken. Hanterar både '\\n\\n', '\\r\\n\\r\\n' och
-    enkla radbrytningar (Wikipedia-extracten har ofta bara '\\r\\n' mellan
-    stycken, inte tomma rader). Tomma stycken filtreras bort."""
+def to_paragraphs(text: str | None) -> list[dict]:
+    """Dela en text i stycken. Returnerar lista av dicts {kind, text}
+    där kind är 'heading' (för MediaWiki-rubriker som '== X ==') eller
+    'p' för vanlig text. Hanterar '\\n\\n', '\\r\\n\\r\\n' och enkla
+    radbrytningar (Wikipedia-extracten har ofta bara radbrytningar)."""
     if not text:
         return []
     import re
@@ -21,7 +22,18 @@ def to_paragraphs(text: str | None) -> list[str]:
     parts = re.split(r"\n\s*\n+", normalized)
     if len(parts) <= 1:
         parts = normalized.split("\n")
-    return [p.strip() for p in parts if p.strip()]
+    out: list[dict] = []
+    heading_re = re.compile(r"^(={2,})\s*(.+?)\s*\1$")
+    for raw in parts:
+        s = raw.strip()
+        if not s:
+            continue
+        m = heading_re.match(s)
+        if m:
+            out.append({"kind": "heading", "level": len(m.group(1)), "text": m.group(2)})
+        else:
+            out.append({"kind": "p", "text": s})
+    return out
 
 
 templates = Jinja2Templates(directory="app/templates")
