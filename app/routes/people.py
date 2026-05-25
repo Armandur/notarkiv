@@ -339,6 +339,24 @@ async def edit_person_form(
             if image_page_url:
                 image_thumb_url = commons_file_to_thumb_url(image_page_url, width=200)
 
+            # Om personen saknar porträtt: ladda ner och sätt direkt så
+            # användaren inte behöver klicka separat. Befintliga porträtt
+            # bevaras och visas tillsammans med MB-förslaget för manuell
+            # ersättning.
+            if image_page_url and not person.portrait_image_path:
+                full_thumb = commons_file_to_thumb_url(image_page_url, width=600)
+                if full_thumb:
+                    img_bytes = await download_image_bytes(full_thumb)
+                    if img_bytes:
+                        try:
+                            person.portrait_image_path = save_uploaded_cover(img_bytes)
+                            person.portrait_source_url = image_page_url
+                            session.add(person)
+                        except Exception as exc:
+                            from loguru import logger as _log
+
+                            _log.warning("Kunde inte spara porträtt: {}", exc)
+
             mb_preview = {
                 "name": artist.get("name") or "",
                 "sort_name": artist.get("sort-name") or artist.get("sort_name") or "",
