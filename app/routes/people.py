@@ -138,6 +138,87 @@ async def search_people(
     )
 
 
+@router.get("/orphaned")
+async def orphaned_people(
+    request: Request,
+    ids: str = "",
+    user: User = Depends(require_admin),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Visa personer som blev utan kopplingar efter not-borttagning.
+    Användaren kan välja vilka som ska raderas. Säkerhetscheck: bara
+    personer som faktiskt saknar PieceContributor visas."""
+    try:
+        id_list = [int(x) for x in ids.split(",") if x.strip().isdigit()]
+    except ValueError:
+        id_list = []
+
+    if not id_list:
+        return RedirectResponse("/pieces", status.HTTP_302_FOUND)
+
+    people = session.exec(select(Person).where(Person.id.in_(id_list))).all()
+    confirmed_orphans = []
+    for p in people:
+        still_linked = session.exec(
+            select(PieceContributor.id)
+            .where(PieceContributor.person_id == p.id)
+            .limit(1)
+        ).first()
+        if not still_linked:
+            confirmed_orphans.append(p)
+
+    if not confirmed_orphans:
+        return RedirectResponse("/pieces", status.HTTP_302_FOUND)
+
+    return render(
+        request,
+        "people/orphaned.html",
+        {"people": confirmed_orphans},
+        user=user,
+    )
+
+
+@router.post("/orphaned/delete", dependencies=[Depends(verify_csrf)])
+async def delete_orphaned_people(
+    request: Request,
+    person_id: list[int] = Form(default=[]),
+    user: User = Depends(require_admin),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Ta bort valda orphaned-personer efter dubbelkoll att de faktiskt
+    saknar kopplingar (annars hoppa över - aldrig ta bort en kopplad)."""
+    deleted = 0
+    portraits_to_delete: list[str] = []
+    for pid in person_id:
+        p = session.get(Person, pid)
+        if not p:
+            continue
+        still_linked = session.exec(
+            select(PieceContributor.id)
+            .where(PieceContributor.person_id == pid)
+            .limit(1)
+        ).first()
+        if still_linked:
+            continue
+        if p.portrait_image_path:
+            portraits_to_delete.append(p.portrait_image_path)
+        # Plocka bort PersonLink-rader manuellt (ingen cascade definierad)
+        for link in session.exec(
+            select(PersonLink).where(PersonLink.person_id == pid)
+        ).all():
+            session.delete(link)
+        session.delete(p)
+        deleted += 1
+    session.commit()
+
+    for path in portraits_to_delete:
+        delete_saved_image(path)
+
+    if deleted:
+        flash(request, f"Tog bort {deleted} {'person' if deleted == 1 else 'personer'}", "success")
+    return RedirectResponse("/pieces", status.HTTP_302_FOUND)
+
+
 @router.get("/{person_id}")
 async def person_detail(
     request: Request,

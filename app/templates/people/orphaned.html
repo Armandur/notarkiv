@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Personer utan kopplingar - Notarkiv{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-2">Personer utan kopplingar</h1>
+<p class="text-muted">
+  Följande {{ people|length }} {% if people|length == 1 %}person finns inte längre kopplad{% else %}personer finns inte längre kopplade{% endif %}
+  till någon not efter borttagningen. Välj vilka som ska tas bort - resten lämnas kvar i registret.
+</p>
+
+<form method="post" action="/people/orphaned/delete">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+  <div class="list-group mb-3">
+    <div class="list-group-item bg-light">
+      <label class="form-check mb-0">
+        <input type="checkbox" class="form-check-input me-2" id="toggle-all" checked
+               onchange="document.querySelectorAll('input[name=person_id]').forEach(function(cb){cb.checked=this.checked}.bind(this))">
+        <strong>Markera alla</strong>
+      </label>
+    </div>
+    {% for p in people %}
+    <label class="list-group-item d-flex align-items-center gap-2">
+      <input class="form-check-input" type="checkbox" name="person_id" value="{{ p.id }}" checked>
+      <span class="flex-grow-1">
+        <strong>{{ p.sort_name }}</strong>
+        {% if p.birth_year or p.death_year %}
+        <span class="text-muted small ms-1">
+          ({{ p.birth_year or '?' }}{% if p.death_year %}-{{ p.death_year }}{% endif %})
+        </span>
+        {% endif %}
+        {% if p.country %}<span class="ms-2 small">{{ country_display(p.country) }}</span>{% endif %}
+      </span>
+      <a href="/people/{{ p.id }}" class="small text-muted" target="_blank">visa</a>
+    </label>
+    {% endfor %}
+  </div>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-danger">Ta bort valda</button>
+    <a href="/pieces" class="btn btn-outline-secondary">Behåll alla</a>
+  </div>
+</form>
+{% endblock %}
