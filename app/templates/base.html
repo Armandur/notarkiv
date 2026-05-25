@@ -189,7 +189,8 @@ document.addEventListener('click', function(evt) {
     var fullSrc = el.getAttribute('data-full-src') || el.src;
     _lightboxIndex = Math.max(0, _lightboxGroup.findIndex(function(g) { return g.src === fullSrc; }));
   } else {
-    _lightboxGroup = [{src: el.src, alt: el.alt}];
+    var fullSrc = el.getAttribute('data-full-src') || el.src;
+    _lightboxGroup = [{src: fullSrc, alt: el.alt}];
     _lightboxIndex = 0;
   }
   _renderLightbox();
