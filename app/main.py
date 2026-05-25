@@ -18,6 +18,7 @@ from app.routes import pieces as pieces_routes
 from app.routes import scan as scan_routes
 from app.routes import storage as storage_routes
 from app.routes import tags as tags_routes
+from app.routes.admin import jobs as admin_jobs_routes
 from app.routes.admin import settings as admin_settings_routes
 from app.routes.admin import users as admin_users_routes
 from app.tasks import close_pool
@@ -61,6 +62,7 @@ app.include_router(loans_routes.router)
 app.include_router(tags_routes.router)
 app.include_router(admin_users_routes.router)
 app.include_router(admin_settings_routes.router)
+app.include_router(admin_jobs_routes.router)
 
 
 @app.get("/healthz")

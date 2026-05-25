@@ -39,6 +39,87 @@ def db_reset(
         seed_all()
 
 
+@db.command("snapshot")
+def db_snapshot(
+    output: str = typer.Option(
+        "snapshots", "--output", "-o", help="Mapp att skriva snapshot till"
+    ),
+) -> None:
+    """Skapa en ZIP-snapshot av DB + bilder. Användbart för att seed:a en
+    färsk installation eller backa upp manuellt utan att förlita sig på rclone."""
+    setup_logging()
+    import shutil
+    from datetime import datetime
+    from pathlib import Path
+
+    from app.config import settings as cfg
+
+    out_dir = Path(output)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y-%m-%d_%H%M")
+    target = out_dir / f"notarkiv-snapshot-{stamp}"
+
+    target.mkdir(parents=True, exist_ok=True)
+
+    # SQLite via .backup för säker snapshot
+    import sqlite3
+
+    src = sqlite3.connect(str(cfg.database_path))
+    dst = sqlite3.connect(str(target / "notarkiv.db"))
+    with dst:
+        src.backup(dst)
+    dst.close()
+    src.close()
+
+    # Bilder
+    if cfg.images_path.exists():
+        shutil.copytree(cfg.images_path, target / "images", dirs_exist_ok=True)
+
+    # Komprimera till en ZIP
+    zip_path = shutil.make_archive(str(target), "zip", str(target))
+    shutil.rmtree(target)
+    logger.info("Snapshot skapad: {}", zip_path)
+
+
+@db.command("restore-snapshot")
+def db_restore_snapshot(
+    archive: str = typer.Argument(..., help="Sökväg till snapshot-ZIP"),
+) -> None:
+    """Återställ DB + bilder från en snapshot-ZIP. Skriver över befintlig data."""
+    setup_logging()
+    import shutil
+    import tempfile
+    import zipfile
+    from pathlib import Path
+
+    from app.config import settings as cfg
+
+    archive_path = Path(archive)
+    if not archive_path.exists():
+        logger.error("ZIP finns inte: {}", archive_path)
+        raise typer.Exit(code=1)
+    if not typer.confirm(
+        f"Detta skriver över {cfg.database_path} och {cfg.images_path}. Fortsätta?"
+    ):
+        raise typer.Abort()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        with zipfile.ZipFile(archive_path) as zf:
+            zf.extractall(tmp)
+        tmp_path = Path(tmp)
+        db_src = tmp_path / "notarkiv.db"
+        if db_src.exists():
+            cfg.database_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(db_src, cfg.database_path)
+            logger.info("DB återställd")
+        img_src = tmp_path / "images"
+        if img_src.exists():
+            if cfg.images_path.exists():
+                shutil.rmtree(cfg.images_path)
+            shutil.copytree(img_src, cfg.images_path)
+            logger.info("Bilder återställda")
+
+
 @db.command("seed")
 def db_seed(
     clear_pieces: bool = typer.Option(False, "--clear-pieces"),

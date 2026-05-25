@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Jobb - Notarkiv{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-3">Skanningsjobb</h1>
+
+<p class="text-muted small">
+  arq-worker plockar jobb från Redis. Om en worker dödas mitt i ett jobb
+  kan skanningen fastna på "pending" - använd verktygen nedan för att
+  återstarta. Pending äldre än 5 minuter klassas som fastnad.
+</p>
+
+<div class="card mb-3">
+  <div class="card-header"><h2 class="h6 mb-0">Status</h2></div>
+  <div class="card-body">
+    <div class="d-flex flex-wrap gap-3">
+      {% for status, color in [('pending', 'secondary'), ('extracting', 'info'), ('enriching', 'info'), ('done', 'success'), ('failed', 'danger')] %}
+      <div>
+        <span class="badge bg-{{ color }}">{{ status }}</span>
+        <strong>{{ by_status.get(status, 0) }}</strong>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h2 class="h6 mb-0">Fastnade skanningar ({{ stuck|length }})</h2>
+    {% if stuck %}
+    <form method="post" action="/admin/jobs/requeue-stuck">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-sm btn-warning">Återstartka alla {{ stuck|length }}</button>
+    </form>
+    {% endif %}
+  </div>
+  {% if not stuck %}
+  <div class="card-body text-muted small fst-italic">Inga fastnade just nu.</div>
+  {% else %}
+  <table class="table table-sm mb-0">
+    <thead>
+      <tr><th>#</th><th>Skannad</th><th>Provider</th></tr>
+    </thead>
+    <tbody>
+      {% for s in stuck %}
+      <tr>
+        <td><a href="/scan/{{ s.id }}">#{{ s.id }}</a></td>
+        <td class="small">{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td><code>{{ s.ocr_provider }}</code></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h2 class="h6 mb-0">Senaste misslyckade ({{ recent_failed|length }})</h2>
+    {% if recent_failed %}
+    <form method="post" action="/admin/jobs/retry-failed">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-sm btn-outline-warning">Återstartka alla</button>
+    </form>
+    {% endif %}
+  </div>
+  {% if not recent_failed %}
+  <div class="card-body text-muted small fst-italic">Inga misslyckade.</div>
+  {% else %}
+  <table class="table table-sm mb-0">
+    <thead>
+      <tr><th>#</th><th>Skannad</th><th>Felmeddelande</th></tr>
+    </thead>
+    <tbody>
+      {% for s in recent_failed %}
+      <tr>
+        <td><a href="/scan/{{ s.id }}">#{{ s.id }}</a></td>
+        <td class="small">{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td class="small text-danger">{{ (s.error_message or '')[:120] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

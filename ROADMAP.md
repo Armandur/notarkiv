@@ -164,11 +164,18 @@ granska -> spara -> hitta igen.
       som funkar smidigt på mobil (testning behövs).
 - [x] **Anteckningsfält per användare på not** (körledarens egna
       tonarter, repetitionsnoter etc.)
-- [ ] **Utlåningshantering**: musikerna ska kunna se om någon
-      "lånat/tagit hem" exemplar av en not. Liten log per piece/per
-      placering: vem lånade, när, ev. återlämningsdatum, status
-      (utlånad/återlämnad). Synligt för alla läsare så man vet om
-      ett exemplar är borta innan man går till hyllan.
+- [x] **Utlåningshantering**: registrera utlån per placering med
+      låntagare, antal, ev. förv. retur. Återlämning markeras med
+      knapp. Global /loans-sida visar aktiva utlån. Navbar-badge.
+- [ ] **Förbättra utlåningens borrower-fält**: idag fritext. Default
+      ska vara en autocomplete-dropdown med systemets användare,
+      med en bockruta "extern person" som ändrar till fritext för
+      vikarierande körledare etc.
+- [ ] **MB-berikning av personer direkt i granskningsflödet**: dagens
+      review-formulär har MB-förslag för stycket men inte för
+      kompositör/arrangör/textförfattare. Lägg till en MB-suggestion-
+      banner per person redan vid granskning så användaren slipper
+      gå tillbaka till piece-detalj efteråt.
 - [ ] **Sök och sortera /pieces på inläggningsdatum**:
       sorterings-dropdown (titel/datum), filter "skapade senaste 7/30
       dagar".
