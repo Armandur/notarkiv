@@ -18,6 +18,7 @@ from app.services.musicbrainz import (
     commons_file_to_thumb_url,
     download_image_bytes,
     extract_image_url,
+    extract_streaming_urls,
     extract_wikidata_url,
     fetch_wikipedia_summary,
     get_client,
@@ -547,6 +548,27 @@ async def person_mb_modal(
     )
 
 
+def _ensure_link(
+    session: Session, person_id: int, kind: PersonLinkKind, url: str
+) -> None:
+    """Skapa eller uppdatera PersonLink med given kind så att url matchar.
+    Sätter label = url för länkar där användaren vill se URL:en (Wikidata,
+    Spotify osv visar tydligare med fullständig URL)."""
+    existing = session.exec(
+        select(PersonLink)
+        .where(PersonLink.person_id == person_id)
+        .where(PersonLink.kind == kind)
+    ).first()
+    if existing:
+        if existing.url != url:
+            existing.url = url
+            session.add(existing)
+    else:
+        session.add(
+            PersonLink(person_id=person_id, url=url, kind=kind, label=url)
+        )
+
+
 @router.post("/{person_id}/musicbrainz-id/clear", dependencies=[Depends(verify_csrf)])
 async def clear_mbid(
     request: Request,
@@ -712,44 +734,24 @@ async def refresh_person_mb(
     person.updated_at = datetime.utcnow()
     session.add(person)
 
-    # Säkerställ att wikipedia-länk finns
+    # Säkerställ externa länkar
     if wiki_url:
-        existing = session.exec(
-            select(PersonLink)
-            .where(PersonLink.person_id == person_id)
-            .where(PersonLink.kind == PersonLinkKind.WIKIPEDIA)
-        ).first()
-        if not existing:
-            session.add(
-                PersonLink(
-                    person_id=person_id,
-                    url=wiki_url,
-                    kind=PersonLinkKind.WIKIPEDIA,
-                )
-            )
-    # Wikidata-länk (vänligt fallback för slutanvändare som inte använder wikipedia)
+        _ensure_link(session, person_id, PersonLinkKind.WIKIPEDIA, wiki_url)
     wd_url = extract_wikidata_url(artist)
     wd_id = wikidata_id_from_url(wd_url)
     if wd_id:
         person.wikidata_id = wd_id
         session.add(person)
     if wd_url:
-        existing_wd = session.exec(
-            select(PersonLink)
-            .where(PersonLink.person_id == person_id)
-            .where(PersonLink.kind == PersonLinkKind.WIKIDATA)
-        ).first()
-        if existing_wd:
-            existing_wd.url = wd_url
-            session.add(existing_wd)
-        else:
-            session.add(
-                PersonLink(
-                    person_id=person_id,
-                    url=wd_url,
-                    kind=PersonLinkKind.WIKIDATA,
-                )
+        _ensure_link(session, person_id, PersonLinkKind.WIKIDATA, wd_url)
+    streaming = extract_streaming_urls(artist)
+    for kind_name, stream_url in streaming.items():
+        try:
+            _ensure_link(
+                session, person_id, PersonLinkKind(kind_name), stream_url
             )
+        except ValueError:
+            pass
     session.commit()
     flash(request, f"Hämtade om data för {person.name} från MusicBrainz", "success")
     return RedirectResponse(f"/people/{person_id}", status.HTTP_302_FOUND)
@@ -814,6 +816,17 @@ async def apply_person_mb(
         wikipedia_url=wiki_url,
         biography=wiki_bio,
     )
+    if wiki_url:
+        _ensure_link(session, person.id, PersonLinkKind.WIKIPEDIA, wiki_url)
+    wd_url_apply = extract_wikidata_url(artist)
+    if wd_url_apply:
+        _ensure_link(session, person.id, PersonLinkKind.WIKIDATA, wd_url_apply)
+    streaming_apply = extract_streaming_urls(artist)
+    for kind_name, stream_url in streaming_apply.items():
+        try:
+            _ensure_link(session, person.id, PersonLinkKind(kind_name), stream_url)
+        except ValueError:
+            pass
     session.commit()
 
     flash(request, f"MusicBrainz-data applicerad på {person.name}", "success")

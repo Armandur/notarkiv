@@ -214,6 +214,23 @@ def extract_wikidata_url(artist: dict) -> str | None:
     return None
 
 
+def extract_streaming_urls(artist: dict) -> dict[str, str]:
+    """Plocka strömnings-rels (Spotify, Apple Music, YouTube etc.).
+    Returnerar dict med kind→url. Kind matchar PersonLinkKind-värden."""
+    result: dict[str, str] = {}
+    for rel in artist.get("relations", []):
+        url = (rel.get("url") or {}).get("resource") or ""
+        if not url:
+            continue
+        if "spotify.com" in url and "spotify" not in result:
+            result["spotify"] = url
+        elif "youtube.com" in url and "youtube" not in result:
+            result["youtube"] = url
+        elif "instagram.com" in url and "instagram" not in result:
+            result["instagram"] = url
+    return result
+
+
 def extract_image_url(artist: dict) -> str | None:
     """Plocka image-relation (oftast commons.wikimedia.org/wiki/File:... URL)."""
     for rel in artist.get("relations", []):

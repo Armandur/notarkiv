@@ -90,6 +90,14 @@
   </div>
 
   <div class="col-md-4">
+    {% set spotify_link = (links | selectattr('kind', 'equalto', 'spotify') | first) %}
+    {% if spotify_link %}
+    <a href="{{ spotify_link.url }}" target="_blank"
+       class="btn btn-success w-100 mb-3 d-flex align-items-center justify-content-center gap-2">
+      <strong>Strömma på Spotify ↗</strong>
+    </a>
+    {% endif %}
+
     <div class="card">
       <div class="card-header"><h2 class="h6 mb-0">Externa länkar</h2></div>
       <div class="list-group list-group-flush">
