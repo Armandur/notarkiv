@@ -2,13 +2,22 @@ import io
 import json
 
 import qrcode
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import RedirectResponse, Response
 from sqlmodel import Session, select
 
 from app.deps import get_session, require_admin, require_auth, require_editor, verify_csrf
-from app.models import Piece, PiecePlacement, StorageLocation, StorageUnit, UnitKind, User
+from app.models import (
+    Piece,
+    PiecePlacement,
+    StorageLocation,
+    StorageUnit,
+    StorageUnitImage,
+    UnitKind,
+    User,
+)
 from app.models.storage import LocationKind
+from app.routes.pieces import _placement_summaries
 from app.templates_setup import flash, render
 
 router = APIRouter(prefix="/storage", tags=["storage"])
@@ -75,6 +84,58 @@ async def create_location(
     return RedirectResponse("/storage", status.HTTP_302_FOUND)
 
 
+@router.get("/locations/{location_id}/edit-form")
+async def edit_location_form(
+    request: Request,
+    location_id: int,
+    user: User = Depends(require_admin),
+    session: Session = Depends(get_session),
+) -> Response:
+    location = session.get(StorageLocation, location_id)
+    if not location:
+        raise HTTPException(404)
+    return render(
+        request,
+        "storage/_location_form.html",
+        {"location": location},
+        user=user,
+    )
+
+
+@router.post("/locations/{location_id}/update", dependencies=[Depends(verify_csrf)])
+async def update_location(
+    request: Request,
+    location_id: int,
+    name: str = Form(...),
+    kind: LocationKind = Form(...),
+    description: str | None = Form(None),
+    user: User = Depends(require_admin),
+    session: Session = Depends(get_session),
+) -> Response:
+    location = session.get(StorageLocation, location_id)
+    if not location:
+        raise HTTPException(404)
+
+    new_name = name.strip()
+    if new_name != location.name:
+        clash = session.exec(
+            select(StorageLocation)
+            .where(StorageLocation.name == new_name)
+            .where(StorageLocation.id != location_id)
+        ).first()
+        if clash:
+            flash(request, f"En annan lagringsplats heter redan '{new_name}'", "danger")
+            return RedirectResponse("/storage", status.HTTP_302_FOUND)
+
+    location.name = new_name
+    location.kind = kind
+    location.description = (description or "").strip() or None
+    session.add(location)
+    session.commit()
+    flash(request, f"Uppdaterade '{location.name}'", "success")
+    return RedirectResponse("/storage", status.HTTP_302_FOUND)
+
+
 @router.post("/locations/{location_id}/delete", dependencies=[Depends(verify_csrf)])
 async def delete_location(
     request: Request,
@@ -135,6 +196,93 @@ async def create_unit(
     return RedirectResponse("/storage", status.HTTP_302_FOUND)
 
 
+@router.get("/units/{unit_id}/edit-form")
+async def edit_unit_form(
+    request: Request,
+    unit_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    unit = session.get(StorageUnit, unit_id)
+    if not unit:
+        raise HTTPException(404)
+    location = session.get(StorageLocation, unit.location_id)
+    kind = session.get(UnitKind, unit.kind_id) if unit.kind_id else None
+    # Möjliga parents: alla units i samma location utom denna och dess
+    # ättlingar (skulle skapa cykel)
+    all_in_location = session.exec(
+        select(StorageUnit).where(StorageUnit.location_id == unit.location_id)
+    ).all()
+    descendants: set[int] = {unit.id}
+    changed = True
+    while changed:
+        changed = False
+        for u in all_in_location:
+            if u.parent_id in descendants and u.id not in descendants:
+                descendants.add(u.id)
+                changed = True
+    valid_parents = [
+        u for u in all_in_location if u.id not in descendants and not u.archived
+    ]
+    valid_parents.sort(key=lambda u: u.name)
+    return render(
+        request,
+        "storage/_unit_edit_form.html",
+        {
+            "unit": unit,
+            "location": location,
+            "kind": kind,
+            "valid_parents": valid_parents,
+        },
+        user=user,
+    )
+
+
+@router.post("/units/{unit_id}/update", dependencies=[Depends(verify_csrf)])
+async def update_unit(
+    request: Request,
+    unit_id: int,
+    name: str = Form(...),
+    parent_id: int | None = Form(None),
+    kind_id: int | None = Form(None),
+    notes: str | None = Form(None),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    unit = session.get(StorageUnit, unit_id)
+    if not unit:
+        raise HTTPException(404)
+
+    if parent_id == unit_id:
+        raise HTTPException(400, "En enhet kan inte vara sin egen förälder")
+    if parent_id:
+        parent = session.get(StorageUnit, parent_id)
+        if not parent or parent.location_id != unit.location_id:
+            raise HTTPException(400, "Ogiltig förälder")
+        # Cykelkoll: gå uppåt och kolla att vi själva inte är ancestor
+        cur = parent
+        seen = set()
+        while cur and cur.id not in seen:
+            seen.add(cur.id)
+            if cur.id == unit_id:
+                raise HTTPException(400, "Skulle skapa cykel i hierarkin")
+            cur = session.get(StorageUnit, cur.parent_id) if cur.parent_id else None
+
+    if kind_id is not None:
+        kind_obj = session.get(UnitKind, kind_id)
+        if not kind_obj:
+            raise HTTPException(400, "Ogiltig typ")
+
+    unit.name = name.strip()
+    unit.parent_id = parent_id
+    unit.kind_id = kind_id
+    unit.notes = (notes or "").strip() or None
+    session.add(unit)
+    session.commit()
+    flash(request, f"Uppdaterade '{unit.name}'", "success")
+    return RedirectResponse(f"/storage/units/{unit_id}", status.HTTP_302_FOUND)
+
+
 @router.post("/units/{unit_id}/delete", dependencies=[Depends(verify_csrf)])
 async def delete_unit(
     request: Request,
@@ -161,8 +309,20 @@ async def delete_unit(
         session.commit()
         flash(request, f"Arkiverade '{unit.name}' (innehåller noter)", "info")
     else:
+        from app.utils.images import delete_saved_image
+
+        image_paths = [
+            i.image_path
+            for i in session.exec(
+                select(StorageUnitImage).where(
+                    StorageUnitImage.storage_unit_id == unit_id
+                )
+            ).all()
+        ]
         session.delete(unit)
         session.commit()
+        for p in image_paths:
+            delete_saved_image(p)
         flash(request, f"Raderade '{unit.name}'", "success")
 
     return RedirectResponse("/storage", status.HTTP_302_FOUND)
@@ -272,8 +432,6 @@ async def unit_detail(
     session: Session = Depends(get_session),
 ) -> Response:
     """Detaljvy för en enhet. Använder samma kort/lista-rendering som /pieces."""
-    from sqlalchemy import func as sqlf
-
     from app.routes.pieces import _covers_by_piece
     from app.utils.images import thumbnail_url_path
 
@@ -304,20 +462,19 @@ async def unit_detail(
         cover = covers.get(piece_id)
         return thumbnail_url_path(cover.image_path) if cover else None
 
-    placement_counts: dict[int, int] = {}
-    if pieces:
-        rows = session.exec(
-            select(PiecePlacement.piece_id, sqlf.count(PiecePlacement.id))
-            .where(PiecePlacement.piece_id.in_([p.id for p in pieces]))
-            .group_by(PiecePlacement.piece_id)
-        ).all()
-        placement_counts = dict(rows)
+    placement_summary = _placement_summaries(session, [p.id for p in pieces])
 
     children = session.exec(
         select(StorageUnit)
         .where(StorageUnit.parent_id == unit_id)
         .where(StorageUnit.archived == False)  # noqa: E712
         .order_by(StorageUnit.sort_order, StorageUnit.name)
+    ).all()
+
+    images = session.exec(
+        select(StorageUnitImage)
+        .where(StorageUnitImage.storage_unit_id == unit_id)
+        .order_by(StorageUnitImage.sort_order, StorageUnitImage.id)
     ).all()
 
     return render(
@@ -331,11 +488,102 @@ async def unit_detail(
             "pieces": pieces,
             "view": "grid" if view == "grid" else "list",
             "cover_thumb": cover_thumb,
-            "placement_counts": placement_counts,
+            "placement_summary": placement_summary,
             "children": children,
+            "images": images,
         },
         user=user,
     )
+
+
+@router.post("/units/{unit_id}/images", dependencies=[Depends(verify_csrf)])
+async def add_unit_image(
+    request: Request,
+    unit_id: int,
+    image: UploadFile = File(...),
+    label: str | None = Form(None),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    from app.utils.images import save_uploaded_cover
+
+    unit = session.get(StorageUnit, unit_id)
+    if not unit:
+        raise HTTPException(404)
+
+    content = await image.read()
+    if not content:
+        flash(request, "Tom fil", "danger")
+        return RedirectResponse(f"/storage/units/{unit_id}", status.HTTP_302_FOUND)
+
+    try:
+        relative_path = save_uploaded_cover(content)
+    except Exception:
+        flash(request, "Kunde inte läsa bilden", "danger")
+        return RedirectResponse(f"/storage/units/{unit_id}", status.HTTP_302_FOUND)
+
+    last_order = session.exec(
+        select(StorageUnitImage.sort_order)
+        .where(StorageUnitImage.storage_unit_id == unit_id)
+        .order_by(StorageUnitImage.sort_order.desc())
+    ).first()
+    next_order = (last_order or 0) + 1
+
+    session.add(
+        StorageUnitImage(
+            storage_unit_id=unit_id,
+            image_path=relative_path,
+            label=(label or "").strip() or None,
+            sort_order=next_order,
+        )
+    )
+    session.commit()
+    flash(request, "Bild tillagd", "success")
+    return RedirectResponse(f"/storage/units/{unit_id}", status.HTTP_302_FOUND)
+
+
+@router.post("/units/{unit_id}/images/{image_id}/rotate", dependencies=[Depends(verify_csrf)])
+async def rotate_unit_image(
+    request: Request,
+    unit_id: int,
+    image_id: int,
+    angle: int = Form(90),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    from app.utils.images import rotate_saved_image
+
+    img = session.get(StorageUnitImage, image_id)
+    if not img or img.storage_unit_id != unit_id:
+        raise HTTPException(404)
+    if angle not in {90, 180, 270, -90}:
+        raise HTTPException(400, "Endast 90, 180, 270, -90 stöds")
+
+    rotate_saved_image(img.image_path, angle)
+    flash(request, "Bilden roterad", "success")
+    return RedirectResponse(f"/storage/units/{unit_id}", status.HTTP_302_FOUND)
+
+
+@router.post("/units/{unit_id}/images/{image_id}/delete", dependencies=[Depends(verify_csrf)])
+async def delete_unit_image(
+    request: Request,
+    unit_id: int,
+    image_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    from app.utils.images import delete_saved_image
+
+    img = session.get(StorageUnitImage, image_id)
+    if not img or img.storage_unit_id != unit_id:
+        raise HTTPException(404)
+
+    path = img.image_path
+    session.delete(img)
+    session.commit()
+    delete_saved_image(path)
+    flash(request, "Bild borttagen", "success")
+    return RedirectResponse(f"/storage/units/{unit_id}", status.HTTP_302_FOUND)
 
 
 @router.get("/units/{unit_id}/qr.png")

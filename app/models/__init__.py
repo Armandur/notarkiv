@@ -9,6 +9,7 @@ from app.models.piece_user_note import PieceUserNote
 from app.models.scan_session import ScanSession
 from app.models.scan_session_image import ScanSessionImage
 from app.models.storage import PiecePlacement, StorageLocation, StorageUnit, UnitKind
+from app.models.storage_unit_image import StorageUnitImage
 from app.models.tag import PieceTag, Tag
 from app.models.user import User
 
@@ -30,6 +31,7 @@ __all__ = [
     "PiecePlacement",
     "StorageLocation",
     "StorageUnit",
+    "StorageUnitImage",
     "UnitKind",
     "PieceTag",
     "Tag",

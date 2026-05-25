@@ -13,6 +13,12 @@
       <a href="?view=list" class="btn btn-outline-secondary {% if view == 'list' %}active{% endif %}">Lista</a>
     </div>
     <a href="/storage/units/{{ unit.id }}/qr.png" target="_blank" class="btn btn-sm btn-outline-secondary">QR-kod</a>
+    {% if user.can_edit %}
+    <button class="btn btn-sm btn-outline-secondary"
+            hx-get="/storage/units/{{ unit.id }}/edit-form"
+            hx-target="#modal-target"
+            hx-swap="innerHTML">Redigera</button>
+    {% endif %}
     <a href="/storage" class="btn btn-sm btn-outline-secondary">Trädet</a>
   </div>
 </div>
@@ -35,6 +41,67 @@
   {% endif %}
 </dl>
 
+{# Foton på enheten - hjälper identifiera vilken fysisk pärm/hylla det är #}
+{% if images or user.can_edit %}
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>Foton ({{ images|length }})</span>
+    {% if user.can_edit %}
+    <button class="btn btn-sm btn-outline-primary" type="button"
+            data-bs-toggle="collapse" data-bs-target="#unit-upload-form">
+      + Lägg till foto
+    </button>
+    {% endif %}
+  </div>
+  {% if user.can_edit %}
+  <div class="collapse {% if not images %}show{% endif %}" id="unit-upload-form">
+    <div class="card-body border-bottom">
+      <form method="post" action="/storage/units/{{ unit.id }}/images" enctype="multipart/form-data" class="row g-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="col-md-6">
+          <input type="file" name="image" accept="image/*" capture="environment" class="form-control form-control-sm" required>
+        </div>
+        <div class="col-md-4">
+          <input type="text" name="label" class="form-control form-control-sm" placeholder="Etikett (t.ex. framsida, rygg)">
+        </div>
+        <div class="col-md-2 d-grid">
+          <button type="submit" class="btn btn-sm btn-primary">Ladda upp</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+  {% if images %}
+  <div class="card-body p-2">
+    <div class="row g-2">
+      {% for img in images %}
+      <div class="col-6 col-md-3 col-lg-2">
+        <div class="position-relative">
+          <a href="/images/{{ img.image_path }}" class="lightbox-image">
+            <img src="/images/{{ img.image_path }}" class="img-fluid rounded border" style="aspect-ratio: 1; object-fit: cover" alt="{{ img.label or 'Foto' }}">
+          </a>
+          {% if img.label %}<div class="small text-muted text-truncate mt-1" title="{{ img.label }}">{{ img.label }}</div>{% endif %}
+          {% if user.can_edit %}
+          <div class="d-flex gap-1 mt-1">
+            <form method="post" action="/storage/units/{{ unit.id }}/images/{{ img.id }}/rotate" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="angle" value="90">
+              <button type="submit" class="btn btn-sm btn-outline-secondary" title="Rotera 90°">↻</button>
+            </form>
+            <button type="button" class="btn btn-sm btn-outline-danger"
+                    onclick="confirmAction('/storage/units/{{ unit.id }}/images/{{ img.id }}/delete', 'Ta bort foto?')"
+                    title="Ta bort">×</button>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
 {% if children %}
 <h2 class="h6 mt-3">Under-enheter</h2>
 <div class="list-group mb-3">
@@ -56,4 +123,6 @@
 {% else %}
 <p class="text-muted fst-italic">Inga noter registrerade på den här platsen.</p>
 {% endif %}
+
+<div id="modal-target"></div>
 {% endblock %}
