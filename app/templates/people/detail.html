@@ -37,19 +37,17 @@
 
   <div class="col-md-5">
     {% if person.biography %}
-    {# Wikipedia-extracter har ==-rubriker, normalisera till markdown #}
-    {% set _bio_md = person.biography | replace('======', '###### ') | replace('=====', '##### ') | replace('====', '#### ') | replace('===', '### ') | replace('==', '## ') %}
     {% set _bio_long = person.biography|length > 600 %}
     {% if _bio_long %}
     <div class="bio-collapsible">
       <div class="bio-preview">
         <p>{{ person.biography[:400] }}…</p>
       </div>
-      <div class="bio-full d-none">{{ _bio_md | markdown | safe }}</div>
+      <div class="bio-full d-none">{{ person.biography | markdown | safe }}</div>
       <button type="button" class="btn btn-link btn-sm p-0 bio-toggle">Visa mer</button>
     </div>
     {% else %}
-    <div>{{ _bio_md | markdown | safe }}</div>
+    <div>{{ person.biography | markdown | safe }}</div>
     {% endif %}
     {% if person.biography_source_url %}
     <p class="small text-muted">
