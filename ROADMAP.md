@@ -184,6 +184,11 @@ granska -> spara -> hitta igen.
       "Extern person" kopplar bort dropdownen och visar fritext-input
       för vikarierande körledare etc. borrower_user_id sätts vid
       användarval, annars sparas borrower_name som fritext.
+- [ ] **Anteckning per tagg**: utöka Tag-modellen med ett `description`-
+      fält och visa det på /tags-listan + i tag-search-autocompleten.
+      Användbart för att förklara taggens innebörd ("Stilla veckan =
+      veckan från Palmsöndag till Påskafton") så det inte uppstår
+      olika tolkningar mellan användare.
 - [ ] **Nästlade/hierarkiska taggar med alias**: lägg `parent_id` på Tag
       så taggar kan grupperas i träd, t.ex. "Kyrkliga handlingar >
       Begravning/Dop/Vigsel/Konfirmation". Visa hierarki i /tags-vyn

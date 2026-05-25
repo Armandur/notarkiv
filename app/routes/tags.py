@@ -23,7 +23,7 @@ async def list_tags(
         ).all()
     )
     tags = session.exec(
-        select(Tag).order_by(Tag.kind, Tag.sort_order, Tag.name)
+        select(Tag).order_by(Tag.kind, Tag.name)
     ).all()
 
     by_kind: dict[str, list[dict]] = {}
@@ -45,7 +45,6 @@ async def create_tag(
     request: Request,
     name: str = Form(...),
     kind: str = Form("free"),
-    sort_order: int = Form(0),
     user: User = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -60,7 +59,7 @@ async def create_tag(
         kind_enum = TagKind(kind)
     except ValueError:
         kind_enum = TagKind.FREE
-    session.add(Tag(name=name, kind=kind_enum, sort_order=sort_order))
+    session.add(Tag(name=name, kind=kind_enum))
     session.commit()
     flash(request, f"Skapade '{name}'", "success")
     return RedirectResponse("/tags", status.HTTP_302_FOUND)
@@ -72,7 +71,6 @@ async def update_tag(
     tag_id: int,
     name: str = Form(...),
     kind: str = Form("free"),
-    sort_order: int = Form(0),
     user: User = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -96,7 +94,6 @@ async def update_tag(
         kind_enum = TagKind.FREE
     tag.name = new_name
     tag.kind = kind_enum
-    tag.sort_order = sort_order
     session.add(tag)
     session.commit()
     flash(request, f"Uppdaterade '{tag.name}'", "success")
