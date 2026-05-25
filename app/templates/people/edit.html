@@ -183,18 +183,43 @@
   {% if links %}
   <div class="list-group list-group-flush">
     {% for l in links %}
-    <div class="list-group-item d-flex justify-content-between align-items-center">
-      <div>
-        <span class="badge bg-light text-muted">{{ l.kind }}</span>
-        <a href="{{ l.url }}" target="_blank">{{ l.label or l.url }}</a>
+    <div class="list-group-item" id="link-row-{{ l.id }}">
+      <div class="d-flex justify-content-between align-items-center gap-2">
+        <div class="text-truncate">
+          <span class="badge bg-light text-muted">{{ l.kind }}</span>
+          <a href="{{ l.url }}" target="_blank">{{ l.label or l.url }}</a>
+        </div>
+        <div class="btn-group btn-group-sm">
+          <button class="btn btn-outline-secondary" type="button"
+                  onclick="document.getElementById('link-row-{{ l.id }}').classList.toggle('editing')">✏</button>
+          <button class="btn btn-outline-danger" type="button"
+                  onclick="confirmAction('/people/{{ person.id }}/links/{{ l.id }}/delete', 'Ta bort länken?')">×</button>
+        </div>
       </div>
-      <button class="btn btn-sm btn-outline-danger" type="button"
-              onclick="confirmAction('/people/{{ person.id }}/links/{{ l.id }}/delete', 'Ta bort länken?')">
-        Ta bort
-      </button>
+      <form method="post" action="/people/{{ person.id }}/links/{{ l.id }}/update"
+            class="link-edit-form row g-2 mt-2 d-none">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="col-md-3">
+          <select name="kind" class="form-select form-select-sm">
+            {% for k in link_kinds %}
+            <option value="{{ k }}" {% if l.kind == k %}selected{% endif %}>{{ k }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-5">
+          <input type="url" name="url" class="form-control form-control-sm" value="{{ l.url }}" required>
+        </div>
+        <div class="col-md-2">
+          <input type="text" name="label" class="form-control form-control-sm" value="{{ l.label or '' }}" placeholder="Etikett">
+        </div>
+        <div class="col-md-2 d-grid">
+          <button type="submit" class="btn btn-sm btn-primary">Spara</button>
+        </div>
+      </form>
     </div>
     {% endfor %}
   </div>
+  <style>.list-group-item.editing .link-edit-form { display: flex !important; }</style>
   {% endif %}
   {% if mb_preview and mb_preview.wikidata_url and not mb_preview.wd_already_linked %}
   <div class="card-body border-top bg-light-subtle">

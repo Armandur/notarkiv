@@ -432,6 +432,37 @@ async def add_link(
     return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
 
 
+@router.post("/{person_id}/links/{link_id}/update", dependencies=[Depends(verify_csrf)])
+async def update_link(
+    request: Request,
+    person_id: int,
+    link_id: int,
+    url: str = Form(...),
+    kind: str = Form(...),
+    label: str | None = Form(None),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    link = session.get(PersonLink, link_id)
+    if not link or link.person_id != person_id:
+        raise HTTPException(404)
+    url = url.strip()
+    if not url:
+        flash(request, "URL krävs", "danger")
+        return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
+    try:
+        kind_enum = PersonLinkKind(kind)
+    except ValueError:
+        kind_enum = PersonLinkKind.OTHER
+    link.url = url
+    link.kind = kind_enum
+    link.label = (label or "").strip() or url
+    session.add(link)
+    session.commit()
+    flash(request, "Länk uppdaterad", "success")
+    return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
+
+
 @router.post("/{person_id}/links/{link_id}/delete", dependencies=[Depends(verify_csrf)])
 async def delete_link(
     request: Request,
@@ -552,17 +583,16 @@ def _ensure_link(
     session: Session, person_id: int, kind: PersonLinkKind, url: str
 ) -> None:
     """Skapa eller uppdatera PersonLink med given kind så att url matchar.
-    Sätter label = url för länkar där användaren vill se URL:en (Wikidata,
-    Spotify osv visar tydligare med fullständig URL)."""
+    Label uppdateras till url så användaren ser tydlig URL i listan."""
     existing = session.exec(
         select(PersonLink)
         .where(PersonLink.person_id == person_id)
         .where(PersonLink.kind == kind)
     ).first()
     if existing:
-        if existing.url != url:
-            existing.url = url
-            session.add(existing)
+        existing.url = url
+        existing.label = url
+        session.add(existing)
     else:
         session.add(
             PersonLink(person_id=person_id, url=url, kind=kind, label=url)
