@@ -50,7 +50,7 @@
       </td>
       <td class="small">{{ p.contributors_cache or '' }}</td>
       <td class="small">{{ p.voicing or '' }}</td>
-      <td class="small">{{ p.language or '' }}</td>
+      <td class="small">{{ language_display(p.language) if p.language else '' }}</td>
       <td class="small">{{ p.publisher or '' }}{% if p.edition_number %} / {{ p.edition_number }}{% endif %}</td>
       <td class="small">
         {% for path in placements_by_piece.get(p.id, []) %}

@@ -5,8 +5,15 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from app.models import User
+from app.utils.countries import country_display, country_flag_emoji, country_name_sv
+from app.utils.languages import language_display, language_name_sv
 
 templates = Jinja2Templates(directory="app/templates")
+templates.env.globals["country_display"] = country_display
+templates.env.globals["country_flag_emoji"] = country_flag_emoji
+templates.env.globals["country_name_sv"] = country_name_sv
+templates.env.globals["language_display"] = language_display
+templates.env.globals["language_name_sv"] = language_name_sv
 
 
 def render(

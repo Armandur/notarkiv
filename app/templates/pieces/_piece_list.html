@@ -1,6 +1,6 @@
 {# Inkluderbar partial som renderar en lista av pieces som kort eller tabell.
    Förväntar i kontexten: pieces, view ("grid" eller "list"), cover_thumb (helper),
-   placement_counts (dict). #}
+   placement_summary (dict: piece_id -> {count, copies, digital, items}). #}
 
 {% if not pieces %}
 <p class="text-muted fst-italic">Inga noter.</p>
@@ -25,7 +25,7 @@
               {% if p.contributors_cache %}<div class="small text-muted text-truncate">{{ p.contributors_cache }}</div>{% endif %}
               <div class="small">
                 {% if p.voicing %}<span class="badge bg-secondary">{{ p.voicing }}</span>{% endif %}
-                {% if p.language %}<span class="badge bg-light text-muted">{{ p.language }}</span>{% endif %}
+                {% if p.language %}<span class="badge bg-light text-muted" title="{{ p.language }}">{{ language_display(p.language) }}</span>{% endif %}
               </div>
             </div>
           </div>
@@ -67,11 +67,23 @@
         </td>
         <td class="small">{{ p.contributors_cache or '' }}</td>
         <td class="small">{% if p.voicing %}<span class="badge bg-secondary">{{ p.voicing }}</span>{% endif %}</td>
-        <td class="small">{{ p.language or '' }}</td>
+        <td class="small">{% if p.language %}<span title="{{ p.language }}">{{ language_display(p.language) }}</span>{% endif %}</td>
         <td class="small">{{ p.publisher or '' }}{% if p.edition_number %} <span class="text-muted">/ {{ p.edition_number }}</span>{% endif %}</td>
         <td class="text-end small">
-          {% set c = placement_counts.get(p.id, 0) %}
-          {% if c %}<span class="badge bg-light text-muted">{{ c }} st</span>{% endif %}
+          {% set s = placement_summary.get(p.id) %}
+          {% if s %}
+            {% set parts = [] %}
+            {% set _ = parts.append((s.count ~ ' plats') if s.count == 1 else (s.count ~ ' platser')) %}
+            {% if s.copies %}{% set _ = parts.append(s.copies ~ ' ex') %}{% endif %}
+            {% if s.digital %}{% set _ = parts.append((s.digital ~ ' digital') if s.digital == 1 else (s.digital ~ ' digitala')) %}{% endif %}
+            {% set tooltip_lines = [] %}
+            {% for it in s['items'] %}
+              {% if it.digital %}{% set _ = tooltip_lines.append(it.path ~ ' (digital)') %}
+              {% elif it.copies %}{% set _ = tooltip_lines.append(it.path ~ ' (' ~ it.copies ~ ' ex)') %}
+              {% else %}{% set _ = tooltip_lines.append(it.path) %}{% endif %}
+            {% endfor %}
+            <span class="badge bg-light text-muted" title="{{ tooltip_lines | join('\n') }}">{{ parts | join(' · ') }}</span>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}

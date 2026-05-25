@@ -74,7 +74,7 @@
       {% endif %}
       {% if piece.voicing %}<dt class="col-sm-3">Besättning</dt><dd class="col-sm-9">{{ piece.voicing }}</dd>{% endif %}
       {% if piece.accompaniment %}<dt class="col-sm-3">Ackompanjemang</dt><dd class="col-sm-9">{{ piece.accompaniment }}</dd>{% endif %}
-      {% if piece.language %}<dt class="col-sm-3">Språk</dt><dd class="col-sm-9">{{ piece.language }}</dd>{% endif %}
+      {% if piece.language %}<dt class="col-sm-3">Språk</dt><dd class="col-sm-9">{{ language_display(piece.language) }}</dd>{% endif %}
       {% if piece.psalm_number %}<dt class="col-sm-3">Psalm</dt><dd class="col-sm-9">{{ piece.psalm_number }}</dd>{% endif %}
       {% if piece.publisher %}<dt class="col-sm-3">Förlag</dt><dd class="col-sm-9">{{ piece.publisher }}{% if piece.edition_number %} / {{ piece.edition_number }}{% endif %}</dd>{% endif %}
       {% if piece.musicbrainz_work_id %}

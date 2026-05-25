@@ -28,44 +28,99 @@
     <div class="col-md-5">
       <input type="search" name="q" class="form-control" placeholder="Sök titel, kompositör, anteckningar..." value="{{ q }}">
     </div>
+
+    {# Besättning: multi-select via checkboxar i dropdown. Skickas som upprepad ?voicing=... #}
     <div class="col-md-3">
-      <select name="voicing" class="form-select">
-        <option value="">Alla besättningar</option>
-        {% for v in voicings %}
-        <option value="{{ v }}" {% if v == active_voicing %}selected{% endif %}>{{ v }}</option>
-        {% endfor %}
-      </select>
+      <div class="dropdown">
+        <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
+                data-bs-toggle="dropdown" data-bs-auto-close="outside">
+          Besättning: {% if active_voicings %}{{ active_voicings|length }} valda{% else %}alla{% endif %}
+        </button>
+        <ul class="dropdown-menu w-100 px-3" style="max-height: 360px; overflow-y: auto">
+          {% if not voicings %}
+          <li><div class="text-muted small fst-italic">Inga besättningar registrerade än</div></li>
+          {% endif %}
+          {% for v in voicings %}
+          <li>
+            <label class="form-check">
+              <input class="form-check-input me-1" type="checkbox" name="voicing" value="{{ v }}"
+                     {% if v in active_voicings %}checked{% endif %}>
+              {{ v }}
+            </label>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
     </div>
+
+    {# Språk: multi-select med svensk namn-display. Skickas som upprepad ?language=... #}
     <div class="col-md-2">
-      <select name="language" class="form-select">
-        <option value="">Alla språk</option>
-        {% for l in languages %}
-        <option value="{{ l }}" {% if l == active_language %}selected{% endif %}>{{ l }}</option>
-        {% endfor %}
-      </select>
+      <div class="dropdown">
+        <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
+                data-bs-toggle="dropdown" data-bs-auto-close="outside">
+          Språk: {% if active_languages %}{{ active_languages|length }} valda{% else %}alla{% endif %}
+        </button>
+        <div class="dropdown-menu w-100 p-2" style="max-height: 360px; overflow-y: auto">
+          {% if languages|length > 8 %}
+          <input type="search" class="form-control form-control-sm mb-2"
+                 placeholder="Filtrera..."
+                 oninput="(function(el){var q=el.value.toLowerCase();el.parentElement.querySelectorAll('label.lang-item').forEach(function(l){l.style.display=l.textContent.toLowerCase().indexOf(q)>=0?'':'none';});})(this)"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();}">
+          {% endif %}
+          {% if not languages %}
+          <div class="text-muted small fst-italic">Inga språk registrerade än</div>
+          {% endif %}
+          {% for l in languages %}
+          <label class="form-check lang-item d-block">
+            <input class="form-check-input me-1" type="checkbox" name="language" value="{{ l.code }}"
+                   {% if l.code in active_languages %}checked{% endif %}>
+            {{ l.label }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
     </div>
+
     <div class="col-md-2 d-flex gap-1">
       {# Bevara taggar via dolda inputs så de inte tappas vid submit #}
       {% for t in active_tags %}<input type="hidden" name="tag" value="{{ t }}">{% endfor %}
       <button class="btn btn-outline-secondary flex-grow-1" type="submit">Filtrera</button>
-      {% if q or active_voicing or active_language or active_tags %}
+      {% if q or active_voicings or active_languages or active_tags or period != 'all' or sort != 'created_desc' %}
       <a href="/pieces?view={{ view }}" class="btn btn-outline-secondary">×</a>
       {% endif %}
     </div>
   </div>
+
+  <div class="row g-2 mt-1">
+    <div class="col-md-3">
+      <label class="form-label small text-muted mb-1">Sortera</label>
+      <select name="sort" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="created_desc" {% if sort == 'created_desc' %}selected{% endif %}>Nyast först</option>
+        <option value="created_asc"  {% if sort == 'created_asc'  %}selected{% endif %}>Äldst först</option>
+        <option value="title"        {% if sort == 'title'        %}selected{% endif %}>Titel A-Ö</option>
+        <option value="title_desc"   {% if sort == 'title_desc'   %}selected{% endif %}>Titel Ö-A</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small text-muted mb-1">Inlagda</label>
+      <select name="period" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="all" {% if period == 'all' %}selected{% endif %}>När som helst</option>
+        <option value="7"   {% if period == '7'   %}selected{% endif %}>Senaste 7 dagarna</option>
+        <option value="30"  {% if period == '30'  %}selected{% endif %}>Senaste 30 dagarna</option>
+        <option value="90"  {% if period == '90'  %}selected{% endif %}>Senaste 90 dagarna</option>
+      </select>
+    </div>
+  </div>
 </form>
 
-{# Tag-filter: aktiva som chips + autocomplete för att lägga till. /tags för översikt. #}
+{# Tag-filter: aktiva som chips + autocomplete för att lägga till. /tags för översikt.
+   Bygg URL-suffix med voicing/language-listorna en gång och återanvänd. #}
+{% set filter_qs %}view={{ view }}{% if q %}&q={{ q|urlencode }}{% endif %}{% for v in active_voicings %}&voicing={{ v|urlencode }}{% endfor %}{% for l in active_languages %}&language={{ l|urlencode }}{% endfor %}{% if sort != 'created_desc' %}&sort={{ sort }}{% endif %}{% if period != 'all' %}&period={{ period }}{% endif %}{% endset %}
 <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
   <span class="text-muted small">Taggar:</span>
   {% for at in active_tags %}
-    {# Bygg URL utan denna tagg #}
     {% set remaining = active_tags|reject('equalto', at)|list %}
-    {% set base_params = {'view': view} %}
-    {% if q %}{% set _ = base_params.update({'q': q}) %}{% endif %}
-    {% if active_voicing %}{% set _ = base_params.update({'voicing': active_voicing}) %}{% endif %}
-    {% if active_language %}{% set _ = base_params.update({'language': active_language}) %}{% endif %}
-    <a href="?{% for k, v in base_params.items() %}{{ k }}={{ v }}&{% endfor %}{% for nt in remaining %}tag={{ nt }}{% if not loop.last %}&{% endif %}{% endfor %}"
+    <a href="?{{ filter_qs }}{% for nt in remaining %}&tag={{ nt|urlencode }}{% endfor %}"
        class="btn btn-sm btn-primary">
       {{ at }} <span class="ms-1">×</span>
     </a>
@@ -74,9 +129,11 @@
   <form method="get" action="/pieces" class="d-flex gap-1 align-items-center">
     <input type="hidden" name="view" value="{{ view }}">
     {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
-    {% if active_voicing %}<input type="hidden" name="voicing" value="{{ active_voicing }}">{% endif %}
-    {% if active_language %}<input type="hidden" name="language" value="{{ active_language }}">{% endif %}
+    {% for v in active_voicings %}<input type="hidden" name="voicing" value="{{ v }}">{% endfor %}
+    {% for l in active_languages %}<input type="hidden" name="language" value="{{ l }}">{% endfor %}
     {% for at in active_tags %}<input type="hidden" name="tag" value="{{ at }}">{% endfor %}
+    {% if sort != 'created_desc' %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+    {% if period != 'all' %}<input type="hidden" name="period" value="{{ period }}">{% endif %}
     <input type="text" name="tag" list="all-tags-options" class="form-control form-control-sm"
            placeholder="+ tagg..." style="width: 12em">
     <button type="submit" class="btn btn-sm btn-outline-secondary">Lägg till</button>
@@ -95,21 +152,19 @@
 <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
   <span class="text-muted small">Plats:</span>
   {% if active_unit %}
-    {% set base_params = {'view': view} %}
-    {% if q %}{% set _ = base_params.update({'q': q}) %}{% endif %}
-    {% if active_voicing %}{% set _ = base_params.update({'voicing': active_voicing}) %}{% endif %}
-    {% if active_language %}{% set _ = base_params.update({'language': active_language}) %}{% endif %}
     <span class="badge bg-info text-dark">
       {{ active_unit.path }}
-      <a href="?{% for k, v in base_params.items() %}{{ k }}={{ v }}&{% endfor %}{% for at in active_tags %}tag={{ at }}{% if not loop.last %}&{% endif %}{% endfor %}"
+      <a href="?{{ filter_qs }}{% for at in active_tags %}&tag={{ at|urlencode }}{% endfor %}"
          class="text-reset text-decoration-none ms-1">×</a>
     </span>
     <form method="get" class="d-flex gap-1 align-items-center mb-0" id="subunits-form">
       <input type="hidden" name="view" value="{{ view }}">
       {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
-      {% if active_voicing %}<input type="hidden" name="voicing" value="{{ active_voicing }}">{% endif %}
-      {% if active_language %}<input type="hidden" name="language" value="{{ active_language }}">{% endif %}
+      {% for v in active_voicings %}<input type="hidden" name="voicing" value="{{ v }}">{% endfor %}
+      {% for l in active_languages %}<input type="hidden" name="language" value="{{ l }}">{% endfor %}
       {% for at in active_tags %}<input type="hidden" name="tag" value="{{ at }}">{% endfor %}
+      {% if sort != 'created_desc' %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+      {% if period != 'all' %}<input type="hidden" name="period" value="{{ period }}">{% endif %}
       <input type="hidden" name="unit" value="{{ active_unit.id }}">
       <div class="form-check form-check-inline mb-0">
         <input type="checkbox" name="include_subunits" value="1" id="include-subunits-cb"
@@ -130,7 +185,7 @@
   {% include "pieces/_unit_picker.html" %}
 {% endwith %}
 
-{% if not pieces and (q or active_tags or active_voicing or active_language or active_unit) %}
+{% if not pieces and (q or active_tags or active_voicings or active_languages or active_unit) %}
 <p class="text-muted fst-italic">Inga träffar med filtren.</p>
 {% elif not pieces %}
 <p class="text-muted fst-italic">Inga noter registrerade än.</p>

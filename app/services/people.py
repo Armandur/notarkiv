@@ -77,12 +77,15 @@ def find_or_create_person(
     name: str,
     *,
     musicbrainz_artist_id: str | None = None,
+    sort_name_override: str | None = None,
 ) -> Person | None:
     """Hitta befintlig Person eller skapa ny. Match på name (case-insensitive)
-    eller på MBID om det finns."""
+    eller på MBID om det finns. sort_name_override sätter sort_name på en
+    nyskapad person (eller uppdaterar befintlig om dess sort_name saknas)."""
     name = name.strip()
     if not name:
         return None
+    override = (sort_name_override or "").strip() or None
 
     if musicbrainz_artist_id:
         existing = session.exec(
@@ -103,7 +106,7 @@ def find_or_create_person(
 
     person = Person(
         name=name,
-        sort_name=derive_sort_name(name),
+        sort_name=override or derive_sort_name(name),
         musicbrainz_artist_id=musicbrainz_artist_id,
     )
     session.add(person)
@@ -118,8 +121,13 @@ def replace_contributors(
     composers: list[str] | None = None,
     arrangers: list[str] | None = None,
     lyricists: list[str] | None = None,
+    composer_sorts: list[str] | None = None,
+    arranger_sorts: list[str] | None = None,
+    lyricist_sorts: list[str] | None = None,
 ) -> str:
-    """Sätt om alla bidragsgivare för en not. Returnerar contributors_cache."""
+    """Sätt om alla bidragsgivare för en not. Returnerar contributors_cache.
+    sort-listorna är parallella med namn-listorna och anger sort_name-override
+    (tom sträng = använd derive)."""
     existing_links = session.exec(
         select(PieceContributor).where(PieceContributor.piece_id == piece_id)
     ).all()
@@ -128,18 +136,21 @@ def replace_contributors(
     session.flush()
 
     role_lists = [
-        (ContributorRole.COMPOSER, composers or []),
-        (ContributorRole.ARRANGER, arrangers or []),
-        (ContributorRole.LYRICIST, lyricists or []),
+        (ContributorRole.COMPOSER, composers or [], composer_sorts or []),
+        (ContributorRole.ARRANGER, arrangers or [], arranger_sorts or []),
+        (ContributorRole.LYRICIST, lyricists or [], lyricist_sorts or []),
     ]
 
     cache_parts: list[str] = []
-    for role, names in role_lists:
+    for role, names, sorts in role_lists:
         for i, raw in enumerate(names):
             name = raw.strip()
             if not name:
                 continue
-            person = find_or_create_person(session, name)
+            sort_override = sorts[i] if i < len(sorts) else None
+            person = find_or_create_person(
+                session, name, sort_name_override=sort_override
+            )
             if not person:
                 continue
             session.add(
@@ -240,11 +251,68 @@ def enrich_person_from_mb(
         session.add(person)
 
 
+async def enqueue_enrich_for_piece(session: Session, piece_id: int) -> int:
+    """Kö:a MB-berikning för alla bidragsgivare till en piece som saknar MBID.
+    Returnerar antal jobb skickade. Tål Redis-fel - returnerar 0 då."""
+    rows = session.exec(
+        select(Person)
+        .join(PieceContributor, PieceContributor.person_id == Person.id)
+        .where(PieceContributor.piece_id == piece_id)
+        .where(Person.musicbrainz_artist_id.is_(None))
+    ).all()
+    if not rows:
+        return 0
+
+    try:
+        from app.tasks import get_pool
+
+        pool = await get_pool()
+    except Exception as exc:
+        from loguru import logger
+
+        logger.warning("Kunde inte ansluta till Redis för person-berikning: {}", exc)
+        return 0
+
+    seen: set[int] = set()
+    for p in rows:
+        if p.id in seen:
+            continue
+        seen.add(p.id)
+        await pool.enqueue_job("enrich_person_job", p.id)
+    return len(seen)
+
+
 def all_people_names(session: Session) -> list[str]:
     """Returnera alla person-namn alfabetiskt - för autocomplete-datalist."""
     return [
         p.name for p in session.exec(select(Person).order_by(Person.sort_name)).all()
     ]
+
+
+def all_people_for_autocomplete(session: Session) -> list[dict]:
+    """Lista med {name, label} för datalist. label innehåller även namnet
+    eftersom Chrome i vissa kontexter visar bara label - inte value - och
+    vi vill att namnet alltid är synligt."""
+    from sqlalchemy import func as sqlf
+
+    counts = dict(
+        session.exec(
+            select(PieceContributor.person_id, sqlf.count(PieceContributor.id))
+            .group_by(PieceContributor.person_id)
+        ).all()
+    )
+    out: list[dict] = []
+    for p in session.exec(select(Person).order_by(Person.sort_name)).all():
+        bits: list[str] = [p.name]
+        if p.birth_year or p.death_year:
+            bits.append(f"{p.birth_year or '?'}-{p.death_year or ''}".rstrip("-"))
+        n = counts.get(p.id, 0)
+        if n:
+            bits.append(f"{n} not" if n == 1 else f"{n} noter")
+        else:
+            bits.append("ingen not än")
+        out.append({"name": p.name, "label": " · ".join(bits)})
+    return out
 
 
 def parse_names_field(value: str | None) -> list[str]:
@@ -259,3 +327,13 @@ def parse_names_field(value: str | None) -> list[str]:
 
     parts = re.split(r"[;&]| och ", value)
     return [p.strip() for p in parts if p.strip()]
+
+
+def parse_sort_field(value: str | None) -> list[str]:
+    """Parsa sort_name-override-fält. Format: 'A, X; B, Y' - semikolon separerar
+    namn, komma är del av enskilt sort_name ('Efternamn, Förnamn'). Tomma
+    poster behålls som tom sträng så de matchar index-ordningen i namn-listan."""
+    if not value:
+        return []
+    parts = [p.strip() for p in value.split(";")]
+    return parts
