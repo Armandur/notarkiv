@@ -122,13 +122,20 @@ granska -> spara -> hitta igen.
 
 ### Förbättringar kring Person
 
-- [ ] **Person-autocomplete i granskningsformulär**: ersätt fritextfälten
-      med autocomplete-fält likt UnitKind, med "Skapa ny: '<namn>'"-knapp
-      vid ingen träff. Visar levnadsår och antal noter i förslagslistan.
-- [ ] **Auto-import av Person från MusicBrainz**: när MB-träff används,
-      slå upp artist via MB:s artist-rels och url-rels för att hämta
-      kanoniskt namn, MBID, Wikipedia-URL och levnadsår. Skapar
-      Person-poster med all metadata förifylld.
+- [x] **Person-autocomplete med levnadsår och antal noter**: datalist
+      under composer/arranger/lyricist visar nu "Namn · 1809-1847 · 3
+      noter" som extra info (Chrome/Firefox stöder option-label).
+      Riktig HTMX-dropdown med "Skapa ny"-knapp kvarstår.
+- [x] **Justerbart sort_name vid skapande/redigering**: under varje
+      composer/arranger/lyricist-fält finns nu en sort-namn-input
+      som auto-uppdateras från huvudfältet via JS men kan rättas
+      manuellt. Backend stödjer override via parse_sort_field +
+      replace_contributors. Förifylld från Person.sort_name i edit-vyn.
+- [ ] **Auto-import av Person från MusicBrainz**: arq-jobb finns
+      (enrich_person_job) som söker MB, accepterar match med fuzz-score
+      >= 88 och berikar in-place. Triggas dock inte automatiskt - nuvarande
+      design är att användaren aktivt väljer applicering via MB-förslag
+      i granskningsflödet.
 - [ ] **Auto-crop med jscanify**: webbläsare-baserad dokument-detektion
       via OpenCV.js, perspektivkorrigering, manuell hörnjustering.
       Ersätter standard `<input capture>` på mobil.
@@ -152,6 +159,11 @@ granska -> spara -> hitta igen.
       för utskrift (körpärm, allmän översikt)
 - [x] **QR-kod på storage_units**: utskrivbara etiketter, varje QR
       pekar på enhetens detaljvy. Webbläsarens kamera räcker.
+- [x] **Foton på storage_units**: StorageUnitImage-tabell (samma mönster
+      som PieceImage). Uppladdning, etikett, rotation och radering på
+      enhetens detaljvy. Cascade-delete från unit till bilder via FK,
+      bildfiler raderas från disk vid borttagning. Stöd för flera bilder
+      per enhet (framsida + rygg t.ex.).
 
 ### V2-utvidgning av QR-flödet
 
@@ -171,11 +183,13 @@ granska -> spara -> hitta igen.
       ska vara en autocomplete-dropdown med systemets användare,
       med en bockruta "extern person" som ändrar till fritext för
       vikarierande körledare etc.
-- [ ] **MB-berikning av personer direkt i granskningsflödet**: dagens
-      review-formulär har MB-förslag för stycket men inte för
-      kompositör/arrangör/textförfattare. Lägg till en MB-suggestion-
-      banner per person redan vid granskning så användaren slipper
-      gå tillbaka till piece-detalj efteråt.
+- [x] **MB-berikning av personer direkt i granskningsflödet**: en samlad
+      "Hämta MB-förslag"-knapp i review-vyn som söker för både verk och
+      alla namn (composer/arranger/lyricist), visar topp-träffar med
+      sammanfattning (levnadsår, land, MBID) och låter användaren
+      aktivt klicka "Använd" per förslag. Verkförslag sätter MBID/titel
+      via JS; personförslag skapar/uppdaterar Person direkt med
+      enrich_person_from_mb + Wikipedia + porträtt via HTMX-POST.
 - [x] **Land som flagga + fullt namn på personer**: utbytt mot
       🇩🇪 Tyskland-formatering via app/utils/countries.py (svensk
       lookup-tabell för ~50 länder).
@@ -193,11 +207,24 @@ granska -> spara -> hitta igen.
       USB-handskannrar fungerar som tangentbordsemulering så de skriver
       koden i ett input-fält direkt. För kamera-baserad skanning krävs
       HTTPS (kopplat till in-browser-QR-läsare-itemet ovan).
-- [ ] **Sök och sortera /pieces på inläggningsdatum**:
-      sorterings-dropdown (titel/datum), filter "skapade senaste 7/30
-      dagar".
-- [ ] **Senaste noter på startsidan**: ovanför stats-korten visa
-      de N senast inlagda med thumbnail + titel som genväg.
+- [ ] **Psalmnummer som strukturerad tagg-referens istället för fritext-fält**:
+      idag är `Piece.psalm_number` en enkel int. Bättre design:
+      taggar/referenser i formen `Svenska Psalmboken:1986:246` eller
+      `Psalmer i 2000-talet:NN` så samma not kan referera till flera
+      psalmböcker/utgåvor. Behöver: dropdown för psalmbok (kuraterad
+      lista), utgåva-fält, nummer-fält. Migrering av befintliga
+      psalm_number → tagg-rad med användarens default-psalmbok.
+- [ ] **Besättning som strukturerad entitet/taggar istället för fritext**:
+      idag är `Piece.voicing` ett fritextfält ("SATB", "SAB" etc.) vilket ger
+      stavvarianter och inkonsekvens. Alternativ att diskutera: (a) enum med
+      fast lista (SATB, SAB, SSA, SSAA, TTBB, unison, kanon ...), (b) tagg-
+      kind "voicing" med autocomplete + förvalda alternativ, (c) två fält
+      (typ + antal stämmor). Påverkar filter, sökning och OCR-extraktion.
+- [x] **Sök och sortera /pieces på inläggningsdatum**:
+      sort-dropdown (nyast/äldst/titel A-Ö/Ö-A) + period-dropdown
+      (alltid/7/30/90 dagar).
+- [x] **Senaste noter på startsidan**: 8 senast inlagda som
+      thumbnail-grid ovanför stats-korten.
 
 ## V3 - "Långt fram"
 
