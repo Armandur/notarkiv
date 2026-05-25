@@ -4,6 +4,26 @@
 {% block content %}
 <h1 class="h3 mb-4">Översikt</h1>
 
+{% if recent_pieces %}
+<div class="mb-4">
+  <div class="d-flex justify-content-between align-items-end mb-2">
+    <h2 class="h6 mb-0 text-muted">Senast inlagda</h2>
+    <a href="/pieces?sort=created_desc" class="small">Alla nya →</a>
+  </div>
+  <div class="list-group">
+    {% for p in recent_pieces %}
+    <a href="/pieces/{{ p.id }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+      <span class="text-truncate">
+        <strong>{{ p.title }}</strong>
+        {% if p.contributors_cache %}<span class="text-muted small ms-2">{{ p.contributors_cache }}</span>{% endif %}
+      </span>
+      <span class="text-muted small flex-shrink-0 ms-2">{{ p.created_at.strftime('%Y-%m-%d') if p.created_at else '' }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <div class="row g-3 mb-4">
   <div class="col-md-4">
     <a href="/pieces" class="card text-bg-light h-100 text-decoration-none text-reset">

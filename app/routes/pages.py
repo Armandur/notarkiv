@@ -23,4 +23,16 @@ async def index(
         "locations": session.exec(select(func.count(StorageLocation.id))).one(),
         "tags": session.exec(select(func.count(Tag.id))).one(),
     }
-    return render(request, "pages/index.html", {"stats": stats}, user=user)
+
+    recent = list(
+        session.exec(
+            select(Piece).order_by(Piece.created_at.desc()).limit(10)
+        ).all()
+    )
+
+    return render(
+        request,
+        "pages/index.html",
+        {"stats": stats, "recent_pieces": recent},
+        user=user,
+    )
