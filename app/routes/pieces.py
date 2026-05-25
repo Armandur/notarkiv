@@ -439,6 +439,14 @@ async def new_piece_form(
             "people_names": all_people_names(session),
             "people_options": all_people_for_autocomplete(session),
             "language_options": all_languages(),
+            "voicing_tags": session.exec(
+                select(Tag).where(Tag.kind == "voicing")
+                .order_by(Tag.sort_order, Tag.name)
+            ).all(),
+            "accompaniment_tags": session.exec(
+                select(Tag).where(Tag.kind == "accompaniment")
+                .order_by(Tag.sort_order, Tag.name)
+            ).all(),
         },
         user=user,
     )
@@ -456,7 +464,6 @@ async def new_piece_save(
     arranger_sort: str | None = Form(None),
     lyricist_sort: str | None = Form(None),
     language: str | None = Form(None),
-    accompaniment: str | None = Form(None),
     publisher: str | None = Form(None),
     edition_number: str | None = Form(None),
     notes: str | None = Form(None),
@@ -464,6 +471,8 @@ async def new_piece_save(
     placement_unit_id: str | None = Form(None),
     placement_copies: str | None = Form(None),
     placement_notes: str | None = Form(None),
+    voicing_tag_id: list[int] = Form(default=[]),
+    accompaniment_tag_id: list[int] = Form(default=[]),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -471,7 +480,6 @@ async def new_piece_save(
         title=title.strip(),
         original_title=(original_title or "").strip() or None,
         language=(language or "").strip() or None,
-        accompaniment=(accompaniment or "").strip() or None,
         publisher=(publisher or "").strip() or None,
         edition_number=(edition_number or "").strip() or None,
         notes=(notes or "").strip() or None,
@@ -510,6 +518,9 @@ async def new_piece_save(
                     notes=(placement_notes or "").strip() or None,
                 )
             )
+
+    _set_kind_tags(session, piece.id, "voicing", voicing_tag_id)
+    _set_kind_tags(session, piece.id, "accompaniment", accompaniment_tag_id)
 
     session.commit()
 
@@ -736,6 +747,30 @@ async def edit_piece_form(
             "psalm_books": session.exec(
                 select(PsalmBook).order_by(PsalmBook.sort_order, PsalmBook.name)
             ).all(),
+            "voicing_tags": session.exec(
+                select(Tag).where(Tag.kind == "voicing")
+                .order_by(Tag.sort_order, Tag.name)
+            ).all(),
+            "accompaniment_tags": session.exec(
+                select(Tag).where(Tag.kind == "accompaniment")
+                .order_by(Tag.sort_order, Tag.name)
+            ).all(),
+            "selected_voicing_ids": set(
+                session.exec(
+                    select(PieceTag.tag_id)
+                    .join(Tag, Tag.id == PieceTag.tag_id)
+                    .where(PieceTag.piece_id == piece_id)
+                    .where(Tag.kind == "voicing")
+                ).all()
+            ),
+            "selected_accompaniment_ids": set(
+                session.exec(
+                    select(PieceTag.tag_id)
+                    .join(Tag, Tag.id == PieceTag.tag_id)
+                    .where(PieceTag.piece_id == piece_id)
+                    .where(Tag.kind == "accompaniment")
+                ).all()
+            ),
         },
         user=user,
     )
@@ -754,11 +789,12 @@ async def edit_piece_save(
     arranger_sort: str | None = Form(None),
     lyricist_sort: str | None = Form(None),
     language: str | None = Form(None),
-    accompaniment: str | None = Form(None),
     publisher: str | None = Form(None),
     edition_number: str | None = Form(None),
     notes: str | None = Form(None),
     musicbrainz_work_id: str | None = Form(None),
+    voicing_tag_id: list[int] = Form(default=[]),
+    accompaniment_tag_id: list[int] = Form(default=[]),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -769,7 +805,6 @@ async def edit_piece_save(
     piece.title = title.strip()
     piece.original_title = (original_title or "").strip() or None
     piece.language = (language or "").strip() or None
-    piece.accompaniment = (accompaniment or "").strip() or None
     piece.publisher = (publisher or "").strip() or None
     piece.edition_number = (edition_number or "").strip() or None
     piece.notes = (notes or "").strip() or None
@@ -788,6 +823,10 @@ async def edit_piece_save(
     )
     piece.contributors_cache = cache or None
     session.add(piece)
+
+    _set_kind_tags(session, piece_id, "voicing", voicing_tag_id)
+    _set_kind_tags(session, piece_id, "accompaniment", accompaniment_tag_id)
+
     session.commit()
 
     flash(request, "Sparat", "success")
@@ -1086,6 +1125,27 @@ def _unit_picker_tree(session: Session) -> list[dict]:
         {"location": loc, "units": build(loc.id, None, [])}
         for loc in locations
     ]
+
+
+def _set_kind_tags(
+    session: Session, piece_id: int, kind: str, tag_ids: list[int]
+) -> None:
+    """Sätt om PieceTag för en specifik tag-kind. Rensar befintliga och
+    skapar nya. Tags med fel kind ignoreras."""
+    # Hämta vilka existerande tag-ids på piecen som matchar denna kind
+    existing = session.exec(
+        select(PieceTag, Tag)
+        .join(Tag, Tag.id == PieceTag.tag_id)
+        .where(PieceTag.piece_id == piece_id)
+        .where(Tag.kind == kind)
+    ).all()
+    for pt, _tag in existing:
+        session.delete(pt)
+    session.flush()
+    for tag_id in tag_ids:
+        t = session.get(Tag, tag_id)
+        if t and t.kind == kind:
+            session.add(PieceTag(piece_id=piece_id, tag_id=t.id))
 
 
 def _voicings_by_piece(session: Session, piece_ids: list[int]) -> dict[int, list[str]]:

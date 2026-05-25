@@ -5,26 +5,6 @@ from sqlalchemy import String
 from sqlmodel import Field, SQLModel
 
 
-class Voicing(StrEnum):
-    """Vanliga besättningar - listan är inte uttömmande, fri text accepteras."""
-
-    SATB = "SATB"
-    SAB = "SAB"
-    SSA = "SSA"
-    SSAA = "SSAA"
-    TTBB = "TTBB"
-    UNISON = "unison"
-    SOLO = "solo"
-    DUET = "duet"
-
-
-class Accompaniment(StrEnum):
-    A_CAPPELLA = "a_cappella"
-    PIANO = "piano"
-    ORGAN = "organ"
-    OTHER = "other"
-
-
 class CopyrightStatus(StrEnum):
     ORIGINAL = "original"
     LICENSED_COPY = "licensed_copy"
@@ -43,7 +23,6 @@ class Piece(SQLModel, table=True):
     # Format: "Felix Mendelssohn (composer); Bob Smith (arranger)"
     contributors_cache: str | None = None
     language: str | None = None
-    accompaniment: Accompaniment | None = Field(default=None, sa_type=String)
     publisher: str | None = None
     edition_number: str | None = None
     difficulty: int | None = None

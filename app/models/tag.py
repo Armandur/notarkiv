@@ -8,6 +8,7 @@ class TagKind(StrEnum):
     LITURGICAL = "liturgical"
     OCCASION = "occasion"
     VOICING = "voicing"
+    ACCOMPANIMENT = "accompaniment"
     FREE = "free"
 
 

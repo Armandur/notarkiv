@@ -106,3 +106,16 @@
 - { name: solo, kind: voicing, sort_order: 120 }
 - { name: solo + kör, kind: voicing, sort_order: 130 }
 - { name: barnkör, kind: voicing, sort_order: 140 }
+
+# Ackompanjemang
+- { name: a cappella, kind: accompaniment, sort_order: 10 }
+- { name: piano, kind: accompaniment, sort_order: 20 }
+- { name: orgel, kind: accompaniment, sort_order: 30 }
+- { name: cembalo, kind: accompaniment, sort_order: 40 }
+- { name: gitarr, kind: accompaniment, sort_order: 50 }
+- { name: stråkkvartett, kind: accompaniment, sort_order: 60 }
+- { name: stråkar, kind: accompaniment, sort_order: 70 }
+- { name: mässing, kind: accompaniment, sort_order: 80 }
+- { name: blåsensemble, kind: accompaniment, sort_order: 90 }
+- { name: orkester, kind: accompaniment, sort_order: 100 }
+- { name: ensemble, kind: accompaniment, sort_order: 110 }

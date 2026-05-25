@@ -207,15 +207,49 @@
           </select>
         </div>
         <div class="col-md-4">
+          <label class="form-label">Besättning</label>
+          <div class="dropdown">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
+                    data-bs-toggle="dropdown" data-bs-auto-close="outside">
+              <span id="voicing-summary">
+                {% if matched_voicing_ids %}{{ matched_voicing_ids|length }} val{% else %}välj besättning{% endif %}
+              </span>
+            </button>
+            <ul class="dropdown-menu w-100 px-2" style="max-height: 260px; overflow-y: auto">
+              {% if extracted_voicing_raw %}
+              <li class="small text-muted px-1 mb-1">OCR-förslag: <em>{{ extracted_voicing_raw }}</em></li>
+              <li><hr class="dropdown-divider my-1"></li>
+              {% endif %}
+              {% for t in voicing_tags %}
+              <li>
+                <label class="form-check">
+                  <input class="form-check-input me-1" type="checkbox" name="voicing_tag_id" value="{{ t.id }}"
+                         {% if t.id in matched_voicing_ids %}checked{% endif %}>
+                  {{ t.name }}
+                </label>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        <div class="col-md-4">
           <label class="form-label">Ackompanjemang</label>
-          <select name="accompaniment" class="form-select">
-            <option value="">(välj)</option>
-            {% set acc = extracted.accompaniment or '' %}
-            <option value="a_cappella" {% if acc == "a_cappella" %}selected{% endif %}>A cappella</option>
-            <option value="piano" {% if acc == "piano" %}selected{% endif %}>Piano</option>
-            <option value="organ" {% if acc == "organ" %}selected{% endif %}>Orgel</option>
-            <option value="other" {% if acc == "other" %}selected{% endif %}>Annat</option>
-          </select>
+          <div class="dropdown">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
+                    data-bs-toggle="dropdown" data-bs-auto-close="outside">
+              välj ackompanjemang
+            </button>
+            <ul class="dropdown-menu w-100 px-2" style="max-height: 260px; overflow-y: auto">
+              {% for t in accompaniment_tags %}
+              <li>
+                <label class="form-check">
+                  <input class="form-check-input me-1" type="checkbox" name="accompaniment_tag_id" value="{{ t.id }}">
+                  {{ t.name }}
+                </label>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
         </div>
         <div class="col-md-4">
           <label class="form-label">Förlag</label>

@@ -36,15 +36,18 @@ from app.models import (
     Piece,
     PieceImage,
     PiecePlacement,
+    PieceTag,
     ScanSession,
     ScanSessionImage,
     StorageLocation,
     StorageUnit,
+    Tag,
     UnitKind,
     User,
 )
 from app.models.piece_image import PieceImageKind
 from app.models.scan_session import ScanStatus
+from app.models.tag import TagKind
 from app.tasks import get_pool
 from app.templates_setup import flash, render
 from app.utils.images import save_uploaded_cover
@@ -403,6 +406,27 @@ async def review_form(
 
     from app.utils.languages import all_languages
 
+    # Voicing-taggar: fördefinierad lista, plus försök matcha OCR-extraherad
+    # voicing mot dem så användaren bara behöver bekräfta innan spara
+    voicing_tags = list(
+        session.exec(
+            select(Tag).where(Tag.kind == TagKind.VOICING)
+            .order_by(Tag.sort_order, Tag.name)
+        ).all()
+    )
+    accompaniment_tags = list(
+        session.exec(
+            select(Tag).where(Tag.kind == TagKind.ACCOMPANIMENT)
+            .order_by(Tag.sort_order, Tag.name)
+        ).all()
+    )
+    extracted_voicing = (extracted.get("voicing") or "").strip()
+    matched_voicing_ids: set[int] = set()
+    if extracted_voicing:
+        for t in voicing_tags:
+            if t.name.lower() == extracted_voicing.lower():
+                matched_voicing_ids.add(t.id)
+
     return render(
         request,
         "scan/review.html",
@@ -417,6 +441,10 @@ async def review_form(
             "prefill_placement_copies": scan.pre_placement_copies,
             "people_names": all_people_names(session),
             "people_options": all_people_for_autocomplete(session),
+            "voicing_tags": voicing_tags,
+            "matched_voicing_ids": matched_voicing_ids,
+            "extracted_voicing_raw": extracted_voicing,
+            "accompaniment_tags": accompaniment_tags,
             "language_options": all_languages(),
         },
         user=user,
@@ -685,7 +713,6 @@ async def save_piece(
     arranger_sort: str | None = Form(None),
     lyricist_sort: str | None = Form(None),
     language: str | None = Form(None),
-    accompaniment: str | None = Form(None),
     publisher: str | None = Form(None),
     edition_number: str | None = Form(None),
     notes: str | None = Form(None),
@@ -693,6 +720,8 @@ async def save_piece(
     placement_unit_id: str | None = Form(None),
     placement_copies: str | None = Form(None),
     next_in_queue: str | None = Form(None),
+    voicing_tag_id: list[int] = Form(default=[]),
+    accompaniment_tag_id: list[int] = Form(default=[]),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -704,7 +733,6 @@ async def save_piece(
         title=title,
         original_title=original_title or None,
         language=language or None,
-        accompaniment=accompaniment or None,
         publisher=publisher or None,
         edition_number=edition_number or None,
         notes=notes or None,
@@ -770,6 +798,16 @@ async def save_piece(
                     copies=copies,
                 )
             )
+
+    # Voicing- och ackompanjemangstaggar valda i review (kan vara flera)
+    for tag_id in voicing_tag_id:
+        tag = session.get(Tag, tag_id)
+        if tag and tag.kind == TagKind.VOICING:
+            session.add(PieceTag(piece_id=piece.id, tag_id=tag.id))
+    for tag_id in accompaniment_tag_id:
+        tag = session.get(Tag, tag_id)
+        if tag and tag.kind == TagKind.ACCOMPANIMENT:
+            session.add(PieceTag(piece_id=piece.id, tag_id=tag.id))
 
     scan.resulting_piece_id = piece.id
     session.add(scan)
