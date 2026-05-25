@@ -48,6 +48,7 @@ from app.services.people import (
     parse_sort_field,
     replace_contributors,
 )
+from app import templates_setup
 from app.templates_setup import flash, render
 from app.utils.images import (
     delete_saved_image,
@@ -326,6 +327,93 @@ async def print_list(
             "active_language": language or "",
         },
         user=user,
+    )
+
+
+@router.get("/print.pdf")
+async def print_pdf(
+    request: Request,
+    q: str | None = None,
+    tag: list[str] | None = Query(default=None),
+    voicing: list[str] | None = Query(default=None),
+    language: list[str] | None = Query(default=None),
+    unit: int | None = None,
+    include_subunits: bool = False,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Renderar samma filtrerade lista som /pieces/print men som PDF
+    via WeasyPrint - lämplig att skicka som körpärm eller spara som fil."""
+    from datetime import datetime
+
+    from weasyprint import HTML
+
+    if q:
+        from sqlalchemy import text
+
+        fts_rows = session.exec(
+            text(
+                "SELECT id FROM pieces_fts JOIN pieces ON pieces.id = pieces_fts.rowid "
+                "WHERE pieces_fts MATCH :q ORDER BY rank LIMIT 1000"
+            ),
+            params={"q": q + "*"},
+        ).all()
+        candidate_ids = [r[0] for r in fts_rows]
+        stmt = select(Piece).where(Piece.id.in_(candidate_ids)) if candidate_ids else None
+    else:
+        stmt = select(Piece).order_by(Piece.title)
+
+    if stmt is None:
+        pieces = []
+    else:
+        stmt = _apply_filters(stmt, session, tag, voicing, language, unit, include_subunits)
+        pieces = list(session.exec(stmt.limit(2000)).all())
+
+    placement_views: dict[int, list[str]] = {}
+    if pieces:
+        placements = session.exec(
+            select(PiecePlacement).where(PiecePlacement.piece_id.in_([p.id for p in pieces]))
+        ).all()
+        units = {u.id: u for u in session.exec(select(StorageUnit)).all()}
+        locations = {loc.id: loc for loc in session.exec(select(StorageLocation)).all()}
+        for pl in placements:
+            unit_obj = units.get(pl.storage_unit_id)
+            if not unit_obj:
+                continue
+            parts = [unit_obj.name]
+            cur = unit_obj
+            while cur.parent_id:
+                cur = units.get(cur.parent_id)
+                if not cur:
+                    break
+                parts.append(cur.name)
+            loc = locations.get(unit_obj.location_id)
+            if loc:
+                parts.append(loc.name)
+            path = " › ".join(reversed(parts))
+            copies = f" ({pl.copies} ex)" if pl.copies else ""
+            placement_views.setdefault(pl.piece_id, []).append(path + copies)
+
+    voicings_by_piece = _voicings_by_piece(session, [p.id for p in pieces])
+
+    html_str = templates_setup.templates.get_template("pieces/pdf.html").render(
+        request=request,
+        pieces=pieces,
+        placements_by_piece=placement_views,
+        voicings_by_piece=voicings_by_piece,
+        language_name_sv=templates_setup.templates.env.globals["language_name_sv"],
+        generated_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
+        q=q or "",
+        active_tags=tag or [],
+        active_voicings=voicing or [],
+        active_languages=language or [],
+    )
+    pdf_bytes = HTML(string=html_str).write_pdf()
+    filename = f"notarkiv-{datetime.now().strftime('%Y-%m-%d')}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
     )
 
 

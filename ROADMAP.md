@@ -155,8 +155,11 @@ granska -> spara -> hitta igen.
       auto-sammanfogning. Kvar: split av placering ("5 ex stannar här,
       10 ex flyttas dit"), bulk-flytt av allt från en enhet, audit-spår
       med PlacementEvent-tabell.
-- [ ] **PDF-katalog**: exportera hela eller filtrerad lista som PDF
-      för utskrift (körpärm, allmän översikt)
+- [x] **PDF-katalog**: /pieces/print.pdf-endpoint som genererar PDF
+      via WeasyPrint. Samma filter-params som /pieces (sök, taggar,
+      voicing, språk, plats). Tabell-layout med titel/komp/besättning/
+      språk/förlag/placering. Sidnummer i sidfot via @page CSS.
+      "PDF"-knapp i /pieces toppen bredvid "Skriv ut".
 - [x] **QR-kod på storage_units**: utskrivbara etiketter, varje QR
       pekar på enhetens detaljvy. Webbläsarens kamera räcker.
 - [x] **Foton på storage_units**: StorageUnitImage-tabell (samma mönster

@@ -13,6 +13,7 @@
       <a href="/pieces?view=tree" class="btn btn-outline-secondary {% if view == 'tree' %}active{% endif %}">Träd</a>
     </div>
     <a href="{{ request.url.replace(path='/pieces/print') }}" class="btn btn-sm btn-outline-secondary">Skriv ut</a>
+    <a href="{{ request.url.replace(path='/pieces/print.pdf') }}" target="_blank" class="btn btn-sm btn-outline-secondary">PDF</a>
     {% if user.can_edit %}
     <div class="btn-group btn-group-sm">
       <a href="/scan" class="btn btn-primary">Skanna ny</a>

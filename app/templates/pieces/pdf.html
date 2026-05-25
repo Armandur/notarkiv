@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<title>Notkatalog</title>
+<style>
+@page {
+  size: A4;
+  margin: 1.5cm 1.2cm 1.5cm 1.2cm;
+  @bottom-right {
+    content: "Sida " counter(page) " av " counter(pages);
+    font-size: 9pt;
+    color: #666;
+  }
+  @bottom-left {
+    content: "{{ generated_at }}";
+    font-size: 9pt;
+    color: #666;
+  }
+}
+body { font-family: "Helvetica", "Arial", sans-serif; font-size: 9.5pt; color: #222; }
+h1 { font-size: 16pt; margin: 0 0 0.2em 0; }
+.meta { color: #666; font-size: 9pt; margin-bottom: 1em; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 4px 6px; border-bottom: 1px solid #ddd; text-align: left; vertical-align: top; }
+th { background: #eaeaea; font-weight: bold; }
+.title { font-weight: bold; }
+.original-title { color: #777; font-size: 8.5pt; }
+.small { font-size: 8.5pt; }
+tr { page-break-inside: avoid; }
+thead { display: table-header-group; }
+</style>
+</head>
+<body>
+<h1>Notkatalog</h1>
+<div class="meta">
+  Utskriven {{ generated_at }} · {{ pieces|length }}
+  {% if pieces|length == 1 %}not{% else %}noter{% endif %}
+  {% if q %} · sökning "{{ q }}"{% endif %}
+  {% if active_tags %} · taggar: {% for t in active_tags %}{{ t }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
+  {% if active_voicings %} · besättning: {{ active_voicings|join(', ') }}{% endif %}
+  {% if active_languages %} · språk: {{ active_languages|join(', ') }}{% endif %}
+</div>
+
+{% if not pieces %}
+<p><em>Inga noter med valda filter.</em></p>
+{% else %}
+<table>
+  <thead>
+    <tr>
+      <th style="width: 28%">Titel</th>
+      <th style="width: 22%">Kompositör/arr.</th>
+      <th style="width: 10%">Besättning</th>
+      <th style="width: 8%">Språk</th>
+      <th style="width: 14%">Förlag</th>
+      <th style="width: 18%">Placering</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in pieces %}
+    <tr>
+      <td>
+        <div class="title">{{ p.title }}</div>
+        {% if p.original_title %}<div class="original-title">{{ p.original_title }}</div>{% endif %}
+      </td>
+      <td class="small">{{ p.contributors_cache or '' }}</td>
+      <td class="small">{{ voicings_by_piece.get(p.id, [])|join(', ') }}</td>
+      <td class="small">{{ language_name_sv(p.language) if p.language else '' }}</td>
+      <td class="small">{{ p.publisher or '' }}{% if p.edition_number %} / {{ p.edition_number }}{% endif %}</td>
+      <td class="small">
+        {% for path in placements_by_piece.get(p.id, []) %}
+        <div>{{ path }}</div>
+        {% endfor %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+</body>
+</html>
