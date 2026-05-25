@@ -8,6 +8,8 @@
   <link href="/static/css/custom.css" rel="stylesheet">
   <script src="/static/js/htmx.min.js" defer></script>
   <script src="/static/js/sort_name.js" defer></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js" defer></script>
 </head>
 <body class="d-flex flex-column min-vh-100">
 
@@ -209,6 +211,29 @@ document.addEventListener('keydown', function(evt) {
   if (!document.getElementById('lightboxModal').classList.contains('show')) return;
   if (evt.key === 'ArrowLeft') document.getElementById('lightboxPrev').click();
   if (evt.key === 'ArrowRight') document.getElementById('lightboxNext').click();
+});
+
+// Initiera EasyMDE-editor på alla textareas med klassen 'markdown-editor'.
+// Kör efter DOMContentLoaded eftersom easymde.min.js laddas defer.
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof EasyMDE === 'undefined') return;
+  document.querySelectorAll('textarea.markdown-editor').forEach(function(el) {
+    var mde = new EasyMDE({
+      element: el,
+      autoDownloadFontAwesome: true,
+      spellChecker: false,
+      status: false,
+      minHeight: '120px',
+      toolbar: [
+        'bold', 'italic', 'heading', '|',
+        'unordered-list', 'ordered-list', '|',
+        'link', 'quote', '|',
+        'preview', 'guide',
+      ],
+    });
+    // Spara referens så annan JS (t.ex. mb-apply-pillar) kan uppdatera värdet
+    el._easymde = mde;
+  });
 });
 </script>
 </body>

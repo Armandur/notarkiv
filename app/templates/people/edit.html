@@ -115,8 +115,7 @@
         </div>
         <div class="col-12">
           <label class="form-label">Biografi</label>
-          <textarea name="biography" id="biography" class="form-control" rows="8">{{ person.biography or '' }}</textarea>
-          <div class="form-text">Markdown stöds: <code>**fet**</code>, <code>*kursiv*</code>, <code>## Rubrik</code>, listor osv.</div>
+          <textarea name="biography" id="biography" class="form-control markdown-editor" rows="8">{{ person.biography or '' }}</textarea>
           {% if person.biography_source_url %}
           <div class="form-text">
             Importerad från <a href="{{ person.biography_source_url }}" target="_blank">{{ person.biography_source_url }}</a>
@@ -309,7 +308,16 @@ document.addEventListener('click', (e) => {
   const inp = e.target.closest('.mb-apply');
   if (inp) {
     const el = document.getElementById(inp.dataset.target);
-    if (el) { el.value = inp.dataset.value; el.dispatchEvent(new Event('input', {bubbles: true})); }
+    if (el) {
+      // Om elementet har EasyMDE-instans, uppdatera via dess API så att
+      // editorn renderar om sig själv. Annars sätt textarea-värdet direkt.
+      if (el._easymde) {
+        el._easymde.value(inp.dataset.value);
+      } else {
+        el.value = inp.dataset.value;
+        el.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+    }
     inp.classList.add('btn-success');
     inp.classList.remove('btn-outline-primary');
     // Markera att MB-bio applicerades så update_person kan tidsstämpla
