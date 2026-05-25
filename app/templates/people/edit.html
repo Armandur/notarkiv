@@ -86,7 +86,7 @@
         </div>
         <div class="col-12">
           <label class="form-label">Biografi</label>
-          <textarea name="biography" class="form-control" rows="5">{{ person.biography or '' }}</textarea>
+          <textarea name="biography" id="biography" class="form-control" rows="8">{{ person.biography or '' }}</textarea>
           {% if person.biography_source_url %}
           <div class="form-text">
             Importerad från <a href="{{ person.biography_source_url }}" target="_blank">{{ person.biography_source_url }}</a>
@@ -189,15 +189,17 @@
   <div class="card-header"><h2 class="h6 mb-0">Övriga MB/Wikipedia-förslag</h2></div>
   <div class="card-body">
     {% if mb_preview.biography and mb_preview.biography != (person.biography or '') %}
-    <details class="mb-2">
-      <summary>
+    <details class="mb-3" open>
+      <summary class="mb-2">
         <strong>Biografi från Wikipedia</strong>
         <button type="button" class="btn btn-sm btn-outline-primary ms-2 mb-apply"
                 data-target="biography" data-value="{{ mb_preview.biography }}">
           Applicera biografi
         </button>
       </summary>
-      <div style="white-space: pre-wrap" class="small text-muted mt-2 border-start ps-2">{{ mb_preview.biography }}</div>
+      <div class="small text-muted mt-2 border-start ps-3">
+        {% for para in mb_preview.biography.split('\n\n') if para.strip() %}<p class="mb-2">{{ para }}</p>{% endfor %}
+      </div>
     </details>
     {% endif %}
     {% if mb_preview.image_page_url %}
