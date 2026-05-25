@@ -40,6 +40,9 @@
              class="text-decoration-none">
             <span class="badge bg-{{ color }}">{{ item.tag.name }}</span>
           </a>
+          {% if item.tag.description %}
+          <div class="small text-muted mt-1">{{ item.tag.description }}</div>
+          {% endif %}
         </td>
         <td class="text-end">{{ item.count }}</td>
         <td class="text-end">
@@ -80,6 +83,11 @@
             {% endfor %}
           </select>
         </div>
+        <div class="col-12">
+          <label class="form-label">Beskrivning (valfri)</label>
+          <textarea name="description" class="form-control" rows="2"
+                    placeholder="T.ex. 'Veckan från Palmsöndag till Påskafton'"></textarea>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
@@ -111,6 +119,10 @@
             <option value="{{ k }}" {% if item.tag.kind == k %}selected{% endif %}>{{ kind_labels.get(k, k) }}</option>
             {% endfor %}
           </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Beskrivning (valfri)</label>
+          <textarea name="description" class="form-control" rows="2">{{ item.tag.description or '' }}</textarea>
         </div>
       </div>
       <div class="modal-footer">

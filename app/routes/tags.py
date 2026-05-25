@@ -45,6 +45,7 @@ async def create_tag(
     request: Request,
     name: str = Form(...),
     kind: str = Form("free"),
+    description: str | None = Form(None),
     user: User = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -59,7 +60,13 @@ async def create_tag(
         kind_enum = TagKind(kind)
     except ValueError:
         kind_enum = TagKind.FREE
-    session.add(Tag(name=name, kind=kind_enum))
+    session.add(
+        Tag(
+            name=name,
+            kind=kind_enum,
+            description=(description or "").strip() or None,
+        )
+    )
     session.commit()
     flash(request, f"Skapade '{name}'", "success")
     return RedirectResponse("/tags", status.HTTP_302_FOUND)
@@ -71,6 +78,7 @@ async def update_tag(
     tag_id: int,
     name: str = Form(...),
     kind: str = Form("free"),
+    description: str | None = Form(None),
     user: User = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -94,6 +102,7 @@ async def update_tag(
         kind_enum = TagKind.FREE
     tag.name = new_name
     tag.kind = kind_enum
+    tag.description = (description or "").strip() or None
     session.add(tag)
     session.commit()
     flash(request, f"Uppdaterade '{tag.name}'", "success")

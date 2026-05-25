@@ -18,6 +18,7 @@ class Tag(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(unique=True)
     kind: TagKind = Field(default=TagKind.FREE, sa_type=String)
+    description: str | None = None
     sort_order: int = Field(default=0)
 
 

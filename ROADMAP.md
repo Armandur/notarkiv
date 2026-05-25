@@ -191,11 +191,10 @@ granska -> spara -> hitta igen.
       templates för konsekvens - t.ex. ska reader kunna se /tags men
       inte modifiera, ska editor kunna radera pieces eller bara admin,
       etc. Inkludera även mobilflöden (snabbskanning vs granskning).
-- [ ] **Anteckning per tagg**: utöka Tag-modellen med ett `description`-
-      fält och visa det på /tags-listan + i tag-search-autocompleten.
-      Användbart för att förklara taggens innebörd ("Stilla veckan =
-      veckan från Palmsöndag till Påskafton") så det inte uppstår
-      olika tolkningar mellan användare.
+- [x] **Anteckning per tagg**: Tag.description-fält. Visas under
+      tagg-namnet på /tags-listan och som tooltip + extra rad i
+      tag-search-autocompleten. Hjälper användarna förstå taggens
+      innebörd.
 - [ ] **Nästlade/hierarkiska taggar med alias**: lägg `parent_id` på Tag
       så taggar kan grupperas i träd, t.ex. "Kyrkliga handlingar >
       Begravning/Dop/Vigsel/Konfirmation". Visa hierarki i /tags-vyn

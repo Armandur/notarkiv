@@ -9,7 +9,7 @@
     <button type="button"
             class="badge bg-{{ color }} border-0 d-flex align-items-center gap-1"
             style="cursor: pointer"
-            title="Klicka för att ta bort"
+            title="{% if t.description %}{{ t.description }} - klicka för att ta bort{% else %}Klicka för att ta bort{% endif %}"
             hx-post="/pieces/{{ piece.id }}/tags/{{ t.id }}/toggle"
             hx-include="#tag-area-csrf"
             hx-target="#tag-area"

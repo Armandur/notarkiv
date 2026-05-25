@@ -5,10 +5,12 @@
         hx-post="/pieces/{{ piece_id }}/tags/{{ t.id }}/toggle"
         hx-include="#tag-area-csrf"
         hx-target="#tag-area"
-        hx-swap="outerHTML">
+        hx-swap="outerHTML"
+        {% if t.description %}title="{{ t.description }}"{% endif %}>
   <span>
     <span class="badge bg-{{ color }} me-1">{{ t.kind }}</span>
     {{ t.name }}
+    {% if t.description %}<div class="small text-muted">{{ t.description }}</div>{% endif %}
   </span>
   {% if t.id in active_ids %}
   <span class="text-danger small">aktiv - klicka för att ta bort</span>
