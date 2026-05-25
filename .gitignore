@@ -43,3 +43,7 @@ dev.log
 # Tmp
 tmp/
 .cache/
+
+# Sync till vmworkspace
+sync_vmworkspace.sh
+sync.log

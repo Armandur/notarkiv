@@ -9,22 +9,51 @@
     <div class="col-md-4">
       <input type="search" name="q" class="form-control" placeholder="Sök på namn..." value="{{ q }}">
     </div>
+
+    {# Roll: multi-select via checkboxar i dropdown. Skickas som upprepad ?role=... #}
     <div class="col-md-3">
-      <select name="role" class="form-select">
-        <option value="">Alla roller</option>
-        {% for r in roles %}
-        <option value="{{ r }}" {% if r == active_role %}selected{% endif %}>{{ r }}</option>
-        {% endfor %}
-      </select>
+      <div class="dropdown">
+        <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
+                data-bs-toggle="dropdown" data-bs-auto-close="outside">
+          Roll: {% if active_roles %}{{ active_roles|length }} valda{% else %}alla{% endif %}
+        </button>
+        <ul class="dropdown-menu w-100 px-3">
+          {% for r in roles %}
+          <li>
+            <label class="form-check">
+              <input class="form-check-input me-1" type="checkbox" name="role" value="{{ r }}"
+                     {% if r in active_roles %}checked{% endif %}>
+              {{ r }}
+            </label>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
     </div>
+
     <div class="col-md-3">
-      <select name="country" class="form-select">
-        <option value="">Alla länder</option>
-        {% for c in country_options %}
-        <option value="{{ c.code }}" {% if c.code == active_country %}selected{% endif %}>{{ c.label }}</option>
-        {% endfor %}
-      </select>
+      <div class="dropdown">
+        <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
+                data-bs-toggle="dropdown" data-bs-auto-close="outside">
+          Land: {% if active_countries %}{{ active_countries|length }} valda{% else %}alla{% endif %}
+        </button>
+        <ul class="dropdown-menu w-100 px-3" style="max-height: 300px; overflow-y: auto">
+          {% if not country_options %}
+          <li class="text-muted small fst-italic">Inga länder registrerade än</li>
+          {% endif %}
+          {% for c in country_options %}
+          <li>
+            <label class="form-check">
+              <input class="form-check-input me-1" type="checkbox" name="country" value="{{ c.code }}"
+                     {% if c.code in active_countries %}checked{% endif %}>
+              {{ c.label }}
+            </label>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
     </div>
+
     <div class="col-md-2">
       <select name="has_mbid" class="form-select">
         <option value="">MBID: alla</option>
@@ -35,7 +64,7 @@
   </div>
   <div class="d-flex gap-2 mt-2">
     <button class="btn btn-sm btn-outline-secondary" type="submit">Filtrera</button>
-    {% if q or active_role or active_country or active_has_mbid %}
+    {% if q or active_roles or active_countries or active_has_mbid %}
     <a href="/people" class="btn btn-sm btn-outline-secondary">Rensa</a>
     {% endif %}
   </div>
@@ -43,7 +72,7 @@
 
 {% if not people %}
 <p class="text-muted fst-italic">
-  {% if q or active_role or active_country or active_has_mbid %}Inga träffar med filtren.{% else %}Inga personer registrerade än - de skapas när du sparar noter med kompositör/arrangör/textförfattare.{% endif %}
+  {% if q or active_roles or active_countries or active_has_mbid %}Inga träffar med filtren.{% else %}Inga personer registrerade än - de skapas när du sparar noter med kompositör/arrangör/textförfattare.{% endif %}
 </p>
 {% else %}
 <div class="list-group">
@@ -51,7 +80,6 @@
   <a href="/people/{{ p.id }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
     <div>
       <strong>{{ p.sort_name }}</strong>
-      {% if p.name != p.sort_name %}<span class="text-muted">({{ p.name }})</span>{% endif %}
       {% if p.birth_year or p.death_year %}
       <span class="text-muted small">
         ({{ p.birth_year or '?' }}{% if p.death_year %} - {{ p.death_year }}{% endif %})

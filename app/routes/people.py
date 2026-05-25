@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import RedirectResponse, Response
 from sqlmodel import Session, func, select
 
@@ -38,8 +38,8 @@ router = APIRouter(prefix="/people", tags=["people"])
 async def list_people(
     request: Request,
     q: str | None = None,
-    role: str | None = None,
-    country: str | None = None,
+    role: list[str] | None = Query(default=None),
+    country: list[str] | None = Query(default=None),
     has_mbid: str | None = None,
     user: User = Depends(require_auth),
     session: Session = Depends(get_session),
@@ -51,23 +51,27 @@ async def list_people(
         like = f"%{q}%"
         stmt = stmt.where(Person.sort_name.ilike(like) | Person.name.ilike(like))
     if country:
-        stmt = stmt.where(Person.country == country.upper())
+        upper_countries = [c.upper() for c in country if c]
+        if upper_countries:
+            stmt = stmt.where(Person.country.in_(upper_countries))
     if has_mbid == "yes":
         stmt = stmt.where(Person.musicbrainz_artist_id.is_not(None))
     elif has_mbid == "no":
         stmt = stmt.where(Person.musicbrainz_artist_id.is_(None))
     if role:
-        ids_with_role = list(
-            session.exec(
-                select(PieceContributor.person_id)
-                .where(PieceContributor.role == role)
-                .distinct()
-            ).all()
-        )
-        if ids_with_role:
-            stmt = stmt.where(Person.id.in_(ids_with_role))
-        else:
-            stmt = stmt.where(Person.id == -1)
+        valid_roles = [r for r in role if r]
+        if valid_roles:
+            ids_with_role = list(
+                session.exec(
+                    select(PieceContributor.person_id)
+                    .where(PieceContributor.role.in_(valid_roles))
+                    .distinct()
+                ).all()
+            )
+            if ids_with_role:
+                stmt = stmt.where(Person.id.in_(ids_with_role))
+            else:
+                stmt = stmt.where(Person.id == -1)
 
     people = session.exec(stmt).all()
 
@@ -97,8 +101,8 @@ async def list_people(
             "people": people,
             "counts": counts,
             "q": q or "",
-            "active_role": role or "",
-            "active_country": country or "",
+            "active_roles": set(role or []),
+            "active_countries": set(country or []),
             "active_has_mbid": has_mbid or "",
             "country_options": country_options,
             "country_display": country_display,
