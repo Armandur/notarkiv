@@ -23,6 +23,7 @@ from app.services.musicbrainz import (
 from app.services.people import (
     all_people_for_autocomplete,
     all_people_names,
+    collect_contributors,
     derive_sort_name,
     enrich_person_from_mb,
     find_or_create_person,
@@ -427,21 +428,59 @@ async def review_form(
             if t.name.lower() == extracted_voicing.lower():
                 matched_voicing_ids.add(t.id)
 
-    # Ackompanjemang: matcha mot tag-namn case-insensitive. Stödjer också
-    # gamla enum-värden från tidigare Claude-promptar.
-    _ACC_ALIAS = {
-        "a_cappella": "a cappella",
-        "organ": "orgel",
-        "other": "",
-    }
-    extracted_acc = (extracted.get("accompaniment") or "").strip().lower()
-    extracted_acc = _ACC_ALIAS.get(extracted_acc, extracted_acc)
-    extracted_accompaniment_raw = extracted.get("accompaniment") or ""
+    # Ackompanjemang: case-insensitive matchning mot tag-namn
+    extracted_accompaniment_raw = (extracted.get("accompaniment") or "").strip()
     matched_accompaniment_ids: set[int] = set()
-    if extracted_acc:
+    if extracted_accompaniment_raw:
+        target = extracted_accompaniment_raw.lower()
         for t in accompaniment_tags:
-            if t.name.lower() == extracted_acc:
+            if t.name.lower() == target:
                 matched_accompaniment_ids.add(t.id)
+
+    # Re-OCR-läge: bygg "existing"-dict från målpiecen så formuläret kan
+    # förifyllas med befintliga värden och OCR-extraherade värden visas
+    # som applicerbara pillar per fält.
+    existing = None
+    if scan.target_piece_id:
+        from app.models import ContributorRole, PieceContributor, Tag as _Tag
+
+        target_piece = session.get(Piece, scan.target_piece_id)
+        if target_piece:
+            contribs = collect_contributors(session, target_piece.id)
+            existing = {
+                "piece": target_piece,
+                "title": target_piece.title or "",
+                "original_title": target_piece.original_title or "",
+                "composer": "; ".join(p.name for p in contribs.get(ContributorRole.COMPOSER, [])),
+                "arranger": "; ".join(p.name for p in contribs.get(ContributorRole.ARRANGER, [])),
+                "lyricist": "; ".join(p.name for p in contribs.get(ContributorRole.LYRICIST, [])),
+                "composer_sort": "; ".join(p.sort_name or "" for p in contribs.get(ContributorRole.COMPOSER, [])),
+                "arranger_sort": "; ".join(p.sort_name or "" for p in contribs.get(ContributorRole.ARRANGER, [])),
+                "lyricist_sort": "; ".join(p.sort_name or "" for p in contribs.get(ContributorRole.LYRICIST, [])),
+                "language": target_piece.language or "",
+                "publisher": target_piece.publisher or "",
+                "edition_number": target_piece.edition_number or "",
+                "notes": target_piece.notes or "",
+                "musicbrainz_work_id": target_piece.musicbrainz_work_id or "",
+            }
+            # Förbocka piecens befintliga voicing/accompaniment-tags istället
+            # för OCR-match
+            matched_voicing_ids = set(
+                session.exec(
+                    select(PieceTag.tag_id)
+                    .join(_Tag, _Tag.id == PieceTag.tag_id)
+                    .where(PieceTag.piece_id == target_piece.id)
+                    .where(_Tag.kind == TagKind.VOICING)
+                ).all()
+            )
+            matched_accompaniment_ids = set(
+                session.exec(
+                    select(PieceTag.tag_id)
+                    .join(_Tag, _Tag.id == PieceTag.tag_id)
+                    .where(PieceTag.piece_id == target_piece.id)
+                    .where(_Tag.kind == TagKind.ACCOMPANIMENT)
+                ).all()
+            )
 
     return render(
         request,
@@ -449,6 +488,7 @@ async def review_form(
         {
             "scan": scan,
             "extracted": extracted,
+            "existing": existing,
             "suggestions": suggestions,
             "person_sections": person_sections,
             "unit_options": tree,
@@ -747,19 +787,36 @@ async def save_piece(
     if not scan:
         raise HTTPException(404)
 
-    piece = Piece(
-        title=title,
-        original_title=original_title or None,
-        language=language or None,
-        publisher=publisher or None,
-        edition_number=edition_number or None,
-        notes=notes or None,
-        musicbrainz_work_id=musicbrainz_work_id or None,
-        created_by=user.id,
-        updated_at=datetime.utcnow(),
-    )
-    session.add(piece)
-    session.flush()
+    # Re-OCR-läge: uppdatera målpiecen istället för att skapa ny
+    is_update = scan.target_piece_id is not None
+    if is_update:
+        piece = session.get(Piece, scan.target_piece_id)
+        if not piece:
+            flash(request, "Målpiecen för omkörning finns inte längre", "danger")
+            return RedirectResponse("/scan/queue", status.HTTP_302_FOUND)
+        piece.title = title
+        piece.original_title = original_title or None
+        piece.language = language or None
+        piece.publisher = publisher or None
+        piece.edition_number = edition_number or None
+        piece.notes = notes or None
+        piece.musicbrainz_work_id = musicbrainz_work_id or None
+        piece.updated_at = datetime.utcnow()
+        session.add(piece)
+    else:
+        piece = Piece(
+            title=title,
+            original_title=original_title or None,
+            language=language or None,
+            publisher=publisher or None,
+            edition_number=edition_number or None,
+            notes=notes or None,
+            musicbrainz_work_id=musicbrainz_work_id or None,
+            created_by=user.id,
+            updated_at=datetime.utcnow(),
+        )
+        session.add(piece)
+        session.flush()
 
     # Skapa/återanvänd Person-poster och länka via PieceContributor
     cache = replace_contributors(
@@ -775,47 +832,48 @@ async def save_piece(
     piece.contributors_cache = cache or None
     session.add(piece)
 
-    # Skapa primärbilden från skanningens huvudbild
-    session.add(
-        PieceImage(
-            piece_id=piece.id,
-            image_path=scan.image_path,
-            kind=PieceImageKind.COVER,
-            sort_order=0,
-        )
-    )
-
-    # Överför ev. extra bilder från ScanSessionImage till PieceImage
-    extras = session.exec(
-        select(ScanSessionImage)
-        .where(ScanSessionImage.scan_session_id == scan_id)
-        .order_by(ScanSessionImage.sort_order)
-    ).all()
-    for i, extra in enumerate(extras, start=1):
+    if not is_update:
+        # Skapa primärbilden från skanningens huvudbild
         session.add(
             PieceImage(
                 piece_id=piece.id,
-                image_path=extra.image_path,
-                kind=PieceImageKind.OTHER,
-                sort_order=i,
+                image_path=scan.image_path,
+                kind=PieceImageKind.COVER,
+                sort_order=0,
             )
         )
 
-    if placement_unit_id and placement_unit_id.isdigit():
-        unit = session.get(StorageUnit, int(placement_unit_id))
-        if unit:
-            copies = (
-                int(placement_copies)
-                if placement_copies and placement_copies.isdigit()
-                else None
-            )
+        # Överför ev. extra bilder från ScanSessionImage till PieceImage
+        extras = session.exec(
+            select(ScanSessionImage)
+            .where(ScanSessionImage.scan_session_id == scan_id)
+            .order_by(ScanSessionImage.sort_order)
+        ).all()
+        for i, extra in enumerate(extras, start=1):
             session.add(
-                PiecePlacement(
+                PieceImage(
                     piece_id=piece.id,
-                    storage_unit_id=unit.id,
-                    copies=copies,
+                    image_path=extra.image_path,
+                    kind=PieceImageKind.OTHER,
+                    sort_order=i,
                 )
             )
+
+        if placement_unit_id and placement_unit_id.isdigit():
+            unit = session.get(StorageUnit, int(placement_unit_id))
+            if unit:
+                copies = (
+                    int(placement_copies)
+                    if placement_copies and placement_copies.isdigit()
+                    else None
+                )
+                session.add(
+                    PiecePlacement(
+                        piece_id=piece.id,
+                        storage_unit_id=unit.id,
+                        copies=copies,
+                    )
+                )
 
     # Voicing- och ackompanjemangstaggar valda i review (kan vara flera)
     for tag_id in voicing_tag_id:

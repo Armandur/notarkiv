@@ -31,6 +31,9 @@ class ScanSession(SQLModel, table=True):
         default=None, foreign_key="inventory_sessions.id"
     )
     resulting_piece_id: int | None = Field(default=None, foreign_key="pieces.id")
+    # Om satt: denna scan är en omkörning av en befintlig piece. Spara
+    # uppdaterar målpiecen istället för att skapa en ny.
+    target_piece_id: int | None = Field(default=None, foreign_key="pieces.id")
     discarded: bool = Field(default=False)
     discarded_at: datetime | None = None
     discard_reason: str | None = None

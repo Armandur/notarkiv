@@ -19,6 +19,7 @@ from app.models import (
     PsalmBook,
     PsalmEntry,
     ScanSession,
+    ScanSessionImage,
     StorageLocation,
     StorageUnit,
     Tag,
@@ -831,6 +832,63 @@ async def edit_piece_save(
 
     flash(request, "Sparat", "success")
     return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+
+@router.post("/{piece_id}/re-ocr", dependencies=[Depends(verify_csrf)])
+async def re_ocr_piece(
+    request: Request,
+    piece_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Skapa en ny ScanSession från piecens primärbild och kö:a OCR-jobb.
+    Användare granskar resultatet via /scan/queue → /scan/{id}/review.
+    Original-piecen påverkas inte förrän användaren sparar granskningen."""
+    from app.config import settings as cfg
+    from app.models.scan_session import ScanStatus
+    from app.services.app_settings import get_ocr_provider
+    from app.tasks import get_pool
+
+    piece = session.get(Piece, piece_id)
+    if not piece:
+        raise HTTPException(404)
+
+    primary = session.exec(
+        select(PieceImage)
+        .where(PieceImage.piece_id == piece_id)
+        .order_by(PieceImage.sort_order, PieceImage.id)
+    ).first()
+    if not primary:
+        flash(request, "Ingen bild kopplad till noten - kan inte köra OCR", "danger")
+        return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+    scan = ScanSession(
+        image_path=primary.image_path,
+        status=ScanStatus.PENDING,
+        ocr_provider=get_ocr_provider(),
+        user_id=user.id,
+        target_piece_id=piece_id,
+    )
+    session.add(scan)
+    session.commit()
+    session.refresh(scan)
+
+    try:
+        pool = await get_pool()
+        await pool.enqueue_job("extract_metadata_job", scan.id)
+    except Exception as exc:
+        from loguru import logger as _log
+
+        _log.warning("Kunde inte kö:a re-OCR-jobb: {}", exc)
+        flash(request, f"Kunde inte starta jobbet: {exc}", "danger")
+        return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+    flash(
+        request,
+        f"OCR körs i bakgrunden. När den är klar dyker den upp i granskningskön (#{scan.id}).",
+        "success",
+    )
+    return RedirectResponse(f"/scan/{scan.id}", status.HTTP_302_FOUND)
 
 
 @router.post("/{piece_id}/delete", dependencies=[Depends(verify_csrf)])

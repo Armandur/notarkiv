@@ -4,7 +4,16 @@
 {% block content %}
 <h1 class="h3 mb-4">Granska och spara</h1>
 
-{% if duplicates %}
+{% if existing %}
+<div class="alert alert-info">
+  <strong>Omkörning av OCR.</strong> Du uppdaterar
+  <a href="/pieces/{{ existing.piece.id }}" target="_blank" class="alert-link">#{{ existing.piece.id }} {{ existing.title }}</a>.
+  Fälten är förifyllda med nuvarande värden. Klicka <em>OCR: X</em>-pillen under ett fält
+  för att applicera det nya OCR-värdet. Spara uppdaterar noten - ingen ny rad skapas.
+</div>
+{% endif %}
+
+{% if duplicates and not existing %}
 <div class="alert alert-warning">
   <div class="d-flex align-items-baseline justify-content-between">
     <strong>Möjlig dublett: liknande not finns redan i katalogen</strong>
@@ -173,38 +182,72 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="musicbrainz_work_id" id="musicbrainz_work_id" value="">
 
+      {# Helper-makro för OCR-förslags-pill (visas bara i re-OCR-läge när
+         existing-värdet skiljer sig från extracted) #}
+      {% macro ocr_pill(input_id, ocr_value, existing_value) %}
+        {% if existing and ocr_value and ocr_value != existing_value %}
+        <button type="button" class="btn btn-sm btn-outline-primary mt-1 py-0 px-2"
+                onclick="applyOcr('{{ input_id }}', {{ ocr_value|tojson }})">
+          OCR: {{ ocr_value }}
+        </button>
+        {% endif %}
+      {% endmacro %}
+
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label">Titel *</label>
-          <input type="text" name="title" id="title" class="form-control" required value="{{ extracted.title or '' }}">
+          <input type="text" name="title" id="title" class="form-control" required
+                 value="{{ (existing.title if existing else extracted.title) or '' }}">
+          {{ ocr_pill('title', extracted.title, existing.title if existing else '') }}
         </div>
         <div class="col-md-6">
           <label class="form-label">Originaltitel</label>
-          <input type="text" name="original_title" class="form-control" value="{{ extracted.original_title or '' }}">
+          <input type="text" name="original_title" id="original_title" class="form-control"
+                 value="{{ (existing.original_title if existing else extracted.original_title) or '' }}">
+          {{ ocr_pill('original_title', extracted.original_title, existing.original_title if existing else '') }}
         </div>
         <div class="col-md-6">
           <label class="form-label">Kompositör</label>
-          <input type="text" name="composer" id="composer" class="form-control sort-name-source" data-sort-target="composer_sort" value="{{ extracted.composer or '' }}" list="people-options">
-          <input type="text" name="composer_sort" id="composer_sort" class="form-control form-control-sm mt-1 sort-name-target" data-sort-source="composer" placeholder="Sort-namn (auto, klicka för att ändra)">
+          <input type="text" name="composer" id="composer" class="form-control sort-name-source" data-sort-target="composer_sort"
+                 value="{{ (existing.composer if existing else extracted.composer) or '' }}" list="people-options">
+          <input type="text" name="composer_sort" id="composer_sort" class="form-control form-control-sm mt-1 sort-name-target" data-sort-source="composer"
+                 value="{{ existing.composer_sort if existing else '' }}"
+                 placeholder="Sort-namn (auto, klicka för att ändra)">
+          {{ ocr_pill('composer', extracted.composer, existing.composer if existing else '') }}
         </div>
         <div class="col-md-6">
           <label class="form-label">Arrangör</label>
-          <input type="text" name="arranger" id="arranger" class="form-control sort-name-source" data-sort-target="arranger_sort" value="{{ extracted.arranger or '' }}" list="people-options">
-          <input type="text" name="arranger_sort" id="arranger_sort" class="form-control form-control-sm mt-1 sort-name-target" data-sort-source="arranger" placeholder="Sort-namn (auto, klicka för att ändra)">
+          <input type="text" name="arranger" id="arranger" class="form-control sort-name-source" data-sort-target="arranger_sort"
+                 value="{{ (existing.arranger if existing else extracted.arranger) or '' }}" list="people-options">
+          <input type="text" name="arranger_sort" id="arranger_sort" class="form-control form-control-sm mt-1 sort-name-target" data-sort-source="arranger"
+                 value="{{ existing.arranger_sort if existing else '' }}"
+                 placeholder="Sort-namn (auto, klicka för att ändra)">
+          {{ ocr_pill('arranger', extracted.arranger, existing.arranger if existing else '') }}
         </div>
         <div class="col-md-6">
           <label class="form-label">Textförfattare</label>
-          <input type="text" name="lyricist" id="lyricist" class="form-control sort-name-source" data-sort-target="lyricist_sort" value="{{ extracted.lyricist or '' }}" list="people-options">
-          <input type="text" name="lyricist_sort" id="lyricist_sort" class="form-control form-control-sm mt-1 sort-name-target" data-sort-source="lyricist" placeholder="Sort-namn (auto, klicka för att ändra)">
+          <input type="text" name="lyricist" id="lyricist" class="form-control sort-name-source" data-sort-target="lyricist_sort"
+                 value="{{ (existing.lyricist if existing else extracted.lyricist) or '' }}" list="people-options">
+          <input type="text" name="lyricist_sort" id="lyricist_sort" class="form-control form-control-sm mt-1 sort-name-target" data-sort-source="lyricist"
+                 value="{{ existing.lyricist_sort if existing else '' }}"
+                 placeholder="Sort-namn (auto, klicka för att ändra)">
+          {{ ocr_pill('lyricist', extracted.lyricist, existing.lyricist if existing else '') }}
         </div>
         <div class="col-md-3">
           <label class="form-label">Språk</label>
-          <select name="language" class="form-select">
+          {% set lang_selected = existing.language if existing else extracted.language %}
+          <select name="language" id="language" class="form-select">
             <option value="">(inget)</option>
             {% for l in language_options %}
-            <option value="{{ l.code }}" {% if extracted.language == l.code %}selected{% endif %}>{{ l.label }}</option>
+            <option value="{{ l.code }}" {% if lang_selected == l.code %}selected{% endif %}>{{ l.label }}</option>
             {% endfor %}
           </select>
+          {% if existing and extracted.language and extracted.language != existing.language %}
+          <button type="button" class="btn btn-sm btn-outline-primary mt-1 py-0 px-2"
+                  onclick="applyOcrSelect('language', {{ extracted.language|tojson }})">
+            OCR: {{ extracted.language }}
+          </button>
+          {% endif %}
         </div>
         <div class="col-md-4">
           <label class="form-label">Besättning</label>
@@ -258,19 +301,25 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Förlag</label>
-          <input type="text" name="publisher" class="form-control" value="{{ extracted.publisher or '' }}">
+          <input type="text" name="publisher" id="publisher" class="form-control"
+                 value="{{ (existing.publisher if existing else extracted.publisher) or '' }}">
+          {{ ocr_pill('publisher', extracted.publisher, existing.publisher if existing else '') }}
         </div>
         <div class="col-md-4">
           <label class="form-label">Förlagsnummer</label>
-          <input type="text" name="edition_number" class="form-control" value="{{ extracted.edition_number or '' }}">
+          <input type="text" name="edition_number" id="edition_number" class="form-control"
+                 value="{{ (existing.edition_number if existing else extracted.edition_number) or '' }}">
+          {{ ocr_pill('edition_number', extracted.edition_number, existing.edition_number if existing else '') }}
         </div>
       </div>
 
+      {% if not existing %}
       <hr class="my-4">
       <h2 class="h6">
         Placering (valfritt)
         {% if prefill_placement_unit_id %}<span class="badge bg-info ms-2">Förnoterad vid skanning</span>{% endif %}
       </h2>
+      {% endif %}
       <div class="row g-3">
         <div class="col-md-8">
           <label class="form-label">Var ligger noten?</label>
@@ -302,10 +351,14 @@
       {% endif %}
 
       <div class="mt-4 d-flex gap-2 flex-wrap align-items-center">
+        {% if existing %}
+        <button type="submit" class="btn btn-primary">Uppdatera noten</button>
+        {% else %}
         <button type="submit" name="next_in_queue" value="1" class="btn btn-primary">
           Spara och nästa i kön
         </button>
         <button type="submit" class="btn btn-outline-primary">Spara och visa not</button>
+        {% endif %}
         <button type="button" class="btn btn-outline-danger ms-auto"
                 onclick="confirmAction('/scan/{{ scan.id }}/discard', 'Avvisa skanning #{{ scan.id }}? Den döljs men kan återställas från kön.', {submitLabel: 'Avvisa', submitClass: 'btn-warning'})">
           Avvisa
@@ -317,6 +370,20 @@
 </div>
 
 <script>
+// Re-OCR: applicera OCR-värde på ett input-fält
+function applyOcr(inputId, value) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  el.value = value;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function applyOcrSelect(selectId, value) {
+  const el = document.getElementById(selectId);
+  if (!el) return;
+  el.value = value;
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
 function applyMbSuggestion(mbid, title, composer, btn) {
   document.getElementById('musicbrainz_work_id').value = mbid;
   const changes = [];

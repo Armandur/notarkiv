@@ -46,6 +46,10 @@
       {% if user.can_edit %}
       <div class="btn-group btn-group-sm">
         <a href="/pieces/{{ piece.id }}/edit" class="btn btn-outline-secondary">Redigera</a>
+        <button class="btn btn-outline-secondary"
+                onclick="confirmAction('/pieces/{{ piece.id }}/re-ocr', 'Kör OCR igen på primärbilden? Resultatet hamnar i granskningskön - originalnoten påverkas inte förrän du sparar därifrån.', {submitLabel: 'Kör OCR'})">
+          Kör OCR igen
+        </button>
         {% if user.is_admin %}
         <button class="btn btn-outline-danger"
                 onclick="confirmAction('/pieces/{{ piece.id }}/delete', 'Radera \'{{ piece.title|e }}\' permanent? Detta tar bort alla placeringar och bilder.')">
