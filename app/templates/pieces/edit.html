@@ -118,6 +118,13 @@
           </button>
           {% endif %}
         </div>
+        <div class="col-md-6">
+          <label class="form-label">Spotify-länk (valfri)</label>
+          <input type="url" name="spotify_url" class="form-control"
+                 value="{{ piece.spotify_url or '' }}"
+                 placeholder="https://open.spotify.com/track/...">
+          <div class="form-text">Visas som "Strömma på Spotify"-knapp på notens detaljsida.</div>
+        </div>
         <div class="col-12">
           <label class="form-label">Anteckningar</label>
           <textarea name="notes" class="form-control" rows="3">{{ piece.notes or '' }}</textarea>

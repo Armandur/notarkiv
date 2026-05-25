@@ -29,6 +29,7 @@ class Piece(SQLModel, table=True):
     duration_seconds: int | None = None
     copyright_status: CopyrightStatus | None = Field(default=None, sa_type=String)
     musicbrainz_work_id: str | None = None
+    spotify_url: str | None = None
     notes: str | None = None
 
     created_at: datetime = Field(default_factory=datetime.utcnow)

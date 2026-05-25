@@ -469,6 +469,7 @@ async def new_piece_save(
     edition_number: str | None = Form(None),
     notes: str | None = Form(None),
     musicbrainz_work_id: str | None = Form(None),
+    spotify_url: str | None = Form(None),
     placement_unit_id: str | None = Form(None),
     placement_copies: str | None = Form(None),
     placement_notes: str | None = Form(None),
@@ -485,6 +486,7 @@ async def new_piece_save(
         edition_number=(edition_number or "").strip() or None,
         notes=(notes or "").strip() or None,
         musicbrainz_work_id=(musicbrainz_work_id or "").strip() or None,
+        spotify_url=(spotify_url or "").strip() or None,
         created_by=user.id,
         updated_at=datetime.utcnow(),
     )
@@ -817,6 +819,7 @@ async def edit_piece_save(
     edition_number: str | None = Form(None),
     notes: str | None = Form(None),
     musicbrainz_work_id: str | None = Form(None),
+    spotify_url: str | None = Form(None),
     voicing_tag_id: list[int] = Form(default=[]),
     accompaniment_tag_id: list[int] = Form(default=[]),
     tag_id: list[int] = Form(default=[]),
@@ -834,6 +837,7 @@ async def edit_piece_save(
     piece.edition_number = (edition_number or "").strip() or None
     piece.notes = (notes or "").strip() or None
     piece.musicbrainz_work_id = (musicbrainz_work_id or "").strip() or None
+    piece.spotify_url = (spotify_url or "").strip() or None
     piece.updated_at = datetime.utcnow()
 
     cache = replace_contributors(
