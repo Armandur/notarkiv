@@ -10,9 +10,9 @@
 {% if person.musicbrainz_artist_id and not mb_preview %}
 <div class="mb-3">
   <a href="?refresh=1" class="btn btn-sm btn-outline-secondary">
-    Hämta om data från MusicBrainz/Wikipedia
+    Hämta om data från metadatakällor
   </a>
-  <span class="form-text ms-2">Visar MB-värden som klickbara pillar bredvid fälten.</span>
+  <span class="form-text ms-2">Slår upp aktuella värden från MusicBrainz, Wikidata och Wikipedia - visas som klickbara förslag bredvid fälten.</span>
 </div>
 {% endif %}
 
@@ -198,7 +198,7 @@
         </button>
       </summary>
       <div class="small text-muted mt-2 border-start ps-3">
-        {% for para in mb_preview.biography.split('\n\n') if para.strip() %}<p class="mb-2">{{ para }}</p>{% endfor %}
+        {% for para in to_paragraphs(mb_preview.biography) %}<p class="mb-2">{{ para }}</p>{% endfor %}
       </div>
     </details>
     {% endif %}

@@ -234,6 +234,16 @@ granska -> spara -> hitta igen.
 - [x] **Senaste noter på startsidan**: 8 senast inlagda som
       thumbnail-grid ovanför stats-korten.
 
+### V2 - infrastruktur
+
+- [ ] **Markdown-stöd för fritextfält**: biografier, anteckningar
+      (på not, placering, scan-session) och inventerings-loggar är
+      idag rena strängar med viss radbrytnings-hantering. Bygg på
+      `python-markdown` för rendering och en lättviktig markdown-
+      editor (EasyMDE eller liknande, vanilla JS) för redigering.
+      Visa renderad HTML i visnings-vyer. Existerande text fungerar
+      som vanlig text utan ändring.
+
 ## V3 - "Långt fram"
 
 - [ ] **Framförandehistorik**: spara vilka noter som använts vid vilka

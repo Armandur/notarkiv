@@ -8,12 +8,29 @@ from app.models import User
 from app.utils.countries import country_display, country_flag_emoji, country_name_sv
 from app.utils.languages import language_display, language_name_sv
 
+
+def to_paragraphs(text: str | None) -> list[str]:
+    """Dela en text i stycken. Hanterar både '\\n\\n', '\\r\\n\\r\\n' och
+    enkla radbrytningar (Wikipedia-extracten har ofta bara '\\r\\n' mellan
+    stycken, inte tomma rader). Tomma stycken filtreras bort."""
+    if not text:
+        return []
+    import re
+
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    parts = re.split(r"\n\s*\n+", normalized)
+    if len(parts) <= 1:
+        parts = normalized.split("\n")
+    return [p.strip() for p in parts if p.strip()]
+
+
 templates = Jinja2Templates(directory="app/templates")
 templates.env.globals["country_display"] = country_display
 templates.env.globals["country_flag_emoji"] = country_flag_emoji
 templates.env.globals["country_name_sv"] = country_name_sv
 templates.env.globals["language_display"] = language_display
 templates.env.globals["language_name_sv"] = language_name_sv
+templates.env.globals["to_paragraphs"] = to_paragraphs
 
 
 def render(
