@@ -136,6 +136,18 @@
       <button type="submit" class="btn btn-sm btn-outline-primary">Ladda upp</button>
     </form>
   </div>
+  {% if mb_preview and mb_preview.image_page_url %}
+  <div class="card-footer">
+    <form method="post" action="/people/{{ person.id }}/apply-mb-portrait" class="d-inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="image_url" value="{{ mb_preview.image_page_url }}">
+      <button type="submit" class="btn btn-sm btn-outline-primary">
+        Hämta porträtt från metadatakällor
+      </button>
+      <span class="form-text ms-1">({{ mb_preview.image_page_url|truncate(50) }})</span>
+    </form>
+  </div>
+  {% endif %}
 </div>
 
 <div class="card mt-4">
@@ -154,6 +166,20 @@
       </button>
     </div>
     {% endfor %}
+  </div>
+  {% endif %}
+  {% if mb_preview and mb_preview.wikidata_url and not mb_preview.wd_already_linked %}
+  <div class="card-body border-top bg-light-subtle">
+    <form method="post" action="/people/{{ person.id }}/links">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="url" value="{{ mb_preview.wikidata_url }}">
+      <input type="hidden" name="kind" value="wikidata">
+      <input type="hidden" name="label" value="Wikidata">
+      <button type="submit" class="btn btn-sm btn-outline-primary">
+        Lägg till Wikidata-länk från metadatakällor
+      </button>
+      <span class="form-text ms-1">({{ mb_preview.wikidata_url|truncate(50) }})</span>
+    </form>
   </div>
   {% endif %}
   <div class="card-body">
@@ -184,47 +210,20 @@
 
 <div id="mb-modal-target"></div>
 
-{% if mb_preview %}
+{% if mb_preview and mb_preview.biography and mb_preview.biography != (person.biography or '') %}
 <div class="card mt-3">
-  <div class="card-header"><h2 class="h6 mb-0">Övriga MB/Wikipedia-förslag</h2></div>
-  <div class="card-body">
-    {% if mb_preview.biography and mb_preview.biography != (person.biography or '') %}
-    <details class="mb-3" open>
-      <summary class="mb-2">
-        <strong>Biografi från Wikipedia</strong>
-        <button type="button" class="btn btn-sm btn-outline-primary ms-2 mb-apply"
-                data-target="biography" data-value="{{ mb_preview.biography }}">
-          Applicera biografi
-        </button>
-      </summary>
-      <div class="small text-muted mt-2 border-start ps-3">
-        {% for para in to_paragraphs(mb_preview.biography) %}<p class="mb-2">{{ para }}</p>{% endfor %}
-      </div>
-    </details>
-    {% endif %}
-    {% if mb_preview.image_page_url %}
-    <form method="post" action="/people/{{ person.id }}/apply-mb-portrait" class="d-inline">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <input type="hidden" name="image_url" value="{{ mb_preview.image_page_url }}">
-      <button type="submit" class="btn btn-sm btn-outline-primary">
-        Hämta porträtt från MB ({{ mb_preview.image_page_url|truncate(40) }})
-      </button>
-    </form>
-    {% endif %}
-    {% if mb_preview.wikidata_url and not mb_preview.wd_already_linked %}
-    <form method="post" action="/people/{{ person.id }}/links" class="mt-2 d-inline">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <input type="hidden" name="url" value="{{ mb_preview.wikidata_url }}">
-      <input type="hidden" name="kind" value="wikidata">
-      <input type="hidden" name="label" value="Wikidata">
-      <button type="submit" class="btn btn-sm btn-outline-primary">
-        Lägg till Wikidata-länk ({{ mb_preview.wikidata_url|truncate(40) }})
-      </button>
-    </form>
-    {% endif %}
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h2 class="h6 mb-0">Biografi-förslag från Wikipedia</h2>
+    <button type="button" class="btn btn-sm btn-outline-primary mb-apply"
+            data-target="biography" data-value="{{ mb_preview.biography }}">
+      Applicera biografi
+    </button>
+  </div>
+  <div class="card-body small text-muted">
+    {% for para in to_paragraphs(mb_preview.biography) %}<p class="mb-2">{{ para }}</p>{% endfor %}
     {% if mb_preview.wikipedia_url %}
-    <div class="small text-muted mt-2">
-      Wikipedia-källa: <a href="{{ mb_preview.wikipedia_url }}" target="_blank">{{ mb_preview.wikipedia_url }}</a>
+    <div class="mt-2">
+      Källa: <a href="{{ mb_preview.wikipedia_url }}" target="_blank">{{ mb_preview.wikipedia_url }}</a>
     </div>
     {% endif %}
   </div>
