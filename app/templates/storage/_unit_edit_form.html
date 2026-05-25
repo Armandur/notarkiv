@@ -1,0 +1,89 @@
+<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)" id="unit-form-modal">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="/storage/units/{{ unit.id }}/update">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="kind_id" id="kind-id-input" value="{{ unit.kind_id or '' }}">
+
+      <div class="modal-header">
+        <h2 class="modal-title h5">
+          Redigera enhet
+          <small class="text-muted">({{ location.name }})</small>
+        </h2>
+        <button type="button" class="btn-close"
+                onclick="document.getElementById('modal-target').innerHTML=''"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Namn</label>
+          <input type="text" name="name" class="form-control" value="{{ unit.name }}" required autofocus>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Förälder (valfritt)</label>
+          <select name="parent_id" class="form-select">
+            <option value="">(toppnivå under {{ location.name }})</option>
+            {% for p in valid_parents %}
+            <option value="{{ p.id }}" {% if unit.parent_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text">Egna ättlingar kan inte väljas som förälder.</div>
+        </div>
+
+        <div class="mb-3 position-relative">
+          <label class="form-label">Typ (valfritt)</label>
+          <input type="text"
+                 id="kind-search"
+                 class="form-control"
+                 autocomplete="off"
+                 placeholder="hylla, pärm, låda, mapp ..."
+                 value="{{ kind.name if kind else '' }}"
+                 hx-get="/storage/unit-kinds/search"
+                 hx-trigger="input changed delay:200ms, focus"
+                 hx-target="#kind-results"
+                 hx-swap="innerHTML"
+                 hx-include="this"
+                 hx-params="q"
+                 name="q">
+          <div id="kind-results" class="list-group position-absolute w-100 shadow-sm"
+               style="z-index: 1050; max-height: 240px; overflow-y: auto;"></div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Anteckningar (valfritt)</label>
+          <textarea name="notes" class="form-control" rows="2">{{ unit.notes or '' }}</textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link"
+                onclick="document.getElementById('modal-target').innerHTML=''">Avbryt</button>
+        <button type="submit" class="btn btn-primary">Spara</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function() {
+  function applyKind(id, name) {
+    document.getElementById('kind-id-input').value = id;
+    document.getElementById('kind-search').value = name;
+    document.getElementById('kind-results').innerHTML = '';
+  }
+  window._notarkivApplyKind = applyKind;
+  document.body.addEventListener('kindSelected', function(evt) {
+    applyKind(evt.detail.id, evt.detail.name);
+  });
+  document.addEventListener('click', function(evt) {
+    var modal = document.getElementById('unit-form-modal');
+    if (!modal) return;
+    var search = document.getElementById('kind-search');
+    var results = document.getElementById('kind-results');
+    if (!results) return;
+    if (evt.target !== search && !results.contains(evt.target)) {
+      results.innerHTML = '';
+    }
+  });
+})();
+</script>

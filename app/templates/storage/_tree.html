@@ -12,6 +12,12 @@
       {% if node.unit.notes %}<span class="text-muted small ms-2">{{ node.unit.notes }}</span>{% endif %}
     </div>
     <div class="btn-group btn-group-sm">
+      <a class="btn btn-outline-secondary" href="/storage/units/{{ node.unit.id }}" title="Öppna">↗</a>
+      <button class="btn btn-outline-secondary"
+              hx-get="/storage/units/{{ node.unit.id }}/edit-form"
+              hx-target="#modal-target"
+              hx-swap="innerHTML"
+              title="Redigera">✏</button>
       <button class="btn btn-outline-secondary"
               hx-get="/storage/units/new-form?location_id={{ location.id }}&parent_id={{ node.unit.id }}"
               hx-target="#modal-target"
@@ -50,6 +56,11 @@
         + Ny enhet
       </button>
       {% if user.is_admin %}
+      <button class="btn btn-outline-secondary"
+              hx-get="/storage/locations/{{ branch.location.id }}/edit-form"
+              hx-target="#modal-target"
+              hx-swap="innerHTML"
+              title="Redigera lagringsplats">✏</button>
       <button class="btn btn-outline-danger"
               onclick="confirmAction('/storage/locations/{{ branch.location.id }}/delete', 'Ta bort lagringsplatsen \'{{ branch.location.name|e }}\'?')">
         ×
