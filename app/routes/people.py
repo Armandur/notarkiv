@@ -18,9 +18,11 @@ from app.services.musicbrainz import (
     commons_file_to_thumb_url,
     download_image_bytes,
     extract_image_url,
+    extract_wikidata_url,
     fetch_wikipedia_summary,
     get_client,
     get_wikipedia_url,
+    resolve_image_via_wikidata,
 )
 from app.services.people import (
     derive_sort_name,
@@ -266,6 +268,7 @@ async def person_detail(
 async def edit_person_form(
     request: Request,
     person_id: int,
+    refresh: int = 0,
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -278,6 +281,42 @@ async def edit_person_form(
         .order_by(PersonLink.sort_order, PersonLink.id)
     ).all()
     from app.utils.countries import all_countries
+
+    # refresh=1: hämta nya värden från MB+Wikipedia och bygg en preview-dict
+    # som templaten kan rendera "MB: X"-pillar per fält bredvid existing.
+    mb_preview = None
+    if refresh and person.musicbrainz_artist_id:
+        try:
+            client = get_client()
+            artist = await client.get_artist_with_urls(person.musicbrainz_artist_id)
+        except Exception as exc:
+            flash(request, f"MB-fel: {exc}", "danger")
+            artist = None
+        if artist:
+            wiki_url = await get_wikipedia_url(artist)
+            wiki_bio = await fetch_wikipedia_summary(wiki_url) if wiki_url else None
+            life_span = artist.get("life-span") or artist.get("life_span") or {}
+            from app.services.people import parse_partial_date
+
+            by, bm, bd = parse_partial_date(life_span.get("begin") or "")
+            dy, dm, dd = parse_partial_date(life_span.get("end") or "")
+            image_page_url = extract_image_url(artist)
+            if not image_page_url:
+                wd = extract_wikidata_url(artist)
+                if wd:
+                    image_page_url = await resolve_image_via_wikidata(wd)
+            mb_preview = {
+                "name": artist.get("name") or "",
+                "sort_name": artist.get("sort-name") or artist.get("sort_name") or "",
+                "birth_date": format_partial_date(by, bm, bd),
+                "death_date": format_partial_date(dy, dm, dd),
+                "country": artist.get("country") or "",
+                "biography": wiki_bio or "",
+                "biography_source_url": wiki_url or "",
+                "wikipedia_url": wiki_url or "",
+                "image_page_url": image_page_url or "",
+            }
+            flash(request, "Hämtade förslag från MusicBrainz/Wikipedia - klicka pillarna för att applicera", "info")
 
     return render(
         request,
@@ -293,6 +332,7 @@ async def edit_person_form(
                 person.death_year, person.death_month, person.death_day
             ),
             "countries": all_countries(),
+            "mb_preview": mb_preview,
         },
         user=user,
     )
@@ -495,6 +535,42 @@ async def person_mb_modal(
     )
 
 
+@router.post("/{person_id}/apply-mb-portrait", dependencies=[Depends(verify_csrf)])
+async def apply_mb_portrait(
+    request: Request,
+    person_id: int,
+    image_url: str = Form(...),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    person = session.get(Person, person_id)
+    if not person:
+        raise HTTPException(404)
+    thumb = commons_file_to_thumb_url(image_url, width=600)
+    if not thumb:
+        flash(request, "Kunde inte tolka bildens URL", "danger")
+        return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
+    img_bytes = await download_image_bytes(thumb)
+    if not img_bytes:
+        flash(request, "Kunde inte ladda ned bilden", "danger")
+        return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
+    try:
+        new_path = save_uploaded_cover(img_bytes)
+    except Exception as exc:
+        flash(request, f"Kunde inte spara bilden: {exc}", "danger")
+        return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
+    old_path = person.portrait_image_path
+    person.portrait_image_path = new_path
+    person.portrait_source_url = image_url
+    person.updated_at = datetime.utcnow()
+    session.add(person)
+    session.commit()
+    if old_path and old_path != new_path:
+        delete_saved_image(old_path)
+    flash(request, "Hämtade nytt porträtt från MB/Wikidata", "success")
+    return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
+
+
 @router.post("/{person_id}/refresh", dependencies=[Depends(verify_csrf)])
 async def refresh_person_mb(
     request: Request,
@@ -543,8 +619,12 @@ async def refresh_person_mb(
         person.biography = wiki_bio
         person.biography_source_url = wiki_url
 
-    # Skriv över porträtt om MB har bild
+    # Skriv över porträtt om MB eller Wikidata har bild
     image_page_url = extract_image_url(artist)
+    if not image_page_url:
+        wd_url_for_image = extract_wikidata_url(artist)
+        if wd_url_for_image:
+            image_page_url = await resolve_image_via_wikidata(wd_url_for_image)
     if image_page_url:
         thumb_url = commons_file_to_thumb_url(image_page_url, width=600)
         if thumb_url:
@@ -597,6 +677,25 @@ async def refresh_person_mb(
                     person_id=person_id,
                     url=wiki_url,
                     kind=PersonLinkKind.WIKIPEDIA,
+                )
+            )
+    # Wikidata-länk (vänligt fallback för slutanvändare som inte använder wikipedia)
+    wd_url = extract_wikidata_url(artist)
+    if wd_url:
+        existing_wd = session.exec(
+            select(PersonLink)
+            .where(PersonLink.person_id == person_id)
+            .where(PersonLink.kind == PersonLinkKind.WIKIDATA)
+        ).first()
+        if existing_wd:
+            existing_wd.url = wd_url
+            session.add(existing_wd)
+        else:
+            session.add(
+                PersonLink(
+                    person_id=person_id,
+                    url=wd_url,
+                    kind=PersonLinkKind.WIKIDATA,
                 )
             )
     session.commit()

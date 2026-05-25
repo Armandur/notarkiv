@@ -37,15 +37,20 @@
 
   <div class="col-md-5">
     {% if person.biography %}
+    {# Wikipedia returnerar text med dubbla radbrytningar mellan stycken.
+       Splitta och rendera som separata <p> så det får luftigt avstånd. #}
+    {% set _bio_paragraphs = person.biography.split('\n\n') | reject('equalto', '') | list %}
     {% set _bio_long = person.biography|length > 400 %}
     {% if _bio_long %}
     <div class="bio-collapsible">
-      <p class="bio-preview mb-1" style="white-space: pre-wrap">{{ person.biography[:400].rstrip() }}…</p>
-      <p class="bio-full mb-1 d-none" style="white-space: pre-wrap">{{ person.biography }}</p>
+      <div class="bio-preview"><p>{{ _bio_paragraphs[0] }}{% if _bio_paragraphs|length > 1 or _bio_paragraphs[0]|length > 400 %}…{% endif %}</p></div>
+      <div class="bio-full d-none">
+        {% for para in _bio_paragraphs %}<p>{{ para }}</p>{% endfor %}
+      </div>
       <button type="button" class="btn btn-link btn-sm p-0 bio-toggle">Visa mer</button>
     </div>
     {% else %}
-    <p style="white-space: pre-wrap">{{ person.biography }}</p>
+    {% for para in _bio_paragraphs %}<p>{{ para }}</p>{% endfor %}
     {% endif %}
     {% if person.biography_source_url %}
     <p class="small text-muted">

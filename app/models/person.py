@@ -16,6 +16,7 @@ class ContributorRole(StrEnum):
 
 class PersonLinkKind(StrEnum):
     WIKIPEDIA = "wikipedia"
+    WIKIDATA = "wikidata"
     MUSICBRAINZ = "musicbrainz"
     IMSLP = "imslp"
     OFFICIAL = "official"

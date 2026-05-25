@@ -212,10 +212,8 @@ async def download_image_bytes(url: str) -> bytes | None:
         return None
 
 
-async def resolve_wikipedia_via_wikidata(
-    wikidata_url: str, langs: tuple[str, ...] = ("sv", "en", "de")
-) -> str | None:
-    """Hämta Wikipedia-URL via Wikidata-sitelinks. Försöker språk i ordning."""
+async def _fetch_wikidata_entity(wikidata_url: str) -> dict | None:
+    """Hämta hela entity-objektet från Special:EntityData."""
     import re
 
     m = re.match(r"https?://www\.wikidata\.org/wiki/(Q\d+)", wikidata_url)
@@ -230,15 +228,46 @@ async def resolve_wikipedia_via_wikidata(
             )
             resp.raise_for_status()
             data = resp.json()
-            entity = data.get("entities", {}).get(entity_id, {})
-            sitelinks = entity.get("sitelinks", {})
-            for lang in langs:
-                key = f"{lang}wiki"
-                if key in sitelinks:
-                    title = sitelinks[key]["title"].replace(" ", "_")
-                    return f"https://{lang}.wikipedia.org/wiki/{title}"
+            return data.get("entities", {}).get(entity_id, {})
     except (httpx.HTTPError, ValueError) as exc:
-        logger.warning("Wikidata-sitelink misslyckades: {}", exc)
+        logger.warning("Wikidata-entity misslyckades: {}", exc)
+        return None
+
+
+async def resolve_wikipedia_via_wikidata(
+    wikidata_url: str, langs: tuple[str, ...] = ("sv", "en", "de")
+) -> str | None:
+    """Hämta Wikipedia-URL via Wikidata-sitelinks. Försöker språk i ordning."""
+    entity = await _fetch_wikidata_entity(wikidata_url)
+    if not entity:
+        return None
+    sitelinks = entity.get("sitelinks", {})
+    for lang in langs:
+        key = f"{lang}wiki"
+        if key in sitelinks:
+            title = sitelinks[key]["title"].replace(" ", "_")
+            return f"https://{lang}.wikipedia.org/wiki/{title}"
+    return None
+
+
+async def resolve_image_via_wikidata(wikidata_url: str) -> str | None:
+    """Hämta Commons-bild-URL från Wikidata-P18 (bild)-property. Returnerar
+    en commons.wikimedia.org/wiki/File:... URL som kan passas till
+    commons_file_to_thumb_url för att få nedladdningsbar bild."""
+    entity = await _fetch_wikidata_entity(wikidata_url)
+    if not entity:
+        return None
+    claims = entity.get("claims", {})
+    p18 = claims.get("P18") or []
+    for claim in p18:
+        try:
+            value = claim["mainsnak"]["datavalue"]["value"]
+        except (KeyError, TypeError):
+            continue
+        if value:
+            # Commons File-namn → URL
+            filename = value.replace(" ", "_")
+            return f"https://commons.wikimedia.org/wiki/File:{filename}"
     return None
 
 

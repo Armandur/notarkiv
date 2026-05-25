@@ -7,6 +7,24 @@
   <a href="/people/{{ person.id }}" class="small">← Tillbaka</a>
 </div>
 
+{% if person.musicbrainz_artist_id and not mb_preview %}
+<div class="mb-3">
+  <a href="?refresh=1" class="btn btn-sm btn-outline-secondary">
+    Hämta om data från MusicBrainz/Wikipedia
+  </a>
+  <span class="form-text ms-2">Visar MB-värden som klickbara pillar bredvid fälten.</span>
+</div>
+{% endif %}
+
+{% macro mb_pill(target_id, mb_value, current_value) %}
+  {% if mb_preview and mb_value and mb_value != current_value %}
+  <button type="button" class="btn btn-sm btn-outline-primary mt-1 py-0 px-2 mb-apply"
+          data-target="{{ target_id }}" data-value="{{ mb_value }}">
+    MB: {{ mb_value }}
+  </button>
+  {% endif %}
+{% endmacro %}
+
 <form method="post" action="/people/{{ person.id }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
@@ -16,25 +34,29 @@
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label">Namn (visas) *</label>
-          <input type="text" name="name" class="form-control" required value="{{ person.name }}">
+          <input type="text" name="name" id="name" class="form-control" required value="{{ person.name }}">
+          {{ mb_pill('name', mb_preview.name if mb_preview else '', person.name) }}
         </div>
         <div class="col-md-6">
           <label class="form-label">Sorteringsnamn</label>
-          <input type="text" name="sort_name" class="form-control" value="{{ person.sort_name }}">
+          <input type="text" name="sort_name" id="sort_name" class="form-control" value="{{ person.sort_name }}">
+          {{ mb_pill('sort_name', mb_preview.sort_name if mb_preview else '', person.sort_name) }}
           <div class="form-text">T.ex. "Mendelssohn, Felix" - lämna tomt för auto.</div>
         </div>
         <div class="col-md-3">
           <label class="form-label">Födelsedatum</label>
-          <input type="text" name="birth_date" class="form-control" value="{{ birth_date_str }}" placeholder="1809 / 1809-02 / 1809-02-03">
+          <input type="text" name="birth_date" id="birth_date" class="form-control" value="{{ birth_date_str }}" placeholder="1809 / 1809-02 / 1809-02-03">
+          {{ mb_pill('birth_date', mb_preview.birth_date if mb_preview else '', birth_date_str) }}
           <div class="form-text">Endast år eller år-månad räcker</div>
         </div>
         <div class="col-md-3">
           <label class="form-label">Dödsdatum</label>
-          <input type="text" name="death_date" class="form-control" value="{{ death_date_str }}" placeholder="1847 / 1847-11-04">
+          <input type="text" name="death_date" id="death_date" class="form-control" value="{{ death_date_str }}" placeholder="1847 / 1847-11-04">
+          {{ mb_pill('death_date', mb_preview.death_date if mb_preview else '', death_date_str) }}
         </div>
         <div class="col-md-3">
           <label class="form-label">Land</label>
-          <select name="country" class="form-select">
+          <select name="country" id="country" class="form-select">
             <option value="">(inget)</option>
             {% for c in countries %}
             <option value="{{ c.code }}" {% if person.country == c.code %}selected{% endif %}>
@@ -42,6 +64,12 @@
             </option>
             {% endfor %}
           </select>
+          {% if mb_preview and mb_preview.country and mb_preview.country != (person.country or '') %}
+          <button type="button" class="btn btn-sm btn-outline-primary mt-1 py-0 px-2 mb-apply-select"
+                  data-target="country" data-value="{{ mb_preview.country }}">
+            MB: {{ mb_preview.country }}
+          </button>
+          {% endif %}
           <div class="form-text">Sökbart - skriv första bokstäverna för att filtrera</div>
         </div>
         <div class="col-md-3">
@@ -155,4 +183,58 @@
 </div>
 
 <div id="mb-modal-target"></div>
+
+{% if mb_preview %}
+<div class="card mt-3">
+  <div class="card-header"><h2 class="h6 mb-0">Övriga MB/Wikipedia-förslag</h2></div>
+  <div class="card-body">
+    {% if mb_preview.biography and mb_preview.biography != (person.biography or '') %}
+    <details class="mb-2">
+      <summary>
+        <strong>Biografi från Wikipedia</strong>
+        <button type="button" class="btn btn-sm btn-outline-primary ms-2 mb-apply"
+                data-target="biography" data-value="{{ mb_preview.biography }}">
+          Applicera biografi
+        </button>
+      </summary>
+      <div style="white-space: pre-wrap" class="small text-muted mt-2 border-start ps-2">{{ mb_preview.biography }}</div>
+    </details>
+    {% endif %}
+    {% if mb_preview.image_page_url %}
+    <form method="post" action="/people/{{ person.id }}/apply-mb-portrait" class="d-inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="image_url" value="{{ mb_preview.image_page_url }}">
+      <button type="submit" class="btn btn-sm btn-outline-primary">
+        Hämta porträtt från MB ({{ mb_preview.image_page_url|truncate(40) }})
+      </button>
+    </form>
+    {% endif %}
+    {% if mb_preview.wikipedia_url %}
+    <div class="small text-muted mt-2">
+      Wikipedia-källa: <a href="{{ mb_preview.wikipedia_url }}" target="_blank">{{ mb_preview.wikipedia_url }}</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<script>
+document.addEventListener('click', (e) => {
+  const inp = e.target.closest('.mb-apply');
+  if (inp) {
+    const el = document.getElementById(inp.dataset.target);
+    if (el) { el.value = inp.dataset.value; el.dispatchEvent(new Event('input', {bubbles: true})); }
+    inp.classList.add('btn-success');
+    inp.classList.remove('btn-outline-primary');
+    return;
+  }
+  const sel = e.target.closest('.mb-apply-select');
+  if (sel) {
+    const el = document.getElementById(sel.dataset.target);
+    if (el) { el.value = sel.dataset.value; el.dispatchEvent(new Event('change', {bubbles: true})); }
+    sel.classList.add('btn-success');
+    sel.classList.remove('btn-outline-primary');
+  }
+});
+</script>
 {% endblock %}
