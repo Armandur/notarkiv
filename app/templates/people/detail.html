@@ -12,7 +12,7 @@
       {% set death = person.death_year and (person.death_year|string + (person.death_month and '-' + '%02d'|format(person.death_month) or '') + (person.death_day and '-' + '%02d'|format(person.death_day) or '')) %}
       · ({{ birth or '?' }}{% if death %} - {{ death }}{% endif %})
       {% endif %}
-      {% if person.country %} · {{ person.country }}{% endif %}
+      {% if country_label %} · {{ country_label }}{% endif %}
     </div>
   </div>
   {% if user.can_edit %}

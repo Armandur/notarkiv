@@ -38,13 +38,37 @@ router = APIRouter(prefix="/people", tags=["people"])
 async def list_people(
     request: Request,
     q: str | None = None,
+    role: str | None = None,
+    country: str | None = None,
+    has_mbid: str | None = None,
     user: User = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> Response:
+    from app.utils.countries import country_display
+
     stmt = select(Person).order_by(Person.sort_name)
     if q:
         like = f"%{q}%"
         stmt = stmt.where(Person.sort_name.ilike(like) | Person.name.ilike(like))
+    if country:
+        stmt = stmt.where(Person.country == country.upper())
+    if has_mbid == "yes":
+        stmt = stmt.where(Person.musicbrainz_artist_id.is_not(None))
+    elif has_mbid == "no":
+        stmt = stmt.where(Person.musicbrainz_artist_id.is_(None))
+    if role:
+        ids_with_role = list(
+            session.exec(
+                select(PieceContributor.person_id)
+                .where(PieceContributor.role == role)
+                .distinct()
+            ).all()
+        )
+        if ids_with_role:
+            stmt = stmt.where(Person.id.in_(ids_with_role))
+        else:
+            stmt = stmt.where(Person.id == -1)
+
     people = session.exec(stmt).all()
 
     counts = dict(
@@ -54,10 +78,32 @@ async def list_people(
         ).all()
     )
 
+    countries = [
+        c for c in session.exec(
+            select(Person.country).where(Person.country.is_not(None)).distinct()
+        ).all() if c
+    ]
+    country_options = sorted(
+        [{"code": c, "label": country_display(c)} for c in countries],
+        key=lambda o: o["label"],
+    )
+
+    roles = [r.value for r in ContributorRole]
+
     return render(
         request,
         "people/list.html",
-        {"people": people, "counts": counts, "q": q or ""},
+        {
+            "people": people,
+            "counts": counts,
+            "q": q or "",
+            "active_role": role or "",
+            "active_country": country or "",
+            "active_has_mbid": has_mbid or "",
+            "country_options": country_options,
+            "country_display": country_display,
+            "roles": roles,
+        },
         user=user,
     )
 
@@ -116,10 +162,17 @@ async def person_detail(
         .order_by(PersonLink.sort_order, PersonLink.id)
     ).all()
 
+    from app.utils.countries import country_display
+
     return render(
         request,
         "people/detail.html",
-        {"person": person, "pieces_by_role": by_role, "links": links},
+        {
+            "person": person,
+            "pieces_by_role": by_role,
+            "links": links,
+            "country_label": country_display(person.country),
+        },
         user=user,
     )
 

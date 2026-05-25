@@ -176,6 +176,23 @@ granska -> spara -> hitta igen.
       kompositör/arrangör/textförfattare. Lägg till en MB-suggestion-
       banner per person redan vid granskning så användaren slipper
       gå tillbaka till piece-detalj efteråt.
+- [x] **Land som flagga + fullt namn på personer**: utbytt mot
+      🇩🇪 Tyskland-formatering via app/utils/countries.py (svensk
+      lookup-tabell för ~50 länder).
+- [x] **Filter och sökning på personer**: roll-, land- och
+      MBID-status-dropdown plus fritextsökning på namn.
+- [ ] **Streckkod/QR-etiketter på enskilda noter + kioskvy**:
+      Idag har vi QR per lagringsenhet. Komplement: en etikett per piece
+      med en stabil kod (UUID eller löpnummer) som kan skannas med USB-
+      handskanner eller mobilens kamera. Användningsfall:
+      - Terminaldator i notförrådet med kioskvy: skanna -> piece-detalj
+        med snabb "Låna"/"Återlämna"-knapp (inloggad användare som
+        låntagare som default)
+      - Inventera genom att bara skanna varje not i en pärm - systemet
+        markerar som hittad automatiskt
+      USB-handskannrar fungerar som tangentbordsemulering så de skriver
+      koden i ett input-fält direkt. För kamera-baserad skanning krävs
+      HTTPS (kopplat till in-browser-QR-läsare-itemet ovan).
 - [ ] **Sök och sortera /pieces på inläggningsdatum**:
       sorterings-dropdown (titel/datum), filter "skapade senaste 7/30
       dagar".
