@@ -184,12 +184,11 @@ granska -> spara -> hitta igen.
       "Extern person" kopplar bort dropdownen och visar fritext-input
       för vikarierande körledare etc. borrower_user_id sätts vid
       användarval, annars sparas borrower_name som fritext.
-- [ ] **Sök-baserad tagghantering på noter**: dagens edit-vy listar alla
-      taggar grupperade per kind med klickbara pillar. Med många taggar
-      blir det rörigt. Byt till autocomplete-mönstret från UnitKind:
-      en sökruta som filtrerar befintliga taggar live, knapp "Skapa
-      ny tagg: '<namn>'" när inget matchar. Sätt aktiva taggar som
-      borttagbara pillar ovanför sökrutan.
+- [x] **Sök-baserad tagghantering på noter**: HTMX-baserad
+      autocomplete-area på pieces/edit. Sökruta filtrerar befintliga
+      taggar live, "+ Skapa ny tagg" om inget matchar, aktiva
+      pillar med klick=ta-bort. Toggle och create sker omedelbart
+      utan att spara hela formuläret.
 - [ ] **Bulk-utlån / kundvagn för många noter samtidigt**: körledare
       plockar ofta 5-30 noter till en konsert. Idag måste utlån
       registreras per placering. Alternativ: (a) "Låna ut härifrån"
