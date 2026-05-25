@@ -678,6 +678,7 @@ def _format_contributor_sorts(contributors: dict[ContributorRole, list[Person]],
 async def edit_piece_form(
     request: Request,
     piece_id: int,
+    refresh: int = 0,
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -685,6 +686,48 @@ async def edit_piece_form(
     if not piece:
         raise HTTPException(404)
     contributors = collect_contributors(session, piece_id)
+
+    # refresh=1: hämta work från MB och bygg preview-dict
+    mb_preview = None
+    if refresh and piece.musicbrainz_work_id:
+        try:
+            client = get_client()
+            work = await client.get_work_with_rels(piece.musicbrainz_work_id)
+        except Exception as exc:
+            flash(request, f"MB-fel: {exc}", "danger")
+            work = None
+        if work:
+            # Plocka ut composer/lyricist/arranger från work-rels
+            roles_by_kind: dict[str, list[dict]] = {
+                "composer": [],
+                "lyricist": [],
+                "arranger": [],
+            }
+            for rel in work.get("relations", []):
+                t = rel.get("type", "")
+                artist = rel.get("artist") or {}
+                if not artist.get("id"):
+                    continue
+                # MB-rel-typer: 'composer', 'lyricist', 'arranger'
+                if t in roles_by_kind:
+                    roles_by_kind[t].append({
+                        "mbid": artist.get("id"),
+                        "name": artist.get("name") or "",
+                        "sort_name": artist.get("sort-name") or "",
+                    })
+            mb_preview = {
+                "title": work.get("title") or "",
+                "language": work.get("language") or "",
+                "composers": roles_by_kind["composer"],
+                "lyricists": roles_by_kind["lyricist"],
+                "arrangers": roles_by_kind["arranger"],
+                "mb_work_url": f"https://musicbrainz.org/work/{piece.musicbrainz_work_id}",
+            }
+            flash(
+                request,
+                "Hämtade förslag från MusicBrainz - klicka pillarna för att applicera",
+                "info",
+            )
     images = session.exec(
         select(PieceImage)
         .where(PieceImage.piece_id == piece_id)
@@ -793,6 +836,7 @@ async def edit_piece_form(
                 .where(Tag.kind.not_in(["voicing", "accompaniment"]))
                 .order_by(Tag.kind, Tag.sort_order, Tag.name)
             ).all(),
+            "mb_preview": mb_preview,
         },
         user=user,
     )

@@ -7,6 +7,28 @@
   <a href="/pieces/{{ piece.id }}" class="small">← Tillbaka till noten</a>
 </div>
 
+{% if piece.musicbrainz_work_id and not mb_preview %}
+<div class="mb-3">
+  <a href="?refresh=1" class="btn btn-sm btn-outline-secondary">
+    Hämta om data från metadatakällor
+  </a>
+  <span class="form-text ms-2">Slår upp aktuella värden från MusicBrainz - visas som klickbara förslag bredvid fälten.</span>
+</div>
+{% endif %}
+
+{% macro mb_pill(target_id, mb_value, current_value) %}
+  {% if mb_preview and mb_value and mb_value != current_value %}
+  <button type="button" class="btn btn-sm btn-outline-primary mt-1 py-0 px-2 mb-apply"
+          data-target="{{ target_id }}" data-value="{{ mb_value }}">
+    MB: {{ mb_value }}
+  </button>
+  {% endif %}
+{% endmacro %}
+
+{% set mb_composer_str = mb_preview.composers|map(attribute='name')|join('; ') if mb_preview else '' %}
+{% set mb_lyricist_str = mb_preview.lyricists|map(attribute='name')|join('; ') if mb_preview else '' %}
+{% set mb_arranger_str = mb_preview.arrangers|map(attribute='name')|join('; ') if mb_preview else '' %}
+
 <form method="post" action="/pieces/{{ piece.id }}/edit">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
@@ -17,6 +39,7 @@
         <div class="col-md-6">
           <label class="form-label">Titel *</label>
           <input type="text" name="title" id="title" class="form-control" required value="{{ piece.title }}">
+          {{ mb_pill('title', mb_preview.title if mb_preview else '', piece.title) }}
         </div>
         <div class="col-md-6">
           <label class="form-label">Originaltitel</label>
@@ -26,17 +49,20 @@
           <label class="form-label">Kompositör</label>
           <input type="text" name="composer" id="composer" class="form-control" value="{{ composers_str }}" list="people-options">
           <input type="text" name="composer_sort" id="composer_sort" class="form-control form-control-sm mt-1" value="{{ composer_sorts_str }}" placeholder="Sort-namn (auto, klicka för att ändra)">
+          {{ mb_pill('composer', mb_composer_str, composers_str) }}
           <div class="form-text">Flera separeras med <code>;</code> eller <code>&amp;</code></div>
         </div>
         <div class="col-md-6">
           <label class="form-label">Arrangör</label>
           <input type="text" name="arranger" id="arranger" class="form-control" value="{{ arrangers_str }}" list="people-options">
           <input type="text" name="arranger_sort" id="arranger_sort" class="form-control form-control-sm mt-1" value="{{ arranger_sorts_str }}" placeholder="Sort-namn (auto, klicka för att ändra)">
+          {{ mb_pill('arranger', mb_arranger_str, arrangers_str) }}
         </div>
         <div class="col-md-6">
           <label class="form-label">Textförfattare</label>
           <input type="text" name="lyricist" id="lyricist" class="form-control" value="{{ lyricists_str }}" list="people-options">
           <input type="text" name="lyricist_sort" id="lyricist_sort" class="form-control form-control-sm mt-1" value="{{ lyricist_sorts_str }}" placeholder="Sort-namn (auto, klicka för att ändra)">
+          {{ mb_pill('lyricist', mb_lyricist_str, lyricists_str) }}
         </div>
         <div class="col-md-3">
           <label class="form-label">Språk</label>
@@ -429,6 +455,18 @@ document.addEventListener('hidden.bs.modal', function(evt) {
   if (ret) {
     setTimeout(() => bootstrap.Modal.getOrCreateInstance(document.getElementById(ret)).show(), 50);
   }
+});
+
+// MB-förslags-pill: applicera värde på input-fält via data-attribut
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.mb-apply');
+  if (!btn) return;
+  const el = document.getElementById(btn.dataset.target);
+  if (!el) return;
+  el.value = btn.dataset.value;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  btn.classList.add('btn-success');
+  btn.classList.remove('btn-outline-primary');
 });
 </script>
 
