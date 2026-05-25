@@ -352,6 +352,7 @@ async def edit_person_form(
                             person.portrait_image_path = save_uploaded_cover(img_bytes)
                             person.portrait_source_url = image_page_url
                             session.add(person)
+                            session.commit()
                         except Exception as exc:
                             from loguru import logger as _log
 
