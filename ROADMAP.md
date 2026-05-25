@@ -179,10 +179,11 @@ granska -> spara -> hitta igen.
 - [x] **Utlåningshantering**: registrera utlån per placering med
       låntagare, antal, ev. förv. retur. Återlämning markeras med
       knapp. Global /loans-sida visar aktiva utlån. Navbar-badge.
-- [ ] **Förbättra utlåningens borrower-fält**: idag fritext. Default
-      ska vara en autocomplete-dropdown med systemets användare,
-      med en bockruta "extern person" som ändrar till fritext för
-      vikarierande körledare etc.
+- [x] **Förbättra utlåningens borrower-fält**: dropdown med systemets
+      användare som default (förinifylld på inloggad). Bockruta
+      "Extern person" kopplar bort dropdownen och visar fritext-input
+      för vikarierande körledare etc. borrower_user_id sätts vid
+      användarval, annars sparas borrower_name som fritext.
 - [x] **MB-berikning av personer direkt i granskningsflödet**: en samlad
       "Hämta MB-förslag"-knapp i review-vyn som söker för både verk och
       alla namn (composer/arranger/lyricist), visar topp-träffar med

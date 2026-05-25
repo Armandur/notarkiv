@@ -224,7 +224,20 @@
             <div class="text-muted small mb-2">Från: {{ pv.path }}</div>
             <div class="mb-3">
               <label class="form-label">Låntagare *</label>
-              <input type="text" name="borrower_name" class="form-control" required>
+              <div class="loan-borrower-picker">
+                <select name="borrower_user_id" class="form-select user-picker">
+                  {% for u in loan_users %}
+                  <option value="{{ u.id }}" {% if u.id == user.id %}selected{% endif %}>{{ u.username }}</option>
+                  {% endfor %}
+                </select>
+                <input type="text" name="borrower_name" class="form-control mt-1 external-name d-none" placeholder="Namn på extern person">
+                <div class="form-check mt-1">
+                  <input class="form-check-input external-toggle" type="checkbox" id="extern-{{ pv.placement.id }}">
+                  <label class="form-check-label small" for="extern-{{ pv.placement.id }}">
+                    Extern person (skriv namn manuellt)
+                  </label>
+                </div>
+              </div>
             </div>
             <div class="row g-2 mb-3">
               <div class="col-4">
@@ -255,4 +268,28 @@
 </div>
 
 <div id="tag-modal-target"></div>
+
+<script>
+// Toggla mellan användar-dropdown och fritext för låntagare
+document.querySelectorAll('.loan-borrower-picker').forEach((box) => {
+  const select = box.querySelector('.user-picker');
+  const free = box.querySelector('.external-name');
+  const toggle = box.querySelector('.external-toggle');
+  toggle.addEventListener('change', () => {
+    if (toggle.checked) {
+      select.classList.add('d-none');
+      select.disabled = true;
+      free.classList.remove('d-none');
+      free.required = true;
+      free.focus();
+    } else {
+      select.classList.remove('d-none');
+      select.disabled = false;
+      free.classList.add('d-none');
+      free.required = false;
+      free.value = '';
+    }
+  });
+});
+</script>
 {% endblock %}

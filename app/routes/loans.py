@@ -96,7 +96,8 @@ async def add_loan(
     request: Request,
     piece_id: int,
     placement_id: int,
-    borrower_name: str = Form(...),
+    borrower_user_id: str | None = Form(None),
+    borrower_name: str | None = Form(None),
     copies: int = Form(1),
     expected_return: str | None = Form(None),
     notes: str | None = Form(None),
@@ -107,10 +108,23 @@ async def add_loan(
     if not placement or placement.piece_id != piece_id:
         raise HTTPException(404)
 
+    user_id: int | None = None
+    if borrower_user_id and borrower_user_id.isdigit():
+        borrower_user = session.get(User, int(borrower_user_id))
+        if borrower_user:
+            user_id = borrower_user.id
+            borrower_name = borrower_user.username
+
+    name = (borrower_name or "").strip()
+    if not name:
+        flash(request, "Låntagare måste anges", "danger")
+        return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
     session.add(
         Loan(
             placement_id=placement_id,
-            borrower_name=borrower_name.strip(),
+            borrower_name=name,
+            borrower_user_id=user_id,
             copies=max(1, copies),
             expected_return_at=_parse_date(expected_return),
             notes=(notes or "").strip() or None,
@@ -118,7 +132,7 @@ async def add_loan(
         )
     )
     session.commit()
-    flash(request, f"Registrerade utlån till {borrower_name}", "success")
+    flash(request, f"Registrerade utlån till {name}", "success")
     return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
 
 

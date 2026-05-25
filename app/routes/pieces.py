@@ -595,6 +595,9 @@ async def piece_detail(
         (note, u) for note, u in user_notes_with_user if u.id != user.id
     ]
 
+    # Användarlista för låntagar-dropdown i utlåningsmodalen
+    loan_users = session.exec(select(User).order_by(User.username)).all()
+
     return render(
         request,
         "pieces/detail.html",
@@ -611,6 +614,7 @@ async def piece_detail(
             "arranger_role": ContributorRole.ARRANGER,
             "lyricist_role": ContributorRole.LYRICIST,
             "image_kinds": [k.value for k in PieceImageKind],
+            "loan_users": loan_users,
         },
         user=user,
     )
