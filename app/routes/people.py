@@ -301,10 +301,17 @@ async def edit_person_form(
             by, bm, bd = parse_partial_date(life_span.get("begin") or "")
             dy, dm, dd = parse_partial_date(life_span.get("end") or "")
             image_page_url = extract_image_url(artist)
-            if not image_page_url:
-                wd = extract_wikidata_url(artist)
-                if wd:
-                    image_page_url = await resolve_image_via_wikidata(wd)
+            wd = extract_wikidata_url(artist)
+            if not image_page_url and wd:
+                image_page_url = await resolve_image_via_wikidata(wd)
+            # Kolla om wikidata-länken redan finns
+            wd_already_linked = False
+            if wd:
+                wd_already_linked = session.exec(
+                    select(PersonLink)
+                    .where(PersonLink.person_id == person_id)
+                    .where(PersonLink.url == wd)
+                ).first() is not None
             mb_preview = {
                 "name": artist.get("name") or "",
                 "sort_name": artist.get("sort-name") or artist.get("sort_name") or "",
@@ -315,6 +322,8 @@ async def edit_person_form(
                 "biography_source_url": wiki_url or "",
                 "wikipedia_url": wiki_url or "",
                 "image_page_url": image_page_url or "",
+                "wikidata_url": wd or "",
+                "wd_already_linked": wd_already_linked,
             }
             flash(request, "Hämtade förslag från MusicBrainz/Wikipedia - klicka pillarna för att applicera", "info")
 

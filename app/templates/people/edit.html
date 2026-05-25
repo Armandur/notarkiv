@@ -211,6 +211,17 @@
       </button>
     </form>
     {% endif %}
+    {% if mb_preview.wikidata_url and not mb_preview.wd_already_linked %}
+    <form method="post" action="/people/{{ person.id }}/links" class="mt-2 d-inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="url" value="{{ mb_preview.wikidata_url }}">
+      <input type="hidden" name="kind" value="wikidata">
+      <input type="hidden" name="label" value="Wikidata">
+      <button type="submit" class="btn btn-sm btn-outline-primary">
+        Lägg till Wikidata-länk ({{ mb_preview.wikidata_url|truncate(40) }})
+      </button>
+    </form>
+    {% endif %}
     {% if mb_preview.wikipedia_url %}
     <div class="small text-muted mt-2">
       Wikipedia-källa: <a href="{{ mb_preview.wikipedia_url }}" target="_blank">{{ mb_preview.wikipedia_url }}</a>
