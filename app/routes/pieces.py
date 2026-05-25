@@ -772,9 +772,32 @@ async def edit_piece_form(
                     .where(Tag.kind == "accompaniment")
                 ).all()
             ),
+            # Övriga taggar (inte voicing/accompaniment) grupperade per kind
+            "other_tags_by_kind": _other_tags_grouped(session),
+            "selected_other_tag_ids": set(
+                session.exec(
+                    select(PieceTag.tag_id)
+                    .join(Tag, Tag.id == PieceTag.tag_id)
+                    .where(PieceTag.piece_id == piece_id)
+                    .where(Tag.kind.not_in(["voicing", "accompaniment"]))
+                ).all()
+            ),
         },
         user=user,
     )
+
+
+def _other_tags_grouped(session: Session) -> dict[str, list]:
+    """Hämta alla taggar utom voicing/accompaniment grupperade per kind."""
+    rows = session.exec(
+        select(Tag)
+        .where(Tag.kind.not_in(["voicing", "accompaniment"]))
+        .order_by(Tag.kind, Tag.sort_order, Tag.name)
+    ).all()
+    out: dict[str, list] = {}
+    for t in rows:
+        out.setdefault(t.kind, []).append(t)
+    return out
 
 
 @router.post("/{piece_id}/edit", dependencies=[Depends(verify_csrf)])
@@ -796,6 +819,7 @@ async def edit_piece_save(
     musicbrainz_work_id: str | None = Form(None),
     voicing_tag_id: list[int] = Form(default=[]),
     accompaniment_tag_id: list[int] = Form(default=[]),
+    tag_id: list[int] = Form(default=[]),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -827,6 +851,21 @@ async def edit_piece_save(
 
     _set_kind_tags(session, piece_id, "voicing", voicing_tag_id)
     _set_kind_tags(session, piece_id, "accompaniment", accompaniment_tag_id)
+
+    # Övriga taggar (liturgical/occasion/free) - rensa befintliga + sätt nya
+    existing_other = session.exec(
+        select(PieceTag, Tag)
+        .join(Tag, Tag.id == PieceTag.tag_id)
+        .where(PieceTag.piece_id == piece_id)
+        .where(Tag.kind.not_in(["voicing", "accompaniment"]))
+    ).all()
+    for pt, _t in existing_other:
+        session.delete(pt)
+    session.flush()
+    for tid in tag_id:
+        t = session.get(Tag, tid)
+        if t and t.kind not in ("voicing", "accompaniment"):
+            session.add(PieceTag(piece_id=piece_id, tag_id=t.id))
 
     session.commit()
 

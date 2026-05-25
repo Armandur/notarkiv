@@ -108,25 +108,17 @@
     </div>
     {% endif %}
 
+    {# Filtrera bort voicing/accompaniment - de visas via egna fält i metadata #}
+    {% set display_tags = tags | rejectattr('kind', 'in', ['voicing', 'accompaniment']) | list %}
+    {% if display_tags %}
     <div class="mt-3 d-flex gap-2 align-items-baseline flex-wrap">
       <strong class="small">Taggar:</strong>
-      {% if not tags %}
-      <span class="text-muted small fst-italic">inga</span>
-      {% else %}
-      {% for t in tags %}
+      {% for t in display_tags %}
         {% set color = {'liturgical': 'primary', 'occasion': 'success', 'free': 'secondary'}.get(t.kind, 'secondary') %}
         <span class="badge bg-{{ color }}">{{ t.name }}</span>
       {% endfor %}
-      {% endif %}
-      {% if user.can_edit %}
-      <button class="btn btn-sm btn-link p-0"
-              hx-get="/pieces/{{ piece.id }}/tags"
-              hx-target="#tag-modal-target"
-              hx-swap="innerHTML">
-        hantera
-      </button>
-      {% endif %}
     </div>
+    {% endif %}
 
     {% if piece.notes %}
     <h2 class="h6 mt-3">Gemensamma anteckningar</h2>
