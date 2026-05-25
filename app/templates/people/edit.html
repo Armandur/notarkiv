@@ -164,7 +164,7 @@
       <button type="submit" class="btn btn-sm btn-outline-primary">Ladda upp</button>
     </form>
   </div>
-  {% if mb_preview and mb_preview.image_page_url %}
+  {% if mb_preview and mb_preview.image_page_url and mb_preview.image_page_url != (person.portrait_source_url or '') %}
   <div class="card-footer d-flex gap-3 align-items-center flex-wrap">
     {% if mb_preview.image_thumb_url %}
     <img src="{{ mb_preview.image_thumb_url }}" alt="Förslag från metadatakällor"
