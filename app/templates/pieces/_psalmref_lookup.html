@@ -1,0 +1,12 @@
+{# HTMX-fragment: visar uppslagsresultat för en psalmref (bok + nummer).
+   Tom om ingen träff. #}
+{% if entry %}
+<div class="small text-success mt-1">
+  <strong>{{ entry.number }}.</strong> {{ entry.title }}
+  {% if entry.section %}<span class="text-muted">· {{ entry.section }}</span>{% endif %}
+</div>
+{% elif number %}
+<div class="small text-muted mt-1 fst-italic">
+  Inget psalmnummer {{ number }} i denna bok (uppslagsdatan kanske inte är seedad).
+</div>
+{% endif %}

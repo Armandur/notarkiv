@@ -183,27 +183,45 @@
       Inga psalmböcker registrerade. <a href="/admin/psalmbooks">Lägg till en</a> innan du kan koppla referenser.
     </p>
     {% else %}
-    <form method="post" action="/pieces/{{ piece.id }}/psalmrefs" class="row g-2 align-items-end">
+    <form method="post" action="/pieces/{{ piece.id }}/psalmrefs">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <div class="col-md-5">
-        <label class="form-label small mb-1">Psalmbok</label>
-        <select name="book_id" class="form-select form-select-sm" required>
-          {% for b in psalm_books %}
-          <option value="{{ b.id }}">{{ b.name }}</option>
-          {% endfor %}
-        </select>
+      <div class="row g-2 align-items-end">
+        <div class="col-md-5">
+          <label class="form-label small mb-1">Psalmbok</label>
+          <select name="book_id" class="form-select form-select-sm" required
+                  hx-get="/pieces/psalmrefs/lookup"
+                  hx-trigger="change"
+                  hx-include="closest form"
+                  hx-target="#psalmref-preview"
+                  hx-swap="innerHTML">
+            {% for b in psalm_books %}
+            <option value="{{ b.id }}">{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Utgåva (valfri)</label>
+          <input type="text" name="edition" class="form-control form-control-sm" placeholder="t.ex. 1986"
+                 hx-get="/pieces/psalmrefs/lookup"
+                 hx-trigger="input changed delay:300ms"
+                 hx-include="closest form"
+                 hx-target="#psalmref-preview"
+                 hx-swap="innerHTML">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small mb-1">Nummer</label>
+          <input type="number" name="number" class="form-control form-control-sm" min="1" required
+                 hx-get="/pieces/psalmrefs/lookup"
+                 hx-trigger="input changed delay:300ms"
+                 hx-include="closest form"
+                 hx-target="#psalmref-preview"
+                 hx-swap="innerHTML">
+        </div>
+        <div class="col-md-2 d-grid">
+          <button type="submit" class="btn btn-sm btn-primary">Lägg till</button>
+        </div>
       </div>
-      <div class="col-md-3">
-        <label class="form-label small mb-1">Utgåva (valfri)</label>
-        <input type="text" name="edition" class="form-control form-control-sm" placeholder="t.ex. 1986">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label small mb-1">Nummer</label>
-        <input type="number" name="number" class="form-control form-control-sm" min="1" required>
-      </div>
-      <div class="col-md-2 d-grid">
-        <button type="submit" class="btn btn-sm btn-primary">Lägg till</button>
-      </div>
+      <div id="psalmref-preview"></div>
     </form>
     {% endif %}
   </div>

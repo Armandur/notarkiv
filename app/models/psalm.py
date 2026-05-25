@@ -19,6 +19,22 @@ class PsalmBook(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class PsalmEntry(SQLModel, table=True):
+    """Referensdata: ett konkret psalmnummer i en psalmbok med titel och
+    avdelning. Seedas från seed_data/psalms/*.yaml och används som
+    autocomplete-lookup när användaren lägger en PiecePsalmRef."""
+
+    __tablename__ = "psalm_entries"
+    __table_args__ = (UniqueConstraint("book_id", "edition", "number"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    book_id: int = Field(foreign_key="psalm_books.id", index=True)
+    edition: str | None = None
+    number: int = Field(index=True)
+    title: str
+    section: str | None = None
+
+
 class PiecePsalmRef(SQLModel, table=True):
     """En referens från en not till ett nummer i en psalmbok. En not kan
     finnas i flera psalmböcker - därför många-till-många via egen tabell."""

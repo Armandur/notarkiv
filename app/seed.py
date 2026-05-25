@@ -10,7 +10,15 @@ from sqlmodel import Session, select
 from app.auth import hash_password
 from app.config import settings
 from app.db import engine
-from app.models import StorageLocation, StorageUnit, Tag, UnitKind, User
+from app.models import (
+    PsalmBook,
+    PsalmEntry,
+    StorageLocation,
+    StorageUnit,
+    Tag,
+    UnitKind,
+    User,
+)
 from app.models.storage import LocationKind
 from app.models.tag import TagKind
 from app.models.user import Role
@@ -179,6 +187,71 @@ def _seed_unit_recursive(
         added += _seed_unit_recursive(session, location_id, unit.id, child)
 
     return added
+
+
+def seed_psalms() -> tuple[int, int]:
+    """Läs seed_data/psalms/*.yaml och skapa PsalmBook + PsalmEntry-poster.
+    Returnerar (nya_böcker, nya_psalmer). Idempotent."""
+    psalms_dir = SEED_DIR / "psalms"
+    if not psalms_dir.exists():
+        logger.info("Ingen seed_data/psalms/-mapp - hoppar över")
+        return (0, 0)
+
+    new_books = 0
+    new_entries = 0
+    with Session(engine) as session:
+        for yaml_path in sorted(psalms_dir.glob("*.yaml")):
+            data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+            if not data or "name" not in data:
+                logger.warning("Hoppar över ogiltig fil: {}", yaml_path)
+                continue
+
+            book = session.exec(
+                select(PsalmBook).where(PsalmBook.name == data["name"])
+            ).first()
+            if not book:
+                book = PsalmBook(
+                    name=data["name"],
+                    description=data.get("description"),
+                    sort_order=data.get("sort_order", 0),
+                )
+                session.add(book)
+                session.flush()
+                new_books += 1
+
+            edition = data.get("edition")
+            for psalm in data.get("psalms", []):
+                existing = session.exec(
+                    select(PsalmEntry)
+                    .where(PsalmEntry.book_id == book.id)
+                    .where(PsalmEntry.edition == edition)
+                    .where(PsalmEntry.number == psalm["number"])
+                ).first()
+                if existing:
+                    continue
+                session.add(
+                    PsalmEntry(
+                        book_id=book.id,
+                        edition=edition,
+                        number=psalm["number"],
+                        title=psalm["title"],
+                        section=psalm.get("section"),
+                    )
+                )
+                new_entries += 1
+
+            logger.info(
+                "Psalmer från {}: {} psalmer registrerade totalt",
+                yaml_path.name,
+                len(data.get("psalms", [])),
+            )
+
+        session.commit()
+
+    logger.info(
+        "Psalmer: {} nya böcker, {} nya psalm-entries", new_books, new_entries
+    )
+    return (new_books, new_entries)
 
 
 def _resolve_kind_id(session: Session, kind_name: str | None) -> int | None:

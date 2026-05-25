@@ -9,14 +9,25 @@ from app.db import engine, init_db, reset_db
 from app.logging_setup import setup_logging
 from app.models import User
 from app.models.user import Role
-from app.seed import seed_all
+from app.seed import seed_all, seed_psalms
 
 app = typer.Typer(no_args_is_help=True)
 db = typer.Typer(no_args_is_help=True, help="Databasoperationer")
 users_cli = typer.Typer(no_args_is_help=True, help="Användarhantering")
+psalms_cli = typer.Typer(no_args_is_help=True, help="Psalmreferenser")
 
 app.add_typer(db, name="db")
 app.add_typer(users_cli, name="users")
+app.add_typer(psalms_cli, name="psalms")
+
+
+@psalms_cli.command("seed")
+def psalms_seed() -> None:
+    """Läs seed_data/psalms/*.yaml och fyll PsalmBook + PsalmEntry. Idempotent."""
+    setup_logging()
+    init_db()
+    new_books, new_entries = seed_psalms()
+    typer.echo(f"Klart: {new_books} nya böcker, {new_entries} nya psalm-entries")
 
 
 @db.command("init")

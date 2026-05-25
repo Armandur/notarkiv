@@ -6,7 +6,7 @@ from app.models.person import ContributorRole, Person, PersonLink, PersonLinkKin
 from app.models.piece import Piece
 from app.models.piece_image import PieceImage
 from app.models.piece_user_note import PieceUserNote
-from app.models.psalm import PiecePsalmRef, PsalmBook
+from app.models.psalm import PiecePsalmRef, PsalmBook, PsalmEntry
 from app.models.scan_session import ScanSession
 from app.models.scan_session_image import ScanSessionImage
 from app.models.storage import PiecePlacement, StorageLocation, StorageUnit, UnitKind
@@ -29,6 +29,7 @@ __all__ = [
     "PieceUserNote",
     "PiecePsalmRef",
     "PsalmBook",
+    "PsalmEntry",
     "ScanSession",
     "ScanSessionImage",
     "PiecePlacement",

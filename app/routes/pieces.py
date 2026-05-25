@@ -17,6 +17,7 @@ from app.models import (
     PieceTag,
     PieceUserNote,
     PsalmBook,
+    PsalmEntry,
     ScanSession,
     StorageLocation,
     StorageUnit,
@@ -1315,6 +1316,45 @@ async def upsert_user_note(
     session.commit()
     flash(request, "Din anteckning sparad", "success")
     return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
+
+
+@router.get("/psalmrefs/lookup")
+async def psalmref_lookup(
+    request: Request,
+    book_id: int,
+    number: int,
+    edition: str | None = None,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """HTMX-fragment: slå upp PsalmEntry för given bok + nummer (+ ev. utgåva)
+    och returnera en liten preview-rad ('Bereden väg för Herran · Advent').
+    Tom respons om ingen match - då vet användaren att numret är okänt."""
+    edition_val = (edition or "").strip() or None
+
+    stmt = (
+        select(PsalmEntry)
+        .where(PsalmEntry.book_id == book_id)
+        .where(PsalmEntry.number == number)
+    )
+    if edition_val:
+        stmt = stmt.where(PsalmEntry.edition == edition_val)
+
+    entry = session.exec(stmt).first()
+    if not entry and edition_val:
+        # Fall back: prova utan utgåva-filter om vi inte hittade exakt match
+        entry = session.exec(
+            select(PsalmEntry)
+            .where(PsalmEntry.book_id == book_id)
+            .where(PsalmEntry.number == number)
+        ).first()
+
+    return render(
+        request,
+        "pieces/_psalmref_lookup.html",
+        {"entry": entry, "number": number},
+        user=user,
+    )
 
 
 @router.post("/{piece_id}/psalmrefs", dependencies=[Depends(verify_csrf)])
