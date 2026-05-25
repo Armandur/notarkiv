@@ -156,9 +156,10 @@ async def fetch_wikipedia_summary(url: str) -> str | None:
 
 
 def _truncate_wiki_extract(text: str, max_chars: int = 8000) -> str:
-    """Behåll inledning + biografi-relevanta sektioner men dropa
-    "Verklista", "Referenser", "Källor", "Externa länkar" m.fl. som
-    sällan är intressanta som biografi-text."""
+    """Klipp Wikipedia-extract till biografi-text och konvertera till
+    markdown-format: MediaWiki ==-rubriker blir ##, enkla radbrytningar
+    mellan stycken blir dubbla (paragraf-break) så Markdown renderar
+    varje stycke som <p>."""
     import re
 
     stop_headings = (
@@ -169,8 +170,10 @@ def _truncate_wiki_extract(text: str, max_chars: int = 8000) -> str:
         "External links", "Further reading", "Bibliography", "Discography",
         "See also", "Sources",
     )
-    # MediaWiki plaintext markerar rubriker som "== Rubrik ==" eller djupare
-    # nivåer "=== Rubrik ===". Hitta första stoppord och klipp där.
+    # Normalisera radbrytningar till \n
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+
+    # Klipp vid första stop-rubrik
     cut_at = len(text)
     for h in stop_headings:
         pattern = re.compile(
@@ -180,8 +183,26 @@ def _truncate_wiki_extract(text: str, max_chars: int = 8000) -> str:
         if m and m.start() < cut_at:
             cut_at = m.start()
     text = text[:cut_at].rstrip()
+
+    # Konvertera MediaWiki-rubriker till markdown.
+    def heading_repl(m):
+        level = len(m.group(1))
+        title = m.group(2).strip()
+        return f"\n\n{'#' * level} {title}\n"
+
+    text = re.sub(
+        r"^(={2,6})\s*(.+?)\s*\1\s*$",
+        heading_repl,
+        text,
+        flags=re.MULTILINE,
+    )
+    # Säkerställ att enkla radbrytningar mellan stycken blir paragraf-
+    # break. Wikipedia-extract:en har ofta bara '\n' mellan stycken.
+    text = re.sub(r"(?<!\n)\n(?!\n)", "\n\n", text)
+    # Komprimera multipla blankrader
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+
     if len(text) > max_chars:
-        # Truncera vid sista styckesbrytning innan gränsen
         cut = text.rfind("\n\n", 0, max_chars)
         if cut < max_chars * 0.5:
             cut = text.rfind(". ", 0, max_chars)

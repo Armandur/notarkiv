@@ -37,23 +37,11 @@ def to_paragraphs(text: str | None) -> list[dict]:
 
 
 def _markdown(text: str | None) -> str:
-    """Rendera markdown till HTML. Tom sträng om None.
-    Hanterar också MediaWiki-rubriker (==/===/==== osv) som markdown-rubriker
-    eftersom biografier från Wikipedia-extract:en använder det formatet."""
+    """Rendera markdown till HTML. Tom sträng om None."""
     if not text:
         return ""
-    import re
-
     import markdown as md
 
-    # Normalisera MediaWiki-rubriker '== Rubrik ==' till '## Rubrik'.
-    # Måste komma före markdown-rendering. Antal '=' speglar nivå.
-    def heading_repl(m):
-        level = len(m.group(1))
-        title = m.group(2).strip()
-        return f"{'#' * level} {title}"
-
-    text = re.sub(r"^(={2,6})\s*(.+?)\s*\1\s*$", heading_repl, text, flags=re.MULTILINE)
     return md.markdown(
         text,
         extensions=["nl2br", "sane_lists", "tables"],
