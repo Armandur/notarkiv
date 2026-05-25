@@ -366,6 +366,7 @@ async def edit_person_form(
                         try:
                             person.portrait_image_path = save_uploaded_cover(img_bytes)
                             person.portrait_source_url = image_page_url
+                            person.portrait_fetched_at = datetime.utcnow()
                             session.add(person)
                             session.commit()
                         except Exception as exc:
@@ -724,6 +725,7 @@ async def apply_mb_portrait(
     old_path = person.portrait_image_path
     person.portrait_image_path = new_path
     person.portrait_source_url = image_url
+    person.portrait_fetched_at = datetime.utcnow()
     person.updated_at = datetime.utcnow()
     session.add(person)
     session.commit()
@@ -783,6 +785,7 @@ async def refresh_person_mb(
     if wiki_bio:
         person.biography = wiki_bio
         person.biography_source_url = wiki_url
+        person.biography_fetched_at = datetime.utcnow()
 
     # Skriv över porträtt om MB eller Wikidata har bild
     image_page_url = extract_image_url(artist)
@@ -800,6 +803,7 @@ async def refresh_person_mb(
                     old_path = person.portrait_image_path
                     person.portrait_image_path = new_path
                     person.portrait_source_url = image_page_url
+                    person.portrait_fetched_at = datetime.utcnow()
                     if old_path and old_path != new_path:
                         delete_saved_image(old_path)
                 except Exception as exc:
@@ -887,22 +891,34 @@ async def apply_person_mb(
     wiki_url = await get_wikipedia_url(artist)
     wiki_bio = await fetch_wikipedia_summary(wiki_url) if wiki_url else None
 
-    # Ladda ned porträtt från MB:s image-relation (oftast Commons-fil)
+    # Ladda ned porträtt - prioritera MB:s image-rel, fallback till Wikidata P18
     if not person.portrait_image_path:
-        image_page_url = extract_image_url(artist)
-        if image_page_url:
+        candidates: list[str] = []
+        mb_image = extract_image_url(artist)
+        if mb_image:
+            candidates.append(mb_image)
+        wd_url_for_image = extract_wikidata_url(artist)
+        if wd_url_for_image:
+            wd_image = await resolve_image_via_wikidata(wd_url_for_image)
+            if wd_image and wd_image not in candidates:
+                candidates.append(wd_image)
+        for image_page_url in candidates:
             thumb_url = commons_file_to_thumb_url(image_page_url, width=600)
-            if thumb_url:
-                img_bytes = await download_image_bytes(thumb_url)
-                if img_bytes:
-                    try:
-                        rel_path = save_uploaded_cover(img_bytes)
-                        person.portrait_image_path = rel_path
-                        person.portrait_source_url = image_page_url
-                    except Exception as exc:
-                        from loguru import logger as _log
+            if not thumb_url:
+                continue
+            img_bytes = await download_image_bytes(thumb_url)
+            if not img_bytes:
+                continue
+            try:
+                rel_path = save_uploaded_cover(img_bytes)
+                person.portrait_image_path = rel_path
+                person.portrait_source_url = image_page_url
+                person.portrait_fetched_at = datetime.utcnow()
+                break
+            except Exception as exc:
+                from loguru import logger as _log
 
-                        _log.warning("Kunde inte spara porträtt: {}", exc)
+                _log.warning("Kunde inte spara porträtt: {}", exc)
 
     enrich_person_from_mb(
         session,

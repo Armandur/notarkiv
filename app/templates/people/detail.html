@@ -27,7 +27,7 @@
          class="img-fluid rounded shadow-sm lightbox-image" alt="{{ person.name }}">
     {% if person.portrait_source_url %}
     <div class="small text-muted mt-1">
-      Bild från <a href="{{ person.portrait_source_url }}" target="_blank">källa</a>
+      Bild från <a href="{{ person.portrait_source_url }}" target="_blank">källa</a>{% if person.portrait_fetched_at %}, hämtad {{ person.portrait_fetched_at.strftime('%Y-%m-%d') }}{% endif %}
     </div>
     {% endif %}
     {% else %}
@@ -67,6 +67,9 @@
       <a href="{{ person.biography_source_url }}" target="_blank">Wikipedia</a>,
       tillgänglig under
       <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank">CC BY-SA 4.0</a>.
+      {% if person.biography_fetched_at %}
+      Hämtad {{ person.biography_fetched_at.strftime('%Y-%m-%d') }}.
+      {% endif %}
     </p>
     {% endif %}
     {% endif %}

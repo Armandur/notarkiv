@@ -228,6 +228,7 @@ def enrich_person_from_mb(
     if biography and not person.biography:
         person.biography = biography
         person.biography_source_url = wikipedia_url
+        person.biography_fetched_at = datetime.utcnow()
         changed = True
 
     if wikipedia_url:

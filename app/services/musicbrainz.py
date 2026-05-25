@@ -253,13 +253,28 @@ def commons_file_to_thumb_url(file_url: str, width: int = 600) -> str | None:
 
 
 async def download_image_bytes(url: str) -> bytes | None:
-    """Ladda ner en bildfil. Följer redirects (Special:FilePath -> CDN)."""
+    """Ladda ner en bildfil. Följer redirects (Special:FilePath -> CDN).
+    Validerar att svaret är en bild via content-type och rimlig storlek -
+    Commons returnerar HTML eller mini-placeholder för filer som inte finns."""
     try:
         async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
             resp = await client.get(
                 url, headers={"User-Agent": get_musicbrainz_user_agent()}
             )
             resp.raise_for_status()
+            content_type = (resp.headers.get("content-type") or "").lower()
+            if not content_type.startswith("image/"):
+                logger.warning(
+                    "Bildhämtning fick fel content-type ({}) för {}",
+                    content_type, url,
+                )
+                return None
+            if len(resp.content) < 500:
+                logger.warning(
+                    "Bildhämtning fick orealistiskt liten body ({} bytes) för {}",
+                    len(resp.content), url,
+                )
+                return None
             return resp.content
     except httpx.HTTPError as exc:
         logger.warning("Bildhämtning misslyckades för {}: {}", url, exc)

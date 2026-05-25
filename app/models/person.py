@@ -52,6 +52,8 @@ class Person(SQLModel, table=True):
     portrait_source_url: str | None = None
     musicbrainz_artist_id: str | None = Field(default=None, index=True)
     wikidata_id: str | None = Field(default=None, index=True)
+    biography_fetched_at: datetime | None = None
+    portrait_fetched_at: datetime | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
