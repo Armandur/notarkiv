@@ -1,0 +1,889 @@
+# Den svenska psalmboken (1986).
+# Psalmerna 1-325 är den ekumeniska delen som delas med andra samfund;
+# 326-700 är specifika för Svenska kyrkans utgåva.
+# Källa: Wikipedia (sv.wikipedia.org/wiki/Psalm_1%E2%80%93325_i_den_ekumeniska_psalmboken
+# + Psalm_326%E2%80%93700_i_1986_%C3%A5rs_psalmbok)
+
+name: Den svenska psalmboken
+edition: '1986'
+description: 1986 års psalmbok. Psalm 1-325 är den ekumeniska delen.
+psalms:
+  # Lovsång och tillbedjan
+  - { number: 1, title: 'Gud, vår Gud, vi lovar dig', section: 'Lovsång och tillbedjan' }
+  - { number: 2, title: 'Herren, vår Gud, är en konung', section: 'Lovsång och tillbedjan' }
+  - { number: 3, title: 'Helig, helig, helig', section: 'Lovsång och tillbedjan' }
+  - { number: 4, title: 'Hela världen fröjdes Herran', section: 'Lovsång och tillbedjan' }
+  - { number: 5, title: 'Nu tacka Gud, allt folk', section: 'Lovsång och tillbedjan' }
+  - { number: 6, title: 'Lova Gud i himmelshöjd', section: 'Lovsång och tillbedjan' }
+  - { number: 7, title: 'Lova Herren, sol och måne', section: 'Lovsång och tillbedjan' }
+  - { number: 8, title: 'Lova vill jag Herran, Herran', section: 'Lovsång och tillbedjan' }
+  - { number: 9, title: 'Min själ skall lova Herran', section: 'Lovsång och tillbedjan' }
+  - { number: 10, title: 'Lov, ära och pris', section: 'Lovsång och tillbedjan' }
+  - { number: 11, title: 'O store Gud', section: 'Lovsång och tillbedjan' }
+  - { number: 12, title: 'Brist ut, min själ, i lovsångs ljud', section: 'Lovsång och tillbedjan' }
+  - { number: 13, title: 'Min Gud, när jag betänker', section: 'Lovsång och tillbedjan' }
+  - { number: 14, title: 'Högtlovat vare Jesu namn', section: 'Lovsång och tillbedjan' }
+  - { number: 15, title: 'Halleluja! Sjung om Jesus', section: 'Lovsång och tillbedjan' }
+  - { number: 16, title: 'Kom, låt oss nu förenas här', section: 'Lovsång och tillbedjan' }
+  - { number: 17, title: 'Ge Jesus äran, frälsta mänsklighet', section: 'Lovsång och tillbedjan' }
+
+  # Treenigheten
+  - { number: 18, title: 'Allena Gud i himmelrik', section: 'Treenigheten' }
+  - { number: 19, title: 'Du för vars allmaktsord', section: 'Treenigheten' }
+  - { number: 20, title: 'Helige Fader, kom och var oss nära', section: 'Treenigheten' }
+  - { number: 21, title: 'Måne och sol', section: 'Treenigheten' }
+
+  # Gud, vår Skapare och Fader
+  - { number: 22, title: 'Dig skall min själ sitt offer bära', section: 'Gud, vår Skapare och Fader' }
+  - { number: 23, title: 'Tack, gode Gud, för allt som finns', section: 'Gud, vår Skapare och Fader' }
+  - { number: 24, title: 'Med tacksam röst och tacksam själ', section: 'Gud, vår Skapare och Fader' }
+  - { number: 25, title: 'Högt i stjärnehimlen', section: 'Gud, vår Skapare och Fader' }
+  - { number: 26, title: 'Tränger i dolda djupen ner', section: 'Gud, vår Skapare och Fader' }
+  - { number: 27, title: 'Du är större än mitt hjärta', section: 'Gud, vår Skapare och Fader' }
+  - { number: 28, title: 'Så älskade Gud världen all', section: 'Gud, vår Skapare och Fader' }
+  - { number: 29, title: 'Kärlek från vår Gud', section: 'Gud, vår Skapare och Fader' }
+  - { number: 30, title: 'Gud är trofast! Så ljöd sången', section: 'Gud, vår Skapare och Fader' }
+  - { number: 31, title: 'Låt oss glada och i tro', section: 'Gud, vår Skapare och Fader' }
+
+  # Jesus, vår Herre och broder
+  - { number: 32, title: 'O gläd dig Guds församling nu', section: 'Jesus, vår Herre och broder' }
+  - { number: 33, title: 'O Jesus Krist som mänska blev', section: 'Jesus, vår Herre och broder' }
+  - { number: 34, title: 'Vänligt över jorden glänser', section: 'Jesus, vår Herre och broder' }
+  - { number: 35, title: 'Din spira, Jesus, sträckes ut', section: 'Jesus, vår Herre och broder' }
+  - { number: 36, title: 'O Kriste, oss benåda', section: 'Jesus, vår Herre och broder' }
+  - { number: 37, title: 'Kristus är världens ljus', section: 'Jesus, vår Herre och broder' }
+  - { number: 38, title: 'För att du inte tog det gudomliga', section: 'Jesus, vår Herre och broder' }
+  - { number: 39, title: 'Jesus från Nasaret går här fram', section: 'Jesus, vår Herre och broder' }
+  - { number: 40, title: 'Kristus vandrar bland oss än', section: 'Jesus, vår Herre och broder' }
+  - { number: 41, title: 'Vem är det som kommer på vägen', section: 'Jesus, vår Herre och broder' }
+  - { number: 42, title: 'Se, Jesus är ett tröstrikt namn', section: 'Jesus, vår Herre och broder' }
+  - { number: 43, title: 'Jesus är min vän den bäste', section: 'Jesus, vår Herre och broder' }
+  - { number: 44, title: 'O giv mig tusen tungors ljud', section: 'Jesus, vår Herre och broder' }
+  - { number: 45, title: 'Jesus för världen givit sitt liv', section: 'Jesus, vår Herre och broder' }
+  - { number: 46, title: 'Låt mig få höra om Jesus', section: 'Jesus, vår Herre och broder' }
+  - { number: 47, title: 'Säg, känner du det underbara namnet', section: 'Jesus, vår Herre och broder' }
+  - { number: 48, title: 'Vilken vän vi har i Jesus', section: 'Jesus, vår Herre och broder' }
+  - { number: 49, title: 'Det är sant att Jesus lever', section: 'Jesus, vår Herre och broder' }
+
+  # Anden, vår Hjälpare och tröst
+  - { number: 50, title: 'Kom, Skaparande, Herre god', section: 'Anden, vår Hjälpare och tröst' }
+  - { number: 51, title: 'Kom, helge Ande, Herre Gud', section: 'Anden, vår Hjälpare och tröst' }
+  - { number: 52, title: 'Herre, se vi väntar alla', section: 'Anden, vår Hjälpare och tröst' }
+  - { number: 53, title: 'Livets Ande, kom från ovan', section: 'Anden, vår Hjälpare och tröst' }
+  - { number: 54, title: 'Vinden ser vi inte', section: 'Anden, vår Hjälpare och tröst' }
+
+  # Kyrkan
+  - { number: 55, title: 'Vi lovar dig, o store Gud', section: 'Kyrkan' }
+  - { number: 56, title: 'Gammal är kyrkan, Herrens hus', section: 'Kyrkan' }
+  - { number: 57, title: 'Sin enda grund har kyrkan', section: 'Kyrkan' }
+  - { number: 58, title: 'Hjärtan, enigt sammanslutna', section: 'Kyrkan' }
+  - { number: 59, title: 'Med Gud och hans vänskap', section: 'Kyrkan' }
+  - { number: 60, title: 'En Fader oss förenar', section: 'Kyrkan' }
+  - { number: 61, title: 'Lågorna är många', section: 'Kyrkan' }
+  - { number: 62, title: 'Än finns det en värld', section: 'Kyrkan' }
+
+  # Ordet
+  - { number: 63, title: 'Dig, ljusens Fader, vare pris', section: 'Ordet' }
+  - { number: 64, title: 'En dyr klenod, en klar och ren', section: 'Ordet' }
+  - { number: 65, title: 'Omkring ditt ord, o Jesus', section: 'Ordet' }
+  - { number: 66, title: 'En såningsman går där', section: 'Ordet' }
+  - { number: 67, title: 'Som torra marken dricker regn', section: 'Ordet' }
+
+  # Dopet
+  - { number: 68, title: 'Jag tror på Gud som med sitt ord', section: 'Dopet' }
+  - { number: 69, title: 'Glad jag städse vill bekänna', section: 'Dopet' }
+
+  # Nattvarden
+  - { number: 70, title: 'O Jesus, än de dina', section: 'Nattvarden' }
+  - { number: 71, title: 'Som spridda sädeskornen', section: 'Nattvarden' }
+  - { number: 72, title: 'Du sanna vinträd, Jesus kär', section: 'Nattvarden' }
+  - { number: 73, title: 'Vi till ditt altarbord bär fram', section: 'Nattvarden' }
+  - { number: 74, title: 'Du som gick före oss', section: 'Nattvarden' }
+  - { number: 75, title: 'När vi delar det bröd som han oss ger', section: 'Nattvarden' }
+  - { number: 76, title: 'Gud, vår lösta tunga', section: 'Nattvarden' }
+
+  # Helg och gudstjänst
+  - { number: 77, title: 'Hör hur tempelsången stiger', section: 'Helg och gudstjänst' }
+  - { number: 78, title: 'O Jesus Krist, dig till oss vänd', section: 'Helg och gudstjänst' }
+  - { number: 79, title: 'Gud är mitt ibland oss', section: 'Helg och gudstjänst' }
+  - { number: 80, title: 'Hur ljuvt det är att komma', section: 'Helg och gudstjänst' }
+  - { number: 81, title: 'Herre, samla oss nu alla', section: 'Helg och gudstjänst' }
+
+  # Vigsel
+  - { number: 82, title: 'Gud, se i nåd till dessa två', section: 'Vigsel' }
+  - { number: 83, title: 'Som klaraste vattuflöden', section: 'Vigsel' }
+  - { number: 84, title: 'Vi lyfter våra hjärtan', section: 'Vigsel' }
+  - { number: 85, title: 'Som mannen och kvinnan', section: 'Vigsel' }
+
+  # Vittnesbörd - tjänst - mission
+  - { number: 86, title: 'O Guds kärlek, dina höjder', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 87, title: 'Våga vara den du i Kristus är', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 88, title: 'Räds ej bekänna Kristi namn', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 89, title: 'Se, jag vill bära ditt budskap, Herre', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 90, title: 'Blott i det öppna', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 91, title: 'Din kärlek, Jesus, gräns ej vet', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 92, title: 'Kärlek av höjden', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 93, title: 'Jesus, Guds Son, träd in i denna skara', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 94, title: 'Du som av kärlek varm', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 95, title: 'Ditt verk är stort, men jag är svag', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 96, title: 'Öppna mig för din kärlek', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 97, title: 'Jag behövde en nästa', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 98, title: 'Ett vänligt ord kan göra under', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 99, title: 'Gud, vår Gud, för världen all', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 100, title: 'Tillkomme ditt rike', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 101, title: 'Vår store Gud gör stora under', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 102, title: 'Tung och kvalfull vilar hela', section: 'Vittnesbörd – tjänst – mission' }
+
+  # Advent
+  - { number: 103, title: 'Bereden väg för Herran', section: 'Advent' }
+  - { number: 104, title: 'Gläd dig, du Kristi brud', section: 'Advent' }
+  - { number: 105, title: 'Hosianna, Davids Son', section: 'Advent' }
+  - { number: 106, title: 'Jerusalem, höj upp din röst', section: 'Advent' }
+  - { number: 107, title: 'Gör porten hög, gör dörren bred', section: 'Advent' }
+  - { number: 108, title: 'Gå, Sion, din konung att möta', section: 'Advent' }
+  - { number: 109, title: 'Det susar genom livets strid', section: 'Advent' }
+  - { number: 110, title: 'Han kommer i sin kyrka', section: 'Advent' }
+  - { number: 111, title: 'Kristus kommer – Davids son', section: 'Advent' }
+
+  # Jul
+  - { number: 112, title: 'Världens Frälsare kom här', section: 'Jul' }
+  - { number: 113, title: 'Det är en ros utsprungen', section: 'Jul' }
+  - { number: 114, title: 'Stilla natt, heliga natt', section: 'Jul' }
+  - { number: 115, title: 'O Betlehem, du lilla stad', section: 'Jul' }
+  - { number: 116, title: 'Nu tändas tusen juleljus', section: 'Jul' }
+  - { number: 117, title: 'När Jesusbarnet låg en gång', section: 'Jul' }
+  - { number: 118, title: 'Fröjdas, vart sinne', section: 'Jul' }
+  - { number: 119, title: 'Var hälsad, sköna morgonstund', section: 'Jul' }
+  - { number: 120, title: 'Se natten flyr för dagens fröjd', section: 'Jul' }
+  - { number: 121, title: 'När juldagsmorgon glimmar', section: 'Jul' }
+  - { number: 122, title: 'Dagen är kommen', section: 'Jul' }
+  - { number: 123, title: 'Lyss till änglasångens ord', section: 'Jul' }
+  - { number: 124, title: 'En jungfru födde ett barn i dag', section: 'Jul' }
+  - { number: 125, title: 'Från himlens höjd jag bringar bud', section: 'Jul' }
+  - { number: 126, title: 'Ett barn är fött på denna dag', section: 'Jul' }
+  - { number: 127, title: 'O du saliga, o du heliga', section: 'Jul' }
+  - { number: 128, title: 'Vid Betlehem en vinternatt', section: 'Jul' }
+  - { number: 129, title: 'Och det hände vid den tiden', section: 'Jul' }
+
+  # Trettondedag jul
+  - { number: 130, title: 'En stjärna gick på himlen fram', section: 'Trettondedag jul' }
+  - { number: 131, title: 'Stå upp, o Sion, och lovsjung', section: 'Trettondedag jul' }
+  - { number: 132, title: 'Nu segrar alla trognas hopp', section: 'Trettondedag jul' }
+  - { number: 133, title: 'Himlen är så härligt blå', section: 'Trettondedag jul' }
+  - { number: 134, title: 'Gläns över sjö och strand', section: 'Trettondedag jul' }
+
+  # Fastan
+  - { number: 135, title: 'Se, vi går upp till Jerusalem', section: 'Fastan' }
+  - { number: 136, title: 'Du går, Guds Lamm, du rena', section: 'Fastan' }
+  - { number: 137, title: 'Den kärlek du till världen bar', section: 'Fastan' }
+  - { number: 138, title: 'Jesus, du mitt liv, min hälsa', section: 'Fastan' }
+  - { number: 139, title: 'Den stunden i Getsemane', section: 'Fastan' }
+  - { number: 140, title: 'Du bar ditt kors, o Jesu mild', section: 'Fastan' }
+  - { number: 141, title: 'Han på korset, han allena', section: 'Fastan' }
+  - { number: 142, title: 'Skåda, skåda nu här alla', section: 'Fastan' }
+  - { number: 143, title: 'Guds rena Lamm, oskyldig', section: 'Fastan' }
+  - { number: 144, title: 'O huvud, blodigt, sårat', section: 'Fastan' }
+  - { number: 145, title: 'När världens Frälsare jag ser', section: 'Fastan' }
+
+  # Påsk
+  - { number: 146, title: 'Vad ljus över griften', section: 'Påsk' }
+  - { number: 147, title: 'Upp, min tunga, att lovsjunga', section: 'Påsk' }
+  - { number: 148, title: 'Jesus Kristus är uppstånden', section: 'Påsk' }
+  - { number: 149, title: 'Detta är den stora dagen', section: 'Påsk' }
+  - { number: 150, title: 'Du segern oss förkunnar', section: 'Påsk' }
+  - { number: 151, title: 'Denna dag stod Kristus opp', section: 'Påsk' }
+  - { number: 152, title: 'Kristus lever – underbara ord', section: 'Påsk' }
+  - { number: 153, title: 'Livet vann, dess namn är Jesus', section: 'Påsk' }
+  - { number: 154, title: 'Dina händer är fulla av blommor', section: 'Påsk' }
+  - { number: 155, title: 'Herren lever, våga tro det', section: 'Påsk' }
+  - { number: 156, title: 'De trodde att Jesus var borta', section: 'Påsk' }
+  - { number: 157, title: 'Den korta stund jag vandrar här', section: 'Påsk' }
+
+  # Kristi himmelsfärds dag
+  - { number: 158, title: 'Till himlen Herren Jesus for', section: 'Kristi himmelsfärds dag' }
+  - { number: 159, title: 'Till härlighetens land igen', section: 'Kristi himmelsfärds dag' }
+
+  # Pingst
+  - { number: 160, title: 'Guds Ande kom från himlen ner', section: 'Pingst' }
+  - { number: 161, title: 'Helige Ande, låt nu ske', section: 'Pingst' }
+  - { number: 162, title: 'Som sol om våren stiger', section: 'Pingst' }
+
+  # Övriga helgdagar
+  - { number: 163, title: 'På lidande byggd är Guds kyrka', section: 'Den helige Stefanos dag eller Annandag jul' }
+  - { number: 164, title: 'På tröskeln till Marias hem', section: 'Jungfru Marie bebådelsedag' }
+  - { number: 165, title: 'Vår blick mot helga berget går', section: 'Kristi förklarings dag' }
+  - { number: 166, title: 'Sorlet har dött', section: 'Kristi förklarings dag' }
+  - { number: 167, title: 'Gud låter sina trogna här', section: 'Den helige Mikaels dag' }
+  - { number: 168, title: 'Kom inför Herren med tacksamhet', section: 'Tacksägelsedagen' }
+
+  # Alla helgons dag
+  - { number: 169, title: 'I himmelen, i himmelen', section: 'Alla helgons dag' }
+  - { number: 170, title: 'Den stora vita skaran där', section: 'Alla helgons dag' }
+  - { number: 171, title: 'För alla helgon', section: 'Alla helgons dag' }
+  - { number: 172, title: 'De skall gå till den heliga staden', section: 'Alla helgons dag' }
+
+  # De hädangångnas minne / Kyrkoårets slut
+  - { number: 173, title: 'Din frid skall aldrig vika', section: 'De hädangångnas minne' }
+  - { number: 174, title: 'Herre, när din dag är inne', section: 'Vid kyrkoårets slut' }
+
+  # Morgon
+  - { number: 175, title: 'Den signade dag', section: 'Morgon' }
+  - { number: 176, title: 'Din klara sol går åter opp', section: 'Morgon' }
+  - { number: 177, title: 'Pris vare Gud som låter', section: 'Morgon' }
+  - { number: 178, title: 'Som skimret över hav och sky', section: 'Morgon' }
+  - { number: 179, title: 'Morgon mellan fjällen', section: 'Morgon' }
+  - { number: 180, title: 'Var dag är en sällsam gåva', section: 'Morgon' }
+  - { number: 181, title: 'Nu är det morgon', section: 'Morgon' }
+  - { number: 182, title: 'Det ljusnar sakta', section: 'Morgon' }
+
+  # Under dagen
+  - { number: 183, title: 'Som sådden förnimmer Guds välbehag', section: 'Under dagen' }
+  - { number: 184, title: 'Jesus kär, var mig när', section: 'Under dagen' }
+
+  # Kväll
+  - { number: 185, title: 'O Kriste, du som ljuset är', section: 'Kväll' }
+  - { number: 186, title: 'Nu vilar folk och länder', section: 'Kväll' }
+  - { number: 187, title: 'Nu är en dag framliden', section: 'Kväll' }
+  - { number: 188, title: 'Så går en dag än från vår tid', section: 'Kväll' }
+  - { number: 189, title: 'Bliv kvar hos mig', section: 'Kväll' }
+  - { number: 190, title: 'Bred dina vida vingar', section: 'Kväll' }
+  - { number: 191, title: 'Den dag du gav oss, Gud, är gången', section: 'Kväll' }
+  - { number: 192, title: 'Nu sjunker bullret', section: 'Kväll' }
+  - { number: 193, title: 'Gud som haver barnen kär', section: 'Kväll' }
+
+  # Årsskifte
+  - { number: 194, title: 'Giv, o Jesus, fröjd och lycka', section: 'Årsskifte' }
+  - { number: 195, title: 'O Gud, vår hjälp i gångna år', section: 'Årsskifte' }
+  - { number: 196, title: 'Låt mig börja med dig', section: 'Årsskifte' }
+
+  # Årstiderna
+  - { number: 197, title: 'Den blida vår är inne', section: 'Årstiderna' }
+  - { number: 198, title: 'Likt vårdagssol i morgonglöd', section: 'Årstiderna' }
+  - { number: 199, title: 'Den blomstertid nu kommer', section: 'Årstiderna' }
+  - { number: 200, title: 'I denna ljuva sommartid', section: 'Årstiderna' }
+  - { number: 201, title: 'En vänlig grönskas rika dräkt', section: 'Årstiderna' }
+  - { number: 202, title: 'De blomster som i marken bor', section: 'Årstiderna' }
+  - { number: 203, title: 'Fram skrider året i sin gång', section: 'Årstiderna' }
+  - { number: 204, title: 'Kornet har sin vila', section: 'Årstiderna' }
+
+  # Stillhet - meditation
+  - { number: 205, title: 'Vila i din väntan', section: 'Stillhet – meditation' }
+  - { number: 206, title: 'Herre, jag vill bida', section: 'Stillhet – meditation' }
+  - { number: 207, title: 'En liten stund med Jesus', section: 'Stillhet – meditation' }
+  - { number: 208, title: 'Det tänds ett ljus', section: 'Stillhet – meditation' }
+
+  # Bönen
+  - { number: 209, title: 'O Gud, all sannings källa', section: 'Bönen' }
+  - { number: 210, title: 'Jag lyfter ögat mot himmelen', section: 'Bönen' }
+  - { number: 211, title: 'Jesus kär, gå ej förbi mig', section: 'Bönen' }
+  - { number: 212, title: 'Långt bortom rymder vida', section: 'Bönen' }
+  - { number: 213, title: 'Att bedja är ej endast att begära', section: 'Bönen' }
+  - { number: 214, title: 'Lär mig att bedja av hjärtat', section: 'Bönen' }
+
+  # Sökande - tvivel
+  - { number: 215, title: 'Gud, din nåd till himlen räcker', section: 'Sökande – tvivel' }
+  - { number: 216, title: 'Mästare, alla söka dig', section: 'Sökande – tvivel' }
+  - { number: 217, title: 'Gud, för dig är allting klart', section: 'Sökande – tvivel' }
+  - { number: 218, title: 'Jag har ofta frågor, Herre', section: 'Sökande – tvivel' }
+  - { number: 219, title: 'Jag skulle vilja våga tro', section: 'Sökande – tvivel' }
+
+  # Kallelse
+  - { number: 220, title: 'Till den himmel som blir allas', section: 'Kallelse' }
+  - { number: 221, title: 'Skynda till Jesus, Frälsaren kär', section: 'Kallelse' }
+  - { number: 222, title: 'Just som jag är, ej med ett strå', section: 'Kallelse' }
+  - { number: 223, title: 'Jag vet en port som öppen står', section: 'Kallelse' }
+  - { number: 224, title: 'Lämna dig helt åt Jesus', section: 'Kallelse' }
+  - { number: 225, title: 'Jesus är ute och söker', section: 'Kallelse' }
+
+  # Bättring - omvändelse
+  - { number: 226, title: 'O gränslösa frälsning', section: 'Bättring – omvändelse' }
+  - { number: 227, title: 'O du som ser, o du som vet', section: 'Bättring – omvändelse' }
+  - { number: 228, title: 'I tro under himmelens skyar', section: 'Bättring – omvändelse' }
+  - { number: 229, title: 'I Adam är vi alla ett', section: 'Bättring – omvändelse' }
+
+  # Skuld - förlåtelse
+  - { number: 230, title: 'Klippa, du som brast för mig', section: 'Skuld – förlåtelse' }
+  - { number: 231, title: 'Oändlig nåd mig Herren gav', section: 'Skuld – förlåtelse' }
+  - { number: 232, title: 'Frälsare, du som äger läkedomen', section: 'Skuld – förlåtelse' }
+  - { number: 233, title: 'Fader, du vars hjärta gömmer', section: 'Skuld – förlåtelse' }
+  - { number: 234, title: 'O salighet, o gåtfullhet', section: 'Skuld – förlåtelse' }
+  - { number: 235, title: 'Som en härlig gudomskälla', section: 'Skuld – förlåtelse' }
+  - { number: 236, title: 'Guds källa har vatten tillfyllest', section: 'Skuld – förlåtelse' }
+
+  # Förtröstan - trygghet
+  - { number: 237, title: 'Vår Gud är oss en väldig borg', section: 'Förtröstan – trygghet' }
+  - { number: 238, title: 'Jag lyfter mina händer', section: 'Förtröstan – trygghet' }
+  - { number: 239, title: 'Av hjärtat håller jag dig kär', section: 'Förtröstan – trygghet' }
+  - { number: 240, title: 'Uti din nåd, o Fader blid', section: 'Förtröstan – trygghet' }
+  - { number: 241, title: 'Bort med tanken, sorgsna hjärta', section: 'Förtröstan – trygghet' }
+  - { number: 242, title: 'Jag vill dig, Gud, med glädje prisa', section: 'Förtröstan – trygghet' }
+  - { number: 243, title: 'Vi kristna bör tro och besinna', section: 'Förtröstan – trygghet' }
+  - { number: 244, title: 'Säll är den som sina händer', section: 'Förtröstan – trygghet' }
+  - { number: 245, title: 'Jag nu den säkra grunden vunnit', section: 'Förtröstan – trygghet' }
+  - { number: 246, title: 'Här en källa rinner', section: 'Förtröstan – trygghet' }
+  - { number: 247, title: 'Befall i Herrens händer', section: 'Förtröstan – trygghet' }
+  - { number: 248, title: 'Tryggare kan ingen vara', section: 'Förtröstan – trygghet' }
+  - { number: 249, title: 'Blott en dag', section: 'Förtröstan – trygghet' }
+  - { number: 250, title: 'Är det sant att Jesus är min broder', section: 'Förtröstan – trygghet' }
+  - { number: 251, title: 'Var jag går i skogar, berg och dalar', section: 'Förtröstan – trygghet' }
+  - { number: 252, title: 'Hela vägen går han med mig', section: 'Förtröstan – trygghet' }
+  - { number: 253, title: 'O giv oss, Herre, av den tro', section: 'Förtröstan – trygghet' }
+  - { number: 254, title: 'Löftena kunna ej svika', section: 'Förtröstan – trygghet' }
+  - { number: 255, title: 'Alla har brått', section: 'Förtröstan – trygghet' }
+  - { number: 256, title: 'Var inte rädd', section: 'Förtröstan – trygghet' }
+
+  # Glädje - tacksamhet
+  - { number: 257, title: 'Pris vare Gud! Allena han', section: 'Glädje – tacksamhet' }
+  - { number: 258, title: 'O liv, som blev tänt', section: 'Glädje – tacksamhet' }
+  - { number: 259, title: 'Saliga visshet, Jesus är min', section: 'Glädje – tacksamhet' }
+  - { number: 260, title: 'Jag kan icke räkna dem alla', section: 'Glädje – tacksamhet' }
+  - { number: 261, title: 'Tack, min Gud, för vad som varit', section: 'Glädje – tacksamhet' }
+  - { number: 262, title: 'O sällhet stor, som Herren ger', section: 'Glädje – tacksamhet' }
+  - { number: 263, title: 'Det är saligt på Jesus få tro', section: 'Glädje – tacksamhet' }
+  - { number: 264, title: 'Mitt i en värld av mörker', section: 'Glädje – tacksamhet' }
+
+  # Vaksamhet - kamp - prövning
+  - { number: 265, title: 'Ingen hinner fram till den eviga ron', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 266, title: 'Säg mig den vägen', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 267, title: 'Bed för mig, Herre kär', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 268, title: 'Hur underlig är du i allt vad du gör', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 269, title: 'Sorgen och glädjen', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 270, title: 'När ingen ljusning alls jag finner', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 271, title: 'Närmare, Gud, till dig', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 272, title: 'Nu gläd dig, min Ande, i Herran', section: 'Vaksamhet – kamp – prövning' }
+
+  # Efterföljd - helgelse
+  - { number: 273, title: 'Jesus, du mitt hjärtas längtan', section: 'Efterföljd – helgelse' }
+  - { number: 274, title: 'Jesus, gör mig så till sinnes', section: 'Efterföljd – helgelse' }
+  - { number: 275, title: 'Led, milda ljus', section: 'Efterföljd – helgelse' }
+  - { number: 276, title: 'Herre, med kraft ifrån höjden bekläd mig', section: 'Efterföljd – helgelse' }
+  - { number: 277, title: 'Så tag nu mina händer', section: 'Efterföljd – helgelse' }
+  - { number: 278, title: 'Frälsare, tag min hand', section: 'Efterföljd – helgelse' }
+  - { number: 279, title: 'Lev för Jesus, intet annat', section: 'Efterföljd – helgelse' }
+  - { number: 280, title: 'Jesus, min Herre, dig vill jag älska', section: 'Efterföljd – helgelse' }
+  - { number: 281, title: 'Mer helighet giv mig', section: 'Efterföljd – helgelse' }
+  - { number: 282, title: 'Bar du min börda', section: 'Efterföljd – helgelse' }
+  - { number: 283, title: 'Med Jesus fram i de bästa åren', section: 'Efterföljd – helgelse' }
+  - { number: 284, title: 'Ord av evighet', section: 'Efterföljd – helgelse' }
+
+  # Tillsammans i världen
+  - { number: 285, title: 'Det finns djup i Herrens godhet', section: 'Tillsammans i världen' }
+  - { number: 286, title: 'Kom, helige Ande, från höjden', section: 'Tillsammans i världen' }
+  - { number: 287, title: 'Guds värld är en skimrande gåva', section: 'Tillsammans i världen' }
+  - { number: 288, title: 'Gud, från ditt hus, vår tillflykt, du oss kallar', section: 'Tillsammans i världen' }
+  - { number: 289, title: 'Guds kärlek är som stranden och som gräset', section: 'Tillsammans i världen' }
+  - { number: 290, title: 'Herre, din dag var också lik', section: 'Tillsammans i världen' }
+  - { number: 291, title: 'Sänd av himlens sol en strimma', section: 'Tillsammans i världen' }
+  - { number: 292, title: 'Jublande lyfter vi här våra händer', section: 'Tillsammans i världen' }
+  - { number: 293, title: 'Sanningens Ande, himmelskt ljus du sänder', section: 'Tillsammans i världen' }
+  - { number: 294, title: 'Välsigna, Herre, alla dem', section: 'Tillsammans i världen' }
+  - { number: 295, title: 'Glädjens Herre, var en gäst', section: 'Tillsammans i världen' }
+  - { number: 296, title: 'Välsigna, Herre, vad du ger', section: 'Tillsammans i världen' }
+
+  # Pilgrimsvandringen
+  - { number: 297, title: 'Härlig är jorden', section: 'Pilgrimsvandringen' }
+  - { number: 298, title: 'Gud, ditt folk är vandringsfolket', section: 'Pilgrimsvandringen' }
+  - { number: 299, title: 'Ur djupet av mitt hjärta', section: 'Pilgrimsvandringen' }
+  - { number: 300, title: 'O, hur saligt att få vandra', section: 'Pilgrimsvandringen' }
+  - { number: 301, title: 'Hur ljuvligt det är att möta', section: 'Pilgrimsvandringen' }
+  - { number: 302, title: 'Min framtidsdag är ljus och lång', section: 'Pilgrimsvandringen' }
+  - { number: 303, title: 'Det finns en väg till himmelen', section: 'Pilgrimsvandringen' }
+
+  # Livets gåva och gräns
+  - { number: 304, title: 'Lär mig, du skog, att vissna glad', section: 'Livets gåva och gräns' }
+  - { number: 305, title: 'Var är den Vän, som överallt jag söker', section: 'Livets gåva och gräns' }
+  - { number: 306, title: 'Saliga de som ifrån världens öden', section: 'Livets gåva och gräns' }
+  - { number: 307, title: 'Från våra kära, från våra vänner', section: 'Livets gåva och gräns' }
+  - { number: 308, title: 'När jag lever har jag dig', section: 'Livets gåva och gräns' }
+  - { number: 309, title: 'Nu vilar ett hjärta', section: 'Livets gåva och gräns' }
+  - { number: 310, title: 'O Gud, du mig ej överger', section: 'Livets gåva och gräns' }
+  - { number: 311, title: 'Jag skall gråtande kasta mig ner', section: 'Livets gåva och gräns' }
+  - { number: 312, title: 'Städse på Sion jag tänker', section: 'Livets gåva och gräns' }
+  - { number: 313, title: 'Min Frälsare lever, jag vet att han lever', section: 'Livets gåva och gräns' }
+
+  # Kristi återkomst
+  - { number: 314, title: 'Ack, saliga dag, som i hoppet vi bidar', section: 'Kristi återkomst' }
+  - { number: 315, title: 'En herrdag i höjden', section: 'Kristi återkomst' }
+  - { number: 316, title: 'Nu dagen är till ända', section: 'Kristi återkomst' }
+  - { number: 317, title: 'Vakna upp! en stämma bjuder', section: 'Kristi återkomst' }
+  - { number: 318, title: 'Nattens skuggor sakta viker', section: 'Kristi återkomst' }
+
+  # Himlen
+  - { number: 319, title: 'Så skön går morgonstjärnan fram', section: 'Himlen' }
+  - { number: 320, title: 'Tänk, när en gång det töcken har försvunnit', section: 'Himlen' }
+  - { number: 321, title: 'Det dukas i himlarnas rike ett bord', section: 'Himlen' }
+  - { number: 322, title: 'Jag är en gäst och främling', section: 'Himlen' }
+  - { number: 323, title: 'De kommer från öst och väst', section: 'Himlen' }
+  - { number: 324, title: 'Med lust och glädje tänker', section: 'Himlen' }
+  - { number: 325, title: 'I hoppet sig min frälsta själ förnöjer', section: 'Himlen' }
+
+  # === 326-700 (1986 års svenska del) ===
+
+  # Lovsång och tillbedjan
+  - { number: 326, title: 'Upp, psaltare och harpa', section: 'Lovsång och tillbedjan' }
+  - { number: 327, title: 'Lovad vare Herren', section: 'Lovsång och tillbedjan' }
+  - { number: 328, title: 'Lova Herren Gud, min själ', section: 'Lovsång och tillbedjan' }
+  - { number: 329, title: 'Höga majestät', section: 'Lovsång och tillbedjan' }
+  - { number: 330, title: 'Du som härlig ställde', section: 'Lovsång och tillbedjan' }
+  - { number: 331, title: 'Ljus som liv åt världen gav', section: 'Lovsång och tillbedjan' }
+  - { number: 332, title: 'Guds härlighet oss styrka ger', section: 'Lovsång och tillbedjan' }
+  - { number: 333, title: 'Änglarna sjunger i himlen', section: 'Lovsång och tillbedjan' }
+  - { number: 334, title: 'Dig vare lov och pris, o Krist', section: 'Lovsång och tillbedjan' }
+
+  # Treenigheten
+  - { number: 335, title: 'Vi tror på Gud som skapar världen', section: 'Treenigheten' }
+  - { number: 336, title: 'Gud trefaldig, stå oss bi', section: 'Treenigheten' }
+  - { number: 337, title: 'Vår Gud, till dig du skapat oss', section: 'Treenigheten' }
+  - { number: 338, title: 'Som ett klockspel hör jag dig', section: 'Treenigheten' }
+  - { number: 339, title: 'Himmelske Fader, ge åt oss alla', section: 'Treenigheten' }
+
+  # Gud, vår Skapare och Fader
+  - { number: 340, title: 'Guds väg i dunkel ofta går', section: 'Gud, vår Skapare och Fader' }
+  - { number: 341, title: 'Gud har gett åt fågeln dess vingar', section: 'Gud, vår Skapare och Fader' }
+  - { number: 342, title: 'Tusen stjärnor glimmar', section: 'Gud, vår Skapare och Fader' }
+  - { number: 343, title: 'Krukmakarskivan svänger runt', section: 'Gud, vår Skapare och Fader' }
+  - { number: 344, title: 'Gud har skapat allting', section: 'Gud, vår Skapare och Fader' }
+
+  # Jesus, vår Herre och broder
+  - { number: 345, title: 'Var man må nu väl glädja sig', section: 'Jesus, vår Herre och broder' }
+  - { number: 346, title: 'O Gud, du av barmhärtighet', section: 'Jesus, vår Herre och broder' }
+  - { number: 347, title: 'En blomma uti öknen stod', section: 'Jesus, vår Herre och broder' }
+  - { number: 348, title: 'Kristus, konung som hör hemma', section: 'Jesus, vår Herre och broder' }
+  - { number: 349, title: 'Länge, länge har mitt hjärta', section: 'Jesus, vår Herre och broder' }
+  - { number: 350, title: 'Vår Herre Krist var Sonen', section: 'Jesus, vår Herre och broder' }
+  - { number: 351, title: 'Guds Lamm, dig hälsar skaran', section: 'Jesus, vår Herre och broder' }
+  - { number: 352, title: 'En vanlig dag när inget särskilt händer', section: 'Jesus, vår Herre och broder' }
+  - { number: 353, title: 'Han satte sig ner på stranden', section: 'Jesus, vår Herre och broder' }
+  - { number: 354, title: 'Jesus, du min glädje', section: 'Jesus, vår Herre och broder' }
+  - { number: 355, title: 'Jesus, du som själen mättar', section: 'Jesus, vår Herre och broder' }
+  - { number: 356, title: 'Nämn mig Jesus, han är livet', section: 'Jesus, vår Herre och broder' }
+  - { number: 357, title: 'Någon du känner är din bäste vän', section: 'Jesus, vår Herre och broder' }
+  - { number: 358, title: 'Han gick in i din kamp på jorden', section: 'Jesus, vår Herre och broder' }
+  - { number: 359, title: 'Jesus, jag dig älskar', section: 'Jesus, vår Herre och broder' }
+  - { number: 360, title: 'Lovad vare du, Herre', section: 'Jesus, vår Herre och broder' }
+
+  # Anden, vår Hjälpare och tröst
+  - { number: 361, title: 'O du helge Ande, kom', section: 'Anden, vår Hjälpare och tröst' }
+  - { number: 362, title: 'O helge Ande, dig vi ber', section: 'Anden, vår Hjälpare och tröst' }
+  - { number: 363, title: 'Ande ifrån ovan', section: 'Anden, vår Hjälpare och tröst' }
+  - { number: 364, title: 'Kom, helge Ande, till mig in', section: 'Anden, vår Hjälpare och tröst' }
+  - { number: 365, title: 'Helige Ande, sanningens Ande', section: 'Anden, vår Hjälpare och tröst' }
+  - { number: 366, title: 'O Gud, ditt rike ingen ser', section: 'Anden, vår Hjälpare och tröst' }
+  - { number: 367, title: 'O Guds Ande, du som bor i ljus', section: 'Anden, vår Hjälpare och tröst' }
+  - { number: 368, title: 'Blås på mig, skaparvind', section: 'Anden, vår Hjälpare och tröst' }
+
+  # Kyrkan
+  - { number: 369, title: 'Med pelarstoder tolv', section: 'Kyrkan' }
+  - { number: 370, title: 'Tack, o Gud, att i din kyrka', section: 'Kyrkan' }
+  - { number: 371, title: 'Gud är vår starkhet och vårt stöd', section: 'Kyrkan' }
+
+  # Ordet
+  - { number: 372, title: 'O Fader vår, barmhärtig, god', section: 'Ordet' }
+  - { number: 373, title: 'Behåll oss vid ditt rena ord', section: 'Ordet' }
+  - { number: 374, title: 'Se Herrens ord är rent och klart', section: 'Ordet' }
+  - { number: 375, title: 'Framfaren är natten', section: 'Ordet' }
+  - { number: 376, title: 'Från tidevarv till tidevarv', section: 'Ordet' }
+  - { number: 377, title: 'Därför att Ordet bland oss bor', section: 'Ordet' }
+
+  # Dopet
+  - { number: 378, title: 'Gud, hos dig är livets källa', section: 'Dopet' }
+  - { number: 379, title: 'Du som var den minstes vän', section: 'Dopet' }
+  - { number: 380, title: 'Fader, du som livet tänder', section: 'Dopet' }
+  - { number: 381, title: 'Gud har en famn', section: 'Dopet' }
+  - { number: 382, title: 'Vi tackar dig, vår Skapare', section: 'Dopet' }
+  - { number: 383, title: 'Med vår glädje över livets under', section: 'Dopet' }
+  - { number: 384, title: 'Ett liv ur dina händer', section: 'Dopet' }
+  - { number: 385, title: 'I Jesu Kristi namn vi ber', section: 'Dopet' }
+  - { number: 386, title: 'Upp ur vilda, djupa vatten', section: 'Dopet' }
+
+  # Nattvarden
+  - { number: 387, title: 'Jesus Kristus är vår hälsa', section: 'Nattvarden' }
+  - { number: 388, title: 'Vår Herres Jesu Kristi död', section: 'Nattvarden' }
+  - { number: 389, title: 'Säll den som håller Jesus kär', section: 'Nattvarden' }
+  - { number: 390, title: 'Vad röst, vad ljuvlig röst jag hör', section: 'Nattvarden' }
+  - { number: 391, title: 'Av helig längtan hjärtat slår', section: 'Nattvarden' }
+  - { number: 392, title: 'Det helga bröd på altarbordet vilar', section: 'Nattvarden' }
+  - { number: 393, title: 'Du öppnar, o evige Fader', section: 'Nattvarden' }
+  - { number: 394, title: 'Kläd dig, själ, i högtidskläder', section: 'Nattvarden' }
+  - { number: 395, title: 'Tyst, likt dagg som faller', section: 'Nattvarden' }
+  - { number: 396, title: 'Gud är en av oss vid detta bord', section: 'Nattvarden' }
+  - { number: 397, title: 'Så som du bjöd vi kommer nu', section: 'Nattvarden' }
+  - { number: 398, title: 'Vi reser ett tecken', section: 'Nattvarden' }
+  - { number: 399, title: 'Vi bär så många med oss', section: 'Nattvarden' }
+  - { number: 400, title: 'Gud vare lovad, han som i sin godhet', section: 'Nattvarden' }
+
+  # Helg och gudstjänst
+  - { number: 401, title: 'Så skön en väg ej finns på jord', section: 'Helg och gudstjänst' }
+  - { number: 402, title: 'Hör, Gud ännu sin nåd dig bjuder', section: 'Helg och gudstjänst' }
+  - { number: 403, title: 'O Gud, det är en hjärtans tröst', section: 'Helg och gudstjänst' }
+  - { number: 404, title: 'Så skön och ljuvlig är', section: 'Helg och gudstjänst' }
+  - { number: 405, title: 'Hur fröjdar sig i templets famn', section: 'Helg och gudstjänst' }
+  - { number: 406, title: 'Käre Jesus, vi är här', section: 'Helg och gudstjänst' }
+  - { number: 407, title: 'Salig, Jesus, är den stunden', section: 'Helg och gudstjänst' }
+  - { number: 408, title: 'O gode Ande, led du mig', section: 'Helg och gudstjänst' }
+  - { number: 409, title: 'Du kallar oss till kyrkan', section: 'Helg och gudstjänst' }
+
+  # Vigsel
+  - { number: 410, title: 'Gud skapade av jord', section: 'Vigsel' }
+  - { number: 411, title: 'Gud har omsorg om vårt släkte', section: 'Vigsel' }
+
+  # Vittnesbörd - tjänst - mission
+  - { number: 412, title: 'Ett Kristusbrev till världen', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 413, title: 'Någon skall vaka i världens natt', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 414, title: 'Så långt som havets bölja går', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 415, title: 'I makt utan like', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 416, title: 'För hela världen vida', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 417, title: 'Låt nya tankar tolka Kristi bud', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 418, title: 'Hav och stränder din allmakt formar', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 419, title: 'Du själv förordnat, store Gud', section: 'Vittnesbörd – tjänst – mission' }
+  - { number: 420, title: 'Herren, vår Gud, har rest sin tron', section: 'Vittnesbörd – tjänst – mission' }
+
+  # Advent
+  - { number: 421, title: 'När vintermörkret kring oss står', section: 'Advent' }
+  - { number: 422, title: 'O du som himlens stjärnor tänt', section: 'Advent' }
+  - { number: 423, title: 'Kom Jesus, kom Immanuel', section: 'Advent' }
+  - { number: 424, title: 'Jag höja vill till Gud min sång', section: 'Advent' }
+  - { number: 425, title: 'Tidens mått har fyllts till randen', section: 'Advent' }
+  - { number: 426, title: 'Hör du rösten', section: 'Advent' }
+
+  # Jul
+  - { number: 427, title: 'Ring, alla klockor', section: 'Jul' }
+  - { number: 428, title: 'Mitt i vintern var det', section: 'Jul' }
+  - { number: 429, title: 'Herdar som på fälten vaktat', section: 'Jul' }
+  - { number: 430, title: 'Var kristtrogen fröjde sig', section: 'Jul' }
+  - { number: 431, title: 'Dig vare lov, o Jesus Krist', section: 'Jul' }
+  - { number: 432, title: 'Prisad högt av herdars skara', section: 'Jul' }
+  - { number: 433, title: 'In dulci jubilo', section: 'Jul' }
+
+  # Trettondedag jul
+  - { number: 434, title: 'Lagd på strå i ett stall', section: 'Trettondedag jul' }
+  - { number: 435, title: 'Å, vilka stora gåvor', section: 'Trettondedag jul' }
+  - { number: 436, title: 'Guds rådslut från begynnelsen', section: 'Trettondedag jul' }
+  - { number: 437, title: 'Till möten och brunnar', section: 'Trettondedag jul' }
+
+  # Fastan
+  - { number: 438, title: 'Du som i alltets mitt har ställt', section: 'Fastan' }
+  - { number: 439, title: 'Det går ett tyst och tåligt lamm', section: 'Fastan' }
+  - { number: 440, title: 'Min själ, du måste nu glömma', section: 'Fastan' }
+  - { number: 441, title: 'Jesus, djupa såren dina', section: 'Fastan' }
+  - { number: 442, title: 'Han gick den svåra vägen', section: 'Fastan' }
+  - { number: 443, title: 'Dig vi lovsjunger, ärar', section: 'Fastan' }
+  - { number: 444, title: 'Mycket folk kring Jesus var', section: 'Fastan' }
+  - { number: 445, title: 'Se, kärlet brast, och oljan är utgjuten', section: 'Fastan' }
+  - { number: 446, title: 'Dig, min Jesus, nu jag skådar', section: 'Fastan' }
+  - { number: 447, title: 'Jesus, lär mig alltid tänka', section: 'Fastan' }
+  - { number: 448, title: 'Lyssna, hör, du höga himmel', section: 'Fastan' }
+  - { number: 449, title: 'Jesus, dig i djupa nöden', section: 'Fastan' }
+  - { number: 450, title: 'Vaka med mig', section: 'Fastan' }
+  - { number: 451, title: 'När över Kidrons bäck du går', section: 'Fastan' }
+  - { number: 452, title: 'O Jesus kär, vad har väl du förbrutit', section: 'Fastan' }
+  - { number: 453, title: 'O du som för vår frälsnings skull', section: 'Fastan' }
+  - { number: 454, title: 'När jag den törnekrona', section: 'Fastan' }
+  - { number: 455, title: 'De såg ej dig, blott timmermannens son', section: 'Fastan' }
+  - { number: 456, title: 'Höga kors, du enda ädla', section: 'Fastan' }
+  - { number: 457, title: 'Domen över världen går', section: 'Fastan' }
+  - { number: 458, title: 'Så är fullkomnat, Jesus kär', section: 'Fastan' }
+  - { number: 459, title: 'Den tunga dagen går mot natt till sist', section: 'Fastan' }
+  - { number: 460, title: 'Ditt lidande har nått sitt slut', section: 'Fastan' }
+
+  # Påsk
+  - { number: 461, title: 'O natt av ljus som ej kan dö', section: 'Påsk' }
+  - { number: 462, title: 'Tänk om någon känt igen oss', section: 'Påsk' }
+  - { number: 463, title: 'Gråt inte mer, Maria', section: 'Påsk' }
+  - { number: 464, title: 'Krist är uppstånden', section: 'Påsk' }
+  - { number: 465, title: 'Nu kommen är vår påskafröjd', section: 'Påsk' }
+  - { number: 466, title: 'Nu låt oss fröjdas med varann', section: 'Påsk' }
+  - { number: 467, title: 'I dödens bojor Kristus låg', section: 'Påsk' }
+  - { number: 468, title: 'Låt oss nu Jesus prisa', section: 'Påsk' }
+  - { number: 469, title: 'Han lever! O min ande, känn', section: 'Påsk' }
+  - { number: 470, title: 'Kom med glädje och med sång', section: 'Påsk' }
+  - { number: 471, title: 'Om Kristus döljes nu för dig', section: 'Påsk' }
+  - { number: 472, title: 'Jag vill sjunga om min vän', section: 'Påsk' }
+  - { number: 473, title: 'Du räckte ut din hand, jag såg och trodde', section: 'Påsk' }
+
+  # Kristi himmelsfärds dag
+  - { number: 474, title: 'Du som oss frälst ur syndens band', section: 'Kristi himmelsfärds dag' }
+
+  # Pingst
+  - { number: 475, title: 'Nu stunden är kommen, o saliga fröjd', section: 'Pingst' }
+  - { number: 476, title: 'Gud, när du andas över vår jord', section: 'Pingst' }
+
+  # Övriga helgdagar
+  - { number: 477, title: 'Vårt fäste i all nöd är Gud', section: 'Den helige Stefanos dag eller Annandag jul' }
+  - { number: 478, title: 'Du morgonstjärna mild och ren', section: 'Kyndelsmässodagen' }
+  - { number: 479, title: 'Jungfru Maria, jungfru Maria, min Herres mor', section: 'Kyndelsmässodagen' }
+  - { number: 480, title: 'Var hälsad, Herrens moder', section: 'Jungfru Marie bebådelsedag' }
+  - { number: 481, title: 'Alla källor springer fram i glädje', section: 'Jungfru Marie bebådelsedag' }
+  - { number: 482, title: 'Salig du och högt benådad', section: 'Jungfru Marie bebådelsedag' }
+  - { number: 483, title: 'Guds änglar är hans sändebud', section: 'Den helige Mikaels dag' }
+  - { number: 484, title: 'De heliga i landet', section: 'Alla helgons dag' }
+  - { number: 485, title: 'Välsignade alla ni kära', section: 'Alla helgons dag' }
+  - { number: 486, title: 'O Gud, du som de världar ser', section: 'Alla själars dag' }
+  - { number: 487, title: 'O livets Gud, vi tackar dig', section: 'Alla själars dag' }
+  - { number: 488, title: 'Ljus av ljus, o morgonstjärna', section: 'Vid kyrkoårets slut' }
+  - { number: 489, title: 'Han kommer, han är nära', section: 'Vid kyrkoårets slut' }
+  - { number: 490, title: 'Guds Son en gång i morgonglans', section: 'Vid kyrkoårets slut' }
+
+  # Morgon
+  - { number: 491, title: 'Min Gud och Fader käre', section: 'Morgon' }
+  - { number: 492, title: 'Vi tackar dig så hjärtelig', section: 'Morgon' }
+  - { number: 493, title: 'Nu stiger solen fram ur österns portar', section: 'Morgon' }
+  - { number: 494, title: 'Morgonrodnaden skall väcka', section: 'Morgon' }
+  - { number: 495, title: 'I öster stiger solen opp', section: 'Morgon' }
+  - { number: 496, title: 'Morgonens rodnad över bergen brinner', section: 'Morgon' }
+
+  # Under dagen
+  - { number: 497, title: 'En jordisk dag, en dag från dig', section: 'Under dagen' }
+  - { number: 498, title: 'Ett, Jesus, än påminner jag', section: 'Under dagen' }
+  - { number: 499, title: 'Genom gatans trängsel', section: 'Under dagen' }
+
+  # Kväll
+  - { number: 500, title: 'Tack, Fader, för den dag du gav', section: 'Kväll' }
+  - { number: 501, title: 'Den ljusa dag framgången är', section: 'Kväll' }
+  - { number: 502, title: 'Vi tackar dig, o Herre Krist', section: 'Kväll' }
+  - { number: 503, title: 'Så har nu denna dag', section: 'Kväll' }
+  - { number: 504, title: 'Nu i tysta skuggan fången', section: 'Kväll' }
+  - { number: 505, title: 'När allt omkring mig vilar', section: 'Kväll' }
+  - { number: 506, title: 'Din sol går bort, men du blir när', section: 'Kväll' }
+  - { number: 507, title: 'Till natt det åter lider', section: 'Kväll' }
+  - { number: 508, title: 'Nu kommer kväll med vilans bud', section: 'Kväll' }
+  - { number: 509, title: 'Av goda makter trofast innesluten', section: 'Kväll' }
+  - { number: 510, title: 'Innan natten kommer', section: 'Kväll' }
+  - { number: 511, title: 'Så tvår sig än en dag i nattens källa', section: 'Kväll' }
+
+  # Helgsmål / Söndagskväll
+  - { number: 512, title: 'Det ringer till vila och veckan går ut', section: 'Helgsmål' }
+  - { number: 513, title: 'Nu vilans dag förflutit', section: 'Söndagskväll' }
+
+  # Årsskifte
+  - { number: 514, title: 'Det gamla år förgånget är', section: 'Årsskifte' }
+  - { number: 515, title: 'Hur snabbt, o Gud, vår tid förgår', section: 'Årsskifte' }
+  - { number: 516, title: 'Jag är det trädet i din gård', section: 'Årsskifte' }
+
+  # Årstiderna
+  - { number: 517, title: 'Världen som nu föds på nytt', section: 'Årstiderna' }
+  - { number: 518, title: 'Hur härligt vittna land och sjö', section: 'Årstiderna' }
+
+  # Stillhet - meditation
+  - { number: 519, title: 'Stilla jag min blick vill fästa', section: 'Stillhet – meditation' }
+  - { number: 520, title: 'O Herre, i dina händer', section: 'Stillhet – meditation' }
+  - { number: 521, title: 'Mina döda timmar', section: 'Stillhet – meditation' }
+  - { number: 522, title: 'I Guds tystnad får jag vara', section: 'Stillhet – meditation' }
+  - { number: 523, title: 'Kom nära, Gud. Kom vila', section: 'Stillhet – meditation' }
+  - { number: 524, title: 'Är dagen fylld av oro och bekymmer', section: 'Stillhet – meditation' }
+
+  # Bönen
+  - { number: 525, title: 'Mitt hjärta, fröjda dig', section: 'Bönen' }
+  - { number: 526, title: 'Att be till Gud han själv oss lär', section: 'Bönen' }
+  - { number: 527, title: 'Det spirar i Guds örtagård', section: 'Bönen' }
+  - { number: 528, title: 'Hör oss, Gud, du själv har bett oss', section: 'Bönen' }
+
+  # Sökande - tvivel
+  - { number: 529, title: 'Jag till din måltid bjudits in', section: 'Sökande – tvivel' }
+  - { number: 530, title: 'En dunkel örtagård jag vet', section: 'Sökande – tvivel' }
+  - { number: 531, title: 'Varför gick vi bort att söka', section: 'Sökande – tvivel' }
+  - { number: 532, title: 'Jag kom inte hit för att jag tror', section: 'Sökande – tvivel' }
+
+  # Kallelse
+  - { number: 533, title: 'En syndig man låg sänkt i syndens dvala', section: 'Kallelse' }
+  - { number: 534, title: 'Allt är redo! Lyssna alla!', section: 'Kallelse' }
+  - { number: 535, title: 'Vak upp! Hör väkten ljuder', section: 'Kallelse' }
+  - { number: 536, title: 'Två väldiga strider om människans själ', section: 'Kallelse' }
+
+  # Bättring - omvändelse
+  - { number: 537, title: 'Ur djupen ropar jag till dig', section: 'Bättring – omvändelse' }
+  - { number: 538, title: 'Till dig ur hjärtegrunden', section: 'Bättring – omvändelse' }
+  - { number: 539, title: 'Vänd bort din vrede', section: 'Bättring – omvändelse' }
+  - { number: 540, title: 'När vi i högsta nöden står', section: 'Bättring – omvändelse' }
+  - { number: 541, title: 'Vänd nu om, ni sorgsna sinnen', section: 'Bättring – omvändelse' }
+  - { number: 542, title: 'Herre, dig i nåd förbarma', section: 'Bättring – omvändelse' }
+
+  # Skuld - förlåtelse
+  - { number: 543, title: 'I dig, o Herre Jesus kär', section: 'Skuld – förlåtelse' }
+  - { number: 544, title: 'Min synd, o Gud', section: 'Skuld – förlåtelse' }
+  - { number: 545, title: 'O Jesus, rik av nåd', section: 'Skuld – förlåtelse' }
+  - { number: 546, title: 'O Jesus Krist, du nådens brunn', section: 'Skuld – förlåtelse' }
+  - { number: 547, title: 'Vart flyr jag för Gud och hans eviga lag', section: 'Skuld – förlåtelse' }
+  - { number: 548, title: 'När inför din dom jag stod', section: 'Skuld – förlåtelse' }
+  - { number: 549, title: 'Min Gud, jag är bedrövad', section: 'Skuld – förlåtelse' }
+
+  # Förtröstan - trygghet
+  - { number: 550, title: 'På dig jag hoppas, Herre kär', section: 'Förtröstan – trygghet' }
+  - { number: 551, title: 'Från Gud vill jag ej vika', section: 'Förtröstan – trygghet' }
+  - { number: 552, title: 'O Jesus Krist, i dig förvisst', section: 'Förtröstan – trygghet' }
+  - { number: 553, title: 'Är Gud i himlen för mig', section: 'Förtröstan – trygghet' }
+  - { number: 554, title: 'Sörj för mig, min Fader kär', section: 'Förtröstan – trygghet' }
+  - { number: 555, title: 'På Gud och ej på eget råd', section: 'Förtröstan – trygghet' }
+  - { number: 556, title: 'Den rätt på dig, o Jesus, tror', section: 'Förtröstan – trygghet' }
+  - { number: 557, title: 'Jag vet på vem jag tror', section: 'Förtröstan – trygghet' }
+  - { number: 558, title: 'Herren är min herde god', section: 'Förtröstan – trygghet' }
+  - { number: 559, title: 'Tron sig sträcker efter frukten', section: 'Förtröstan – trygghet' }
+
+  # Glädje - tacksamhet
+  - { number: 560, title: 'Var glad, min själ, och fatta mod', section: 'Glädje – tacksamhet' }
+  - { number: 561, title: 'Glädje utan Gud ej finnes', section: 'Glädje – tacksamhet' }
+  - { number: 562, title: 'Herren gav och Herren tog', section: 'Glädje – tacksamhet' }
+  - { number: 563, title: 'Se på himlens många fåglar', section: 'Glädje – tacksamhet' }
+
+  # Vaksamhet - kamp - prövning
+  - { number: 564, title: 'Till dig jag ropar, Herre Krist', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 565, title: 'Gå varsamt, min kristen', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 566, title: 'Vaka, själ, och bed', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 567, title: 'Upp, kristen, upp till kamp och strid', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 568, title: 'Seger giv, du segerrike', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 569, title: 'Tänk på honom som var frestad', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 570, title: 'Fördolde Gud, som tronar i det höga', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 571, title: 'Förbida Gud, min själ', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 572, title: 'Ängsliga hjärta, upp ur din dvala', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 573, title: 'Jag ber om hjälp till stillhet i min plåga', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 574, title: 'Jesus, tänk på mig', section: 'Vaksamhet – kamp – prövning' }
+  - { number: 575, title: 'Min själ, låt Gud i allt få råda', section: 'Vaksamhet – kamp – prövning' }
+
+  # Efterföljd - helgelse
+  - { number: 576, title: 'Hjälp mig, Jesus, troget vandra', section: 'Efterföljd – helgelse' }
+  - { number: 577, title: 'O min Jesus, dit du gått', section: 'Efterföljd – helgelse' }
+  - { number: 578, title: 'Jesus, låt din kärleks låga', section: 'Efterföljd – helgelse' }
+  - { number: 579, title: 'Ni mänskobarn som här i världen', section: 'Efterföljd – helgelse' }
+  - { number: 580, title: 'Gud gav i skaparorden', section: 'Efterföljd – helgelse' }
+  - { number: 581, title: 'Kristus, hjälten, han allena', section: 'Efterföljd – helgelse' }
+  - { number: 582, title: 'Gud, i mina unga dagar', section: 'Efterföljd – helgelse' }
+  - { number: 583, title: 'Pärlor sköna, ängder gröna', section: 'Efterföljd – helgelse' }
+  - { number: 584, title: 'Herre, sänd mig', section: 'Efterföljd – helgelse' }
+  - { number: 585, title: 'Verka tills natten kommer', section: 'Efterföljd – helgelse' }
+  - { number: 586, title: 'Du, o Gud, är livets källa', section: 'Efterföljd – helgelse' }
+
+  # Tillsammans i världen
+  - { number: 587, title: 'Gud skapade de klara vattnen', section: 'Tillsammans i världen' }
+  - { number: 588, title: 'Allt mänskosläktet av ett blod', section: 'Tillsammans i världen' }
+  - { number: 589, title: 'Se här bygges Babels torn', section: 'Tillsammans i världen' }
+  - { number: 590, title: 'Som källor utan vatten', section: 'Tillsammans i världen' }
+  - { number: 591, title: 'Det kan vi göra för rätt och för fred', section: 'Tillsammans i världen' }
+  - { number: 592, title: 'Gud, du gick bort', section: 'Tillsammans i världen' }
+  - { number: 593, title: 'Bevara, Gud, vårt fosterland', section: 'Tillsammans i världen' }
+  - { number: 594, title: 'Giv folken fred, giv själen frid', section: 'Tillsammans i världen' }
+  - { number: 595, title: 'Förgäves all vår omsorg är', section: 'Tillsammans i världen' }
+  - { number: 596, title: 'Du gav mig, o Herre, en teg av din jord', section: 'Tillsammans i världen' }
+  - { number: 597, title: 'När stormen ryter vilt på hav', section: 'Tillsammans i världen' }
+  - { number: 598, title: 'I en värld av död', section: 'Tillsammans i världen' }
+  - { number: 599, title: 'O, låt ditt rike komma', section: 'Tillsammans i världen' }
+  - { number: 600, title: 'Vi ville dig se, så grekerna bad', section: 'Tillsammans i världen' }
+  - { number: 601, title: 'Försoningens dag och uppståndelsens dag', section: 'Tillsammans i världen' }
+  - { number: 602, title: 'Så länge solen värmer jorden', section: 'Tillsammans i världen' }
+  - { number: 603, title: 'Du, Herre, i din hägnad tar', section: 'Tillsammans i världen' }
+  - { number: 604, title: 'I Jesu namn till bords vi går', section: 'Tillsammans i världen' }
+
+  # Barn och familj
+  - { number: 605, title: 'Gud bor i ett ljus', section: 'Barn och familj' }
+  - { number: 606, title: 'Det gungar så fint', section: 'Barn och familj' }
+  - { number: 607, title: 'Jag är hos dig, min Gud', section: 'Barn och familj' }
+  - { number: 608, title: 'Vi sätter oss i ringen', section: 'Barn och familj' }
+  - { number: 609, title: 'Advent är mörker och kyla', section: 'Barn och familj' }
+  - { number: 610, title: 'Jesus satt i båten', section: 'Barn och familj' }
+  - { number: 611, title: 'Vackra törnrosbuske', section: 'Barn och familj' }
+  - { number: 612, title: 'Uppstått har Jesus, hurra, hurra', section: 'Barn och familj' }
+  - { number: 613, title: 'Inför Guds himlatron', section: 'Barn och familj' }
+  - { number: 614, title: 'Sackeus var en publikan', section: 'Barn och familj' }
+
+  # Pilgrimsvandringen
+  - { number: 615, title: 'Kom, vänner, låt oss hasta', section: 'Pilgrimsvandringen' }
+  - { number: 616, title: 'Med alla Herrens fromma', section: 'Pilgrimsvandringen' }
+  - { number: 617, title: 'Vi är ett folk på vandring', section: 'Pilgrimsvandringen' }
+  - { number: 618, title: 'Faraos härar hann upp oss vid stranden', section: 'Pilgrimsvandringen' }
+
+  # Livets gåva och gräns
+  - { number: 619, title: 'Jag går mot döden var jag går', section: 'Livets gåva och gräns' }
+  - { number: 620, title: 'Herre Gud, för dig jag klagar', section: 'Livets gåva och gräns' }
+  - { number: 621, title: 'O Jesus, när mitt liv släcks ut', section: 'Livets gåva och gräns' }
+  - { number: 622, title: 'Att ta farväl på riktigt sätt', section: 'Livets gåva och gräns' }
+  - { number: 623, title: 'Låt gråten och klagan få stillna', section: 'Livets gåva och gräns' }
+  - { number: 624, title: 'En dalande dag, en flyktig stund', section: 'Livets gåva och gräns' }
+  - { number: 625, title: 'En dag jag lämnar mitt hem och mina vänner', section: 'Livets gåva och gräns' }
+  - { number: 626, title: 'Jordens Gud, stjärnornas herre', section: 'Livets gåva och gräns' }
+  - { number: 627, title: 'Nu är livet gömt hos Gud', section: 'Livets gåva och gräns' }
+  - { number: 628, title: 'Trofaste Gud, som livet i oss tänder', section: 'Livets gåva och gräns' }
+  - { number: 629, title: 'Så kort var den fröjd som i världen jag fann', section: 'Livets gåva och gräns' }
+  - { number: 630, title: 'Uppå tröskeln till sitt hus', section: 'Livets gåva och gräns' }
+
+  # Kristi återkomst
+  - { number: 631, title: 'Jag vet mig en sömn i Jesu namn', section: 'Kristi återkomst' }
+  - { number: 632, title: 'Väktarns rop i natten skallar', section: 'Kristi återkomst' }
+  - { number: 633, title: 'Med himlen det blir som för tio jungfrur', section: 'Kristi återkomst' }
+  - { number: 634, title: 'En dag skall uppgå för vår syn', section: 'Kristi återkomst' }
+  - { number: 635, title: 'En gång dö och sedan domen', section: 'Kristi återkomst' }
+
+  # Himlen
+  - { number: 636, title: 'Det finns ett land av ljus och sång', section: 'Himlen' }
+  - { number: 637, title: 'En gång i tidens morgon är jorden ny', section: 'Himlen' }
+  - { number: 638, title: 'Det finns ett hem långt bortom sorgens hemland', section: 'Himlen' }
+  - { number: 639, title: 'Mitt hjärta vidgar sig överfullt', section: 'Himlen' }
+  - { number: 640, title: 'O Jerusalem, bland städer', section: 'Himlen' }
+  - { number: 641, title: 'Hur mäktig är den sabbat', section: 'Himlen' }
+
+  # Psalmer på andra nordiska språk
+  - { number: 642, title: 'Op, al den ting, som Gud har gjort', section: 'Från Danmark' }
+  - { number: 643, title: 'I al sin glans nu stråler solen', section: 'Från Danmark' }
+  - { number: 644, title: 'Uti din nåd, o Fader blid', section: 'Från Finland' }
+  - { number: 645, title: 'Giv mig ej glans, ej guld, ej prakt', section: 'Från Finland' }
+  - { number: 646, title: 'Grip du mig, helige Ande', section: 'Från Finland' }
+  - { number: 647, title: 'Jag lyfter ögat mot himmelen', section: 'Från Finland' }
+  - { number: 648, title: 'När får jag se dig, Frälsare kär', section: 'Från Finland' }
+  - { number: 649, title: 'Herre Gud, ditt namn, din makt och ära', section: 'Från Norge' }
+  - { number: 650, title: 'Jesus, det eneste', section: 'Från Norge' }
+  - { number: 651, title: 'En dag skall Herrens skapardrömmar möta', section: 'Från Norge' }
+
+  # Psaltarpsalmer och cantica
+  - { number: 652, title: 'Föraktad var han', section: 'Psaltarpsalmer och cantica' }
+  - { number: 653, title: 'Herren är min herde, ingenting skall fattas mig', section: 'Psaltarpsalmer och cantica' }
+  - { number: 654, title: 'Låt rätten flyta fram såsom vatten', section: 'Psaltarpsalmer och cantica' }
+  - { number: 655, title: 'Se, din konung kommer till dig', section: 'Psaltarpsalmer och cantica' }
+  - { number: 656, title: 'Visa mig, Herre, din väg', section: 'Psaltarpsalmer och cantica' }
+  - { number: 657, title: 'Alla dina ord är ande och liv', section: 'Psaltarpsalmer och cantica' }
+  - { number: 658, title: 'Hos dig är livets källa', section: 'Psaltarpsalmer och cantica' }
+  - { number: 659, title: 'Som hjorten trängtar till vatten', section: 'Psaltarpsalmer och cantica' }
+  - { number: 660, title: 'Herren är nu konung', section: 'Psaltarpsalmer och cantica' }
+  - { number: 661, title: 'Vaka och bed', section: 'Psaltarpsalmer och cantica' }
+  - { number: 662, title: 'I dag är en Frälsare född åt er', section: 'Psaltarpsalmer och cantica' }
+  - { number: 663, title: 'Kom och se vad Gud har gjort', section: 'Psaltarpsalmer och cantica' }
+  - { number: 664, title: 'Höj jubel till Herren, alla länder', section: 'Psaltarpsalmer och cantica' }
+  - { number: 665, title: 'Detta är den dag som Herren har gjort', section: 'Psaltarpsalmer och cantica' }
+  - { number: 666, title: 'Guds tjänare skall se hans ansikte', section: 'Psaltarpsalmer och cantica' }
+  - { number: 667, title: 'Du öppnar din hand', section: 'Psaltarpsalmer och cantica' }
+  - { number: 668, title: 'Saligt är det folk som vet vad jubel är', section: 'Psaltarpsalmer och cantica' }
+  - { number: 669, title: 'Min hjälp kommer från Herren', section: 'Psaltarpsalmer och cantica' }
+  - { number: 670, title: 'Ur djupen ropar jag till dig', section: 'Psaltarpsalmer och cantica' }
+  - { number: 671, title: 'Min själ väntar efter Herren', section: 'Psaltarpsalmer och cantica' }
+  - { number: 672, title: 'Herre, sänd ut din Ande', section: 'Psaltarpsalmer och cantica' }
+  - { number: 673, title: 'Se Guds Lamm, som borttager världens synd', section: 'Psaltarpsalmer och cantica' }
+  - { number: 674, title: 'Ett barn är oss fött, en son är oss given', section: 'Psaltarpsalmer och cantica' }
+
+  # Bibelvisor och kanon
+  - { number: 682, title: 'Icke genom någon människas styrka', section: 'Bibelvisor och kanon' }
+  - { number: 683, title: 'I frid vill jag lägga mig ner', section: 'Bibelvisor och kanon' }
+  - { number: 684, title: 'Lova Herren, min själ', section: 'Bibelvisor och kanon' }
+  - { number: 685, title: 'Helig, helig, helig Herre Sebaot', section: 'Bibelvisor och kanon' }
+  - { number: 686, title: 'Söken först Guds rike', section: 'Bibelvisor och kanon' }
+  - { number: 687, title: 'Jag är med er alla dagar', section: 'Bibelvisor och kanon' }
+  - { number: 688, title: 'Saliga de som hör Guds ord', section: 'Bibelvisor och kanon' }
+  - { number: 689, title: 'Jag är livets bröd', section: 'Bibelvisor och kanon' }
+  - { number: 690, title: 'Intet kan mig skilja från Guds kärlek', section: 'Bibelvisor och kanon' }
+  - { number: 691, title: 'Lever vi, så lever vi för Herren', section: 'Bibelvisor och kanon' }
+  - { number: 692, title: 'Kom, låt oss prisa vår Herre och Gud', section: 'Bibelvisor och kanon' }
+  - { number: 693, title: 'Dona nobis pacem', section: 'Bibelvisor och kanon' }
+  - { number: 694, title: 'Jubilate Deo', section: 'Bibelvisor och kanon' }
+
+  # Liturgiska sånger (675-681, 695-700) - notera att 675-681 är cantica
+  # och 695-700 är liturgisk-mässans fasta sånger (Kyrie, Gloria, Sanctus, Agnus Dei, Litania)
+  # Endast huvudnummer registreras här - varianter hanteras via psalmref.edition om relevant.
+  - { number: 675, title: 'Jag vill lovsjunga Herren', section: 'Cantica' }
+  - { number: 676, title: 'Herrens barmhärtighet är varje morgon ny (Lovad vare Herren, Israels Gud)', section: 'Cantica' }
+  - { number: 677, title: 'Skydda oss, Herre, medan vi sover', section: 'Cantica' }
+  - { number: 678, title: 'Kristus är sannerligen uppstånden', section: 'Cantica' }
+  - { number: 679, title: 'Halleluja, halleluja, halleluja', section: 'Cantica' }
+  - { number: 680, title: 'Sjung lovsång, alla länder', section: 'Cantica' }
+  - { number: 681, title: 'Herre, hör min bön', section: 'Cantica' }
+  - { number: 695, title: 'Herre, förbarma dig (Kyrie-litania)', section: 'Liturgiska sånger' }
+  - { number: 696, title: 'Herre, förbarma dig över oss (Kyrie)', section: 'Liturgiska sånger' }
+  - { number: 697, title: 'Lovsången (Gloria och Laudamus)', section: 'Liturgiska sånger' }
+  - { number: 698, title: 'Helig (Sanctus)', section: 'Liturgiska sånger' }
+  - { number: 699, title: 'O Guds Lamm (Agnus Dei)', section: 'Liturgiska sånger' }
+  - { number: 700, title: 'Evige, allsmäktige Gud (Litanian)', section: 'Liturgiska sånger' }
