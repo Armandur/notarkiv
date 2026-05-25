@@ -495,6 +495,115 @@ async def person_mb_modal(
     )
 
 
+@router.post("/{person_id}/refresh", dependencies=[Depends(verify_csrf)])
+async def refresh_person_mb(
+    request: Request,
+    person_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Hämta om biografi, porträtt och artistmetadata från MB+Wikipedia
+    för en person som redan har MBID. Skriver över befintliga värden."""
+    person = session.get(Person, person_id)
+    if not person:
+        raise HTTPException(404)
+    if not person.musicbrainz_artist_id:
+        flash(
+            request,
+            "Personen saknar MBID - använd 'Sök i MusicBrainz' för att koppla först",
+            "warning",
+        )
+        return RedirectResponse(f"/people/{person_id}", status.HTTP_302_FOUND)
+
+    try:
+        client = get_client()
+        artist = await client.get_artist_with_urls(person.musicbrainz_artist_id)
+    except Exception as exc:
+        flash(request, f"MB-fel: {exc}", "danger")
+        return RedirectResponse(f"/people/{person_id}", status.HTTP_302_FOUND)
+    if not artist:
+        flash(request, "MusicBrainz returnerade inget för MBID", "warning")
+        return RedirectResponse(f"/people/{person_id}", status.HTTP_302_FOUND)
+
+    wiki_url = await get_wikipedia_url(artist)
+    wiki_bio = await fetch_wikipedia_summary(wiki_url) if wiki_url else None
+
+    # Rensa gamla wikipedia-länkar som inte längre stämmer
+    for link in session.exec(
+        select(PersonLink)
+        .where(PersonLink.person_id == person_id)
+        .where(PersonLink.kind == PersonLinkKind.WIKIPEDIA)
+    ).all():
+        if link.url != wiki_url:
+            session.delete(link)
+    session.flush()
+
+    # Skriv över bio
+    if wiki_bio:
+        person.biography = wiki_bio
+        person.biography_source_url = wiki_url
+
+    # Skriv över porträtt om MB har bild
+    image_page_url = extract_image_url(artist)
+    if image_page_url:
+        thumb_url = commons_file_to_thumb_url(image_page_url, width=600)
+        if thumb_url:
+            img_bytes = await download_image_bytes(thumb_url)
+            if img_bytes:
+                try:
+                    new_path = save_uploaded_cover(img_bytes)
+                    old_path = person.portrait_image_path
+                    person.portrait_image_path = new_path
+                    person.portrait_source_url = image_page_url
+                    if old_path and old_path != new_path:
+                        delete_saved_image(old_path)
+                except Exception as exc:
+                    from loguru import logger as _log
+
+                    _log.warning("Kunde inte spara porträtt vid refresh: {}", exc)
+
+    # Skriv över namn, sort_name, levnadsår, land
+    if artist.get("name"):
+        person.name = artist["name"]
+    sort_name = artist.get("sort-name") or artist.get("sort_name")
+    if sort_name:
+        person.sort_name = sort_name
+    life_span = artist.get("life-span") or artist.get("life_span") or {}
+    from app.services.people import parse_partial_date
+
+    by, bm, bd = parse_partial_date(life_span.get("begin") or "")
+    person.birth_year = by
+    person.birth_month = bm
+    person.birth_day = bd
+    dy, dm, dd = parse_partial_date(life_span.get("end") or "")
+    person.death_year = dy
+    person.death_month = dm
+    person.death_day = dd
+    if artist.get("country"):
+        person.country = artist["country"]
+    person.updated_at = datetime.utcnow()
+    session.add(person)
+
+    # Säkerställ att wikipedia-länk finns
+    if wiki_url:
+        existing = session.exec(
+            select(PersonLink)
+            .where(PersonLink.person_id == person_id)
+            .where(PersonLink.kind == PersonLinkKind.WIKIPEDIA)
+        ).first()
+        if not existing:
+            session.add(
+                PersonLink(
+                    person_id=person_id,
+                    url=wiki_url,
+                    kind=PersonLinkKind.WIKIPEDIA,
+                )
+            )
+    session.commit()
+    flash(request, f"Hämtade om data för {person.name} från MusicBrainz", "success")
+    return RedirectResponse(f"/people/{person_id}", status.HTTP_302_FOUND)
+
+
 @router.post("/{person_id}/apply-musicbrainz", dependencies=[Depends(verify_csrf)])
 async def apply_person_mb(
     request: Request,
