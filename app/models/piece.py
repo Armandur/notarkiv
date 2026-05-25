@@ -47,7 +47,6 @@ class Piece(SQLModel, table=True):
     accompaniment: Accompaniment | None = Field(default=None, sa_type=String)
     publisher: str | None = None
     edition_number: str | None = None
-    psalm_number: int | None = None
     difficulty: int | None = None
     duration_seconds: int | None = None
     copyright_status: CopyrightStatus | None = Field(default=None, sa_type=String)

@@ -84,9 +84,6 @@
         </span>
         {% endfor %}
       </dd>
-      {% elif piece.psalm_number %}
-      <dt class="col-sm-3">Psalm (legacy)</dt>
-      <dd class="col-sm-9 text-muted">{{ piece.psalm_number }}</dd>
       {% endif %}
       {% if piece.publisher %}<dt class="col-sm-3">Förlag</dt><dd class="col-sm-9">{{ piece.publisher }}{% if piece.edition_number %} / {{ piece.edition_number }}{% endif %}</dd>{% endif %}
       {% if piece.musicbrainz_work_id %}

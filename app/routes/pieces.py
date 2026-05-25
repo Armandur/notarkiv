@@ -438,7 +438,6 @@ async def new_piece_save(
     accompaniment: str | None = Form(None),
     publisher: str | None = Form(None),
     edition_number: str | None = Form(None),
-    psalm_number: str | None = Form(None),
     notes: str | None = Form(None),
     musicbrainz_work_id: str | None = Form(None),
     placement_unit_id: str | None = Form(None),
@@ -455,9 +454,6 @@ async def new_piece_save(
         accompaniment=(accompaniment or "").strip() or None,
         publisher=(publisher or "").strip() or None,
         edition_number=(edition_number or "").strip() or None,
-        psalm_number=(
-            int(psalm_number) if psalm_number and psalm_number.isdigit() else None
-        ),
         notes=(notes or "").strip() or None,
         musicbrainz_work_id=(musicbrainz_work_id or "").strip() or None,
         created_by=user.id,
@@ -742,7 +738,6 @@ async def edit_piece_save(
     accompaniment: str | None = Form(None),
     publisher: str | None = Form(None),
     edition_number: str | None = Form(None),
-    psalm_number: str | None = Form(None),
     notes: str | None = Form(None),
     musicbrainz_work_id: str | None = Form(None),
     user: User = Depends(require_editor),
@@ -759,9 +754,6 @@ async def edit_piece_save(
     piece.accompaniment = (accompaniment or "").strip() or None
     piece.publisher = (publisher or "").strip() or None
     piece.edition_number = (edition_number or "").strip() or None
-    piece.psalm_number = (
-        int(psalm_number) if psalm_number and psalm_number.isdigit() else None
-    )
     piece.notes = (notes or "").strip() or None
     piece.musicbrainz_work_id = (musicbrainz_work_id or "").strip() or None
     piece.updated_at = datetime.utcnow()
