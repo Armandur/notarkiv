@@ -302,10 +302,25 @@ async def edit_person_form(
 
             by, bm, bd = parse_partial_date(life_span.get("begin") or "")
             dy, dm, dd = parse_partial_date(life_span.get("end") or "")
-            image_page_url = extract_image_url(artist)
+            # Samla bildkandidater från båda källor - användaren får välja
+            image_candidates: list[dict] = []
+            mb_image = extract_image_url(artist)
             wd = extract_wikidata_url(artist)
-            if not image_page_url and wd:
-                image_page_url = await resolve_image_via_wikidata(wd)
+            wd_image = await resolve_image_via_wikidata(wd) if wd else None
+            seen: set[str] = set()
+            for source_url, origin in (
+                (mb_image, "MusicBrainz"),
+                (wd_image, "Wikidata P18"),
+            ):
+                if source_url and source_url not in seen:
+                    seen.add(source_url)
+                    image_candidates.append({
+                        "source_url": source_url,
+                        "thumb_url": commons_file_to_thumb_url(source_url, width=200) or "",
+                        "origin": origin,
+                    })
+            # Behåll image_page_url för bakåtkompatibel preview/auto-set: prioritera MB
+            image_page_url = mb_image or wd_image
 
             # Spara länkar och wikidata_id direkt vid refresh - de är
             # sekundära metadata som inte kräver per-fält-godkännande.
@@ -369,6 +384,7 @@ async def edit_person_form(
                 "wikipedia_url": wiki_url or "",
                 "image_page_url": image_page_url or "",
                 "image_thumb_url": image_thumb_url or "",
+                "image_candidates": image_candidates,
                 "wikidata_url": wd or "",
                 "wd_already_linked": wd_already_linked,
             }
@@ -685,6 +701,7 @@ async def apply_mb_portrait(
     request: Request,
     person_id: int,
     image_url: str = Form(...),
+    return_to_refresh: str | None = Form(None),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -713,7 +730,10 @@ async def apply_mb_portrait(
     if old_path and old_path != new_path:
         delete_saved_image(old_path)
     flash(request, "Hämtade nytt porträtt från MB/Wikidata", "success")
-    return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
+    target = f"/people/{person_id}/edit"
+    if return_to_refresh:
+        target += "?refresh=1"
+    return RedirectResponse(target, status.HTTP_302_FOUND)
 
 
 @router.post("/{person_id}/refresh", dependencies=[Depends(verify_csrf)])

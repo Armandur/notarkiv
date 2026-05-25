@@ -164,27 +164,33 @@
       <button type="submit" class="btn btn-sm btn-outline-primary">Ladda upp</button>
     </form>
   </div>
-  {% if mb_preview and mb_preview.image_page_url and mb_preview.image_page_url != (person.portrait_source_url or '') %}
-  <div class="card-footer d-flex gap-3 align-items-center flex-wrap">
-    {% if mb_preview.image_thumb_url %}
-    <img src="{{ mb_preview.image_thumb_url }}" alt="Förslag från metadatakällor"
-         style="width: 120px; height: 120px; object-fit: cover" class="rounded border">
-    {% endif %}
-    <div class="flex-grow-1">
-      <div class="small text-muted mb-1">
-        Förslag från metadatakällor
-        {% if mb_preview.wikipedia_url %}(via Wikidata/Wikipedia){% endif %}
+  {% if mb_preview and mb_preview.image_candidates %}
+    {% set _alternatives = mb_preview.image_candidates | rejectattr('source_url', 'equalto', person.portrait_source_url or '') | list %}
+    {% if _alternatives %}
+    <div class="card-footer">
+      <div class="small text-muted mb-2">Bildalternativ från metadatakällor:</div>
+      <div class="d-flex gap-3 flex-wrap">
+        {% for cand in _alternatives %}
+        <div class="text-center" style="max-width: 140px">
+          {% if cand.thumb_url %}
+          <img src="{{ cand.thumb_url }}" alt="{{ cand.origin }}"
+               style="width: 120px; height: 120px; object-fit: cover" class="rounded border d-block mx-auto">
+          {% endif %}
+          <div class="small text-muted mt-1">{{ cand.origin }}</div>
+          <form method="post" action="/people/{{ person.id }}/apply-mb-portrait" class="mt-1">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="image_url" value="{{ cand.source_url }}">
+            <input type="hidden" name="return_to_refresh" value="1">
+            <button type="submit" class="btn btn-sm btn-primary">
+              {% if person.portrait_image_path %}Ersätt med denna{% else %}Använd{% endif %}
+            </button>
+            <a href="{{ cand.source_url }}" target="_blank" class="small text-muted ms-1">källa</a>
+          </form>
+        </div>
+        {% endfor %}
       </div>
-      <form method="post" action="/people/{{ person.id }}/apply-mb-portrait">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="image_url" value="{{ mb_preview.image_page_url }}">
-        <button type="submit" class="btn btn-sm btn-primary">
-          {% if person.portrait_image_path %}Ersätt med denna bild{% else %}Använd som porträtt{% endif %}
-        </button>
-        <a href="{{ mb_preview.image_page_url }}" target="_blank" class="small text-muted ms-2">visa källan</a>
-      </form>
     </div>
-  </div>
+    {% endif %}
   {% endif %}
 </div>
 
