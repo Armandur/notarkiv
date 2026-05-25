@@ -23,6 +23,7 @@ from app.services.musicbrainz import (
     get_client,
     get_wikipedia_url,
     resolve_image_via_wikidata,
+    wikidata_id_from_url,
 )
 from app.services.people import (
     derive_sort_name,
@@ -457,6 +458,7 @@ async def update_person(
     country: str | None = Form(None),
     biography: str | None = Form(None),
     musicbrainz_artist_id: str | None = Form(None),
+    wikidata_id: str | None = Form(None),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -475,6 +477,7 @@ async def update_person(
         person.country = person.country.upper()[:2]
     person.biography = (biography or "").strip() or None
     person.musicbrainz_artist_id = (musicbrainz_artist_id or "").strip() or None
+    person.wikidata_id = (wikidata_id or "").strip() or None
     person.updated_at = datetime.utcnow()
 
     session.add(person)
@@ -542,6 +545,42 @@ async def person_mb_modal(
         },
         user=user,
     )
+
+
+@router.post("/{person_id}/musicbrainz-id/clear", dependencies=[Depends(verify_csrf)])
+async def clear_mbid(
+    request: Request,
+    person_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    person = session.get(Person, person_id)
+    if not person:
+        raise HTTPException(404)
+    person.musicbrainz_artist_id = None
+    person.updated_at = datetime.utcnow()
+    session.add(person)
+    session.commit()
+    flash(request, "Rensade MusicBrainz-koppling", "success")
+    return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
+
+
+@router.post("/{person_id}/wikidata-id/clear", dependencies=[Depends(verify_csrf)])
+async def clear_wikidata_id(
+    request: Request,
+    person_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    person = session.get(Person, person_id)
+    if not person:
+        raise HTTPException(404)
+    person.wikidata_id = None
+    person.updated_at = datetime.utcnow()
+    session.add(person)
+    session.commit()
+    flash(request, "Rensade Wikidata-id", "success")
+    return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
 
 
 @router.post("/{person_id}/apply-mb-portrait", dependencies=[Depends(verify_csrf)])
@@ -690,6 +729,10 @@ async def refresh_person_mb(
             )
     # Wikidata-länk (vänligt fallback för slutanvändare som inte använder wikipedia)
     wd_url = extract_wikidata_url(artist)
+    wd_id = wikidata_id_from_url(wd_url)
+    if wd_id:
+        person.wikidata_id = wd_id
+        session.add(person)
     if wd_url:
         existing_wd = session.exec(
             select(PersonLink)
@@ -740,6 +783,9 @@ async def apply_person_mb(
     if artist.get("name"):
         person.name = artist["name"]
     person.musicbrainz_artist_id = artist["id"]
+    wd_id_from_apply = wikidata_id_from_url(extract_wikidata_url(artist))
+    if wd_id_from_apply:
+        person.wikidata_id = wd_id_from_apply
 
     wiki_url = await get_wikipedia_url(artist)
     wiki_bio = await fetch_wikipedia_summary(wiki_url) if wiki_url else None

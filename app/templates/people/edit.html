@@ -73,16 +73,44 @@
           <div class="form-text">Sökbart - skriv första bokstäverna för att filtrera</div>
         </div>
         <div class="col-md-3">
-          <label class="form-label">MusicBrainz MBID</label>
-          <div class="input-group">
-            <input type="text" name="musicbrainz_artist_id" class="form-control" value="{{ person.musicbrainz_artist_id or '' }}">
-            <button type="button" class="btn btn-outline-secondary"
-                    hx-get="/people/{{ person.id }}/musicbrainz?skip_search=1"
-                    hx-target="#mb-modal-target"
-                    hx-swap="innerHTML">
-              Sök
-            </button>
+          <label class="form-label">MusicBrainz</label>
+          <input type="hidden" name="musicbrainz_artist_id" value="{{ person.musicbrainz_artist_id or '' }}">
+          {% if person.musicbrainz_artist_id %}
+          <div class="d-flex gap-1 align-items-center">
+            <a href="https://musicbrainz.org/artist/{{ person.musicbrainz_artist_id }}" target="_blank"
+               class="text-decoration-none flex-grow-1 text-truncate"
+               title="{{ person.musicbrainz_artist_id }}">
+              {{ person.musicbrainz_artist_id[:8] }}…
+            </a>
+            <button type="button" class="btn btn-sm btn-outline-danger"
+                    onclick="confirmAction('/people/{{ person.id }}/musicbrainz-id/clear', 'Rensa MBID? Personen kopplas bort från MusicBrainz.', {submitLabel: 'Rensa'})"
+                    title="Rensa">×</button>
           </div>
+          {% else %}
+          <button type="button" class="btn btn-outline-secondary w-100"
+                  hx-get="/people/{{ person.id }}/musicbrainz?skip_search=1"
+                  hx-target="#mb-modal-target"
+                  hx-swap="innerHTML">
+            Sök i MusicBrainz
+          </button>
+          {% endif %}
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Wikidata</label>
+          <input type="hidden" name="wikidata_id" value="{{ person.wikidata_id or '' }}">
+          {% if person.wikidata_id %}
+          <div class="d-flex gap-1 align-items-center">
+            <a href="https://www.wikidata.org/wiki/{{ person.wikidata_id }}" target="_blank"
+               class="text-decoration-none flex-grow-1 text-truncate">
+              {{ person.wikidata_id }}
+            </a>
+            <button type="button" class="btn btn-sm btn-outline-danger"
+                    onclick="confirmAction('/people/{{ person.id }}/wikidata-id/clear', 'Rensa Wikidata-id?', {submitLabel: 'Rensa'})"
+                    title="Rensa">×</button>
+          </div>
+          {% else %}
+          <span class="text-muted small fst-italic">Sätts via MB-refresh</span>
+          {% endif %}
         </div>
         <div class="col-12">
           <label class="form-label">Biografi</label>

@@ -51,6 +51,7 @@ class Person(SQLModel, table=True):
     # Null för manuellt uppladdade bilder.
     portrait_source_url: str | None = None
     musicbrainz_artist_id: str | None = Field(default=None, index=True)
+    wikidata_id: str | None = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

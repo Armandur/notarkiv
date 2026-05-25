@@ -212,6 +212,16 @@ async def download_image_bytes(url: str) -> bytes | None:
         return None
 
 
+def wikidata_id_from_url(url: str | None) -> str | None:
+    """Plocka ut Q-id från en Wikidata-URL ('...wiki/Q12345' -> 'Q12345')."""
+    if not url:
+        return None
+    import re
+
+    m = re.search(r"(Q\d+)", url)
+    return m.group(1) if m else None
+
+
 async def _fetch_wikidata_entity(wikidata_url: str) -> dict | None:
     """Hämta hela entity-objektet från Special:EntityData."""
     import re
