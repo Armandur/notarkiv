@@ -206,20 +206,26 @@ def seed_psalms() -> tuple[int, int]:
                 logger.warning("Hoppar över ogiltig fil: {}", yaml_path)
                 continue
 
+            edition = data.get("edition")
             book = session.exec(
-                select(PsalmBook).where(PsalmBook.name == data["name"])
+                select(PsalmBook)
+                .where(PsalmBook.name == data["name"])
+                .where(PsalmBook.edition == edition)
             ).first()
             if not book:
                 book = PsalmBook(
                     name=data["name"],
+                    edition=edition,
                     description=data.get("description"),
                     sort_order=data.get("sort_order", 0),
                 )
                 session.add(book)
                 session.flush()
                 new_books += 1
-
-            edition = data.get("edition")
+            elif not book.edition and edition:
+                # Backfill av äldre books som saknar edition
+                book.edition = edition
+                session.add(book)
             for psalm in data.get("psalms", []):
                 existing = session.exec(
                     select(PsalmEntry)

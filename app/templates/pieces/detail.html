@@ -77,7 +77,7 @@
       <dd class="col-sm-9">
         {% for ref, book in psalm_refs %}
         <span class="badge bg-light text-dark border me-1">
-          {{ book.name }}{% if ref.edition %} · {{ ref.edition }}{% endif %} · <strong>{{ ref.number }}</strong>
+          {{ book.name }}{% if book.edition %} ({{ book.edition }}){% endif %} · <strong>{{ ref.number }}</strong>
         </span>
         {% endfor %}
       </dd>

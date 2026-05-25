@@ -800,7 +800,6 @@ async def edit_piece_form(
                     .where(PiecePsalmRef.piece_id == piece_id)
                     .where(PiecePsalmRef.book_id == m["entry"].book_id)
                     .where(PiecePsalmRef.number == m["entry"].number)
-                    .where(PiecePsalmRef.edition == m["entry"].edition)
                     .limit(1)
                 ).first()
             ],
@@ -1601,31 +1600,16 @@ async def psalmref_lookup(
     request: Request,
     book_id: int,
     number: int,
-    edition: str | None = None,
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
-    """HTMX-fragment: slå upp PsalmEntry för given bok + nummer (+ ev. utgåva)
-    och returnera en liten preview-rad ('Bereden väg för Herran · Advent').
-    Tom respons om ingen match - då vet användaren att numret är okänt."""
-    edition_val = (edition or "").strip() or None
-
-    stmt = (
+    """HTMX-fragment: slå upp PsalmEntry för given bok + nummer och returnera
+    preview-rad. Utgåvan kommer från PsalmBook nu - inte separat input."""
+    entry = session.exec(
         select(PsalmEntry)
         .where(PsalmEntry.book_id == book_id)
         .where(PsalmEntry.number == number)
-    )
-    if edition_val:
-        stmt = stmt.where(PsalmEntry.edition == edition_val)
-
-    entry = session.exec(stmt).first()
-    if not entry and edition_val:
-        # Fall back: prova utan utgåva-filter om vi inte hittade exakt match
-        entry = session.exec(
-            select(PsalmEntry)
-            .where(PsalmEntry.book_id == book_id)
-            .where(PsalmEntry.number == number)
-        ).first()
+    ).first()
 
     return render(
         request,
@@ -1640,7 +1624,6 @@ async def add_psalmref(
     request: Request,
     piece_id: int,
     book_id: int = Form(...),
-    edition: str | None = Form(None),
     number: int = Form(...),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
@@ -1650,7 +1633,8 @@ async def add_psalmref(
     if not piece or not book:
         raise HTTPException(404)
 
-    edition_val = (edition or "").strip() or None
+    # Edition ärvs från boken så ref och book alltid är konsekventa
+    edition_val = book.edition
     existing = session.exec(
         select(PiecePsalmRef)
         .where(PiecePsalmRef.piece_id == piece_id)

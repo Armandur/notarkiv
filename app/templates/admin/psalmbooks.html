@@ -23,6 +23,7 @@
     <thead>
       <tr>
         <th>Namn</th>
+        <th>Utgåva</th>
         <th>Beskrivning</th>
         <th class="text-end">Antal noter</th>
         <th class="text-end">Sort.</th>
@@ -33,6 +34,7 @@
       {% for b in books %}
       <tr>
         <td><strong>{{ b.name }}</strong></td>
+        <td>{{ b.edition or "" }}</td>
         <td class="text-muted small">{{ b.description or "" }}</td>
         <td class="text-end small">{{ counts.get(b.id, 0) }}</td>
         <td class="text-end small">{{ b.sort_order }}</td>
@@ -63,6 +65,11 @@
           <label class="form-label">Namn</label>
           <input type="text" name="name" class="form-control" required
                  placeholder="t.ex. Den svenska psalmboken">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Utgåva (valfri)</label>
+          <input type="text" name="edition" class="form-control"
+                 placeholder="t.ex. 1986, 2003, 1986-tillägg">
         </div>
         <div class="mb-3">
           <label class="form-label">Beskrivning (valfri)</label>
@@ -96,6 +103,11 @@
         <div class="mb-3">
           <label class="form-label">Namn</label>
           <input type="text" name="name" class="form-control" value="{{ b.name }}" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Utgåva</label>
+          <input type="text" name="edition" class="form-control" value="{{ b.edition or '' }}"
+                 placeholder="t.ex. 1986, 2003 - lämna tomt om bara en utgåva">
         </div>
         <div class="mb-3">
           <label class="form-label">Beskrivning</label>

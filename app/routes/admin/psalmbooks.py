@@ -39,23 +39,30 @@ async def list_psalmbooks(
 async def create_psalmbook(
     request: Request,
     name: str = Form(...),
+    edition: str | None = Form(None),
     description: str | None = Form(None),
     sort_order: int = Form(0),
     user: User = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> Response:
     name = name.strip()
+    edition_val = (edition or "").strip() or None
     if not name:
         flash(request, "Namn krävs", "danger")
         return RedirectResponse("/admin/psalmbooks", status.HTTP_302_FOUND)
-
-    if session.exec(select(PsalmBook).where(PsalmBook.name == name)).first():
-        flash(request, f"Psalmboken '{name}' finns redan", "danger")
+    # Dubblettkoll på (name, edition)
+    if session.exec(
+        select(PsalmBook)
+        .where(PsalmBook.name == name)
+        .where(PsalmBook.edition == edition_val)
+    ).first():
+        flash(request, f"'{name}' ({edition_val or 'utan utgåva'}) finns redan", "danger")
         return RedirectResponse("/admin/psalmbooks", status.HTTP_302_FOUND)
 
     session.add(
         PsalmBook(
             name=name,
+            edition=edition_val,
             description=(description or "").strip() or None,
             sort_order=sort_order,
         )
@@ -70,6 +77,7 @@ async def update_psalmbook(
     request: Request,
     book_id: int,
     name: str = Form(...),
+    edition: str | None = Form(None),
     description: str | None = Form(None),
     sort_order: int = Form(0),
     user: User = Depends(require_admin),
@@ -80,17 +88,24 @@ async def update_psalmbook(
         raise HTTPException(404)
 
     new_name = name.strip()
-    if new_name != book.name:
+    new_edition = (edition or "").strip() or None
+    if new_name != book.name or new_edition != book.edition:
         clash = session.exec(
             select(PsalmBook)
             .where(PsalmBook.name == new_name)
+            .where(PsalmBook.edition == new_edition)
             .where(PsalmBook.id != book_id)
         ).first()
         if clash:
-            flash(request, f"En annan psalmbok heter redan '{new_name}'", "danger")
+            flash(
+                request,
+                f"'{new_name}' ({new_edition or 'utan utgåva'}) finns redan",
+                "danger",
+            )
             return RedirectResponse("/admin/psalmbooks", status.HTTP_302_FOUND)
 
     book.name = new_name
+    book.edition = new_edition
     book.description = (description or "").strip() or None
     book.sort_order = sort_order
     session.add(book)
