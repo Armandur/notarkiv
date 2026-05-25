@@ -750,6 +750,17 @@ async def edit_piece_form(
             "psalm_books": session.exec(
                 select(PsalmBook).order_by(PsalmBook.sort_order, PsalmBook.name)
             ).all(),
+            "psalm_title_matches": [
+                m for m in _find_psalm_title_matches(session, piece.title)
+                if not session.exec(
+                    select(PiecePsalmRef.id)
+                    .where(PiecePsalmRef.piece_id == piece_id)
+                    .where(PiecePsalmRef.book_id == m["entry"].book_id)
+                    .where(PiecePsalmRef.number == m["entry"].number)
+                    .where(PiecePsalmRef.edition == m["entry"].edition)
+                    .limit(1)
+                ).first()
+            ],
             "voicing_tags": session.exec(
                 select(Tag).where(Tag.kind == "voicing")
                 .order_by(Tag.sort_order, Tag.name)
@@ -1259,6 +1270,22 @@ def _unit_picker_tree(session: Session) -> list[dict]:
         {"location": loc, "units": build(loc.id, None, [])}
         for loc in locations
     ]
+
+
+def _find_psalm_title_matches(
+    session: Session, title: str
+) -> list[dict]:
+    """Hitta PsalmEntries vars titel matchar piece-titeln case-insensitive.
+    Returnerar lista av dicts med entry + bokens namn. Tom om ingen träff."""
+    if not title:
+        return []
+    rows = session.exec(
+        select(PsalmEntry, PsalmBook)
+        .join(PsalmBook, PsalmBook.id == PsalmEntry.book_id)
+        .where(PsalmEntry.title.ilike(title.strip()))
+        .order_by(PsalmBook.sort_order, PsalmBook.name, PsalmEntry.number)
+    ).all()
+    return [{"entry": e, "book": b} for e, b in rows]
 
 
 def _set_kind_tags(

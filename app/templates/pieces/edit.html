@@ -249,6 +249,25 @@
     </div>
     {% endif %}
 
+    {% if psalm_title_matches %}
+    <div class="alert alert-info py-2 mb-3">
+      <strong>Förslag baserat på notens titel:</strong>
+      <div class="d-flex flex-wrap gap-2 mt-2">
+        {% for m in psalm_title_matches %}
+        <form method="post" action="/pieces/{{ piece.id }}/psalmrefs" class="d-inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="book_id" value="{{ m.entry.book_id }}">
+          {% if m.entry.edition %}<input type="hidden" name="edition" value="{{ m.entry.edition }}">{% endif %}
+          <input type="hidden" name="number" value="{{ m.entry.number }}">
+          <button type="submit" class="btn btn-sm btn-outline-primary">
+            + {{ m.book.name }}{% if m.entry.edition %} · {{ m.entry.edition }}{% endif %} · <strong>{{ m.entry.number }}</strong>
+          </button>
+        </form>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
     {% if not psalm_books %}
     <p class="text-muted small fst-italic">
       Inga psalmböcker registrerade. <a href="/admin/psalmbooks">Lägg till en</a> innan du kan koppla referenser.

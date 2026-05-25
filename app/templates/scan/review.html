@@ -13,6 +13,18 @@
 </div>
 {% endif %}
 
+{% if psalm_title_matches %}
+<div class="alert alert-info py-2">
+  <strong>Möjlig psalmreferens (titel matchar):</strong>
+  {% for m in psalm_title_matches %}
+  <span class="badge bg-light text-dark border me-1">
+    {{ m.book.name }}{% if m.entry.edition %} · {{ m.entry.edition }}{% endif %} · <strong>{{ m.entry.number }}</strong>
+  </span>
+  {% endfor %}
+  <div class="small mt-1">Lägg till via "Redigera" efter att noten är sparad.</div>
+</div>
+{% endif %}
+
 {% if duplicates and not existing %}
 <div class="alert alert-warning">
   <div class="d-flex align-items-baseline justify-content-between">

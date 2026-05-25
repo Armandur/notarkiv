@@ -405,7 +405,11 @@ async def review_form(
         lyricist=extracted.get("lyricist") or "",
     )
 
+    from app.routes.pieces import _find_psalm_title_matches
     from app.utils.languages import all_languages
+
+    title_for_psalm = ((existing or {}).get("title") if existing else extracted.get("title")) or ""
+    psalm_title_matches = _find_psalm_title_matches(session, title_for_psalm)
 
     # Voicing-taggar: fördefinierad lista, plus försök matcha OCR-extraherad
     # voicing mot dem så användaren bara behöver bekräfta innan spara
@@ -503,6 +507,7 @@ async def review_form(
             "accompaniment_tags": accompaniment_tags,
             "matched_accompaniment_ids": matched_accompaniment_ids,
             "extracted_accompaniment_raw": extracted_accompaniment_raw,
+            "psalm_title_matches": psalm_title_matches,
             "language_options": all_languages(),
         },
         user=user,
