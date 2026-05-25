@@ -184,6 +184,14 @@ granska -> spara -> hitta igen.
       "Extern person" kopplar bort dropdownen och visar fritext-input
       för vikarierande körledare etc. borrower_user_id sätts vid
       användarval, annars sparas borrower_name som fritext.
+- [ ] **Nästlade/hierarkiska taggar med alias**: lägg `parent_id` på Tag
+      så taggar kan grupperas i träd, t.ex. "Kyrkliga handlingar >
+      Begravning/Dop/Vigsel/Konfirmation". Visa hierarki i /tags-vyn
+      och i tag-search-autocompleten (full sökväg som tooltip).
+      Plus alias-stöd: en separat TagAlias-tabell (tag_id, alias_name)
+      så att "Minnesgudstjänst" och "Allhelgona" kan vara samma tagg
+      sökmässigt utan att duplicera kopplingar. Påverkar filterlogik
+      på /pieces.
 - [x] **Sök-baserad tagghantering på noter**: HTMX-baserad
       autocomplete-area på pieces/edit. Sökruta filtrerar befintliga
       taggar live, "+ Skapa ny tagg" om inget matchar, aktiva

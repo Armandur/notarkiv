@@ -2,29 +2,135 @@
 {% block title %}Taggar - Notarkiv{% endblock %}
 
 {% block content %}
-<h1 class="h3 mb-3">Taggar</h1>
+{% set kind_labels = {'liturgical': 'Kyrkoåret', 'occasion': 'Tillfällen', 'voicing': 'Besättning', 'accompaniment': 'Ackompanjemang', 'free': 'Fria taggar'} %}
+{% set kind_colors = {'liturgical': 'primary', 'occasion': 'success', 'voicing': 'secondary', 'accompaniment': 'info', 'free': 'secondary'} %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Taggar</h1>
+  {% if user.is_admin %}
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newTagModal">
+    Ny tagg
+  </button>
+  {% endif %}
+</div>
 
 <p class="text-muted small">
-  Klicka på en tagg för att se alla noter som har den. Taggar kan
-  läggas till/tas bort per not via "hantera"-knappen på piece-detalj.
+  Klicka på en tagg för att se alla noter som har den. Taggar läggs
+  till per not via Redigera-sidan.
 </p>
-
-{% set kind_labels = {'liturgical': 'Kyrkoåret', 'occasion': 'Tillfällen', 'free': 'Fria taggar'} %}
-{% set kind_colors = {'liturgical': 'primary', 'occasion': 'success', 'free': 'secondary'} %}
 
 {% for kind, label in kind_labels.items() %}
 {% if by_kind.get(kind) %}
-<h2 class="h5 mt-4">{{ label }}</h2>
-<div class="d-flex flex-wrap gap-2">
-  {% for item in by_kind[kind] %}
-  {% set color = kind_colors.get(kind, 'secondary') %}
-  <a href="/pieces?tag={{ item.tag.name }}"
-     class="btn btn-sm {% if item.count %}btn-outline-{{ color }}{% else %}btn-outline-secondary text-muted{% endif %}">
-    {{ item.tag.name }}
-    <span class="badge bg-{% if item.count %}{{ color }}{% else %}light text-muted{% endif %} ms-1">{{ item.count }}</span>
-  </a>
-  {% endfor %}
+<h2 class="h5 mt-4">{{ label }} <span class="badge bg-light text-muted">{{ by_kind[kind]|length }}</span></h2>
+<div class="card">
+  <table class="table table-hover mb-0 align-middle">
+    <thead>
+      <tr>
+        <th>Namn</th>
+        <th class="text-end">Antal noter</th>
+        <th class="text-end">Sort.</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in by_kind[kind] %}
+      {% set color = kind_colors.get(kind, 'secondary') %}
+      <tr>
+        <td>
+          <a href="/pieces?tag={{ item.tag.name|urlencode }}"
+             class="text-decoration-none">
+            <span class="badge bg-{{ color }}">{{ item.tag.name }}</span>
+          </a>
+        </td>
+        <td class="text-end">{{ item.count }}</td>
+        <td class="text-end small text-muted">{{ item.tag.sort_order }}</td>
+        <td class="text-end">
+          {% if user.is_admin %}
+          <button class="btn btn-sm btn-outline-secondary"
+                  data-bs-toggle="modal" data-bs-target="#editTagModal-{{ item.tag.id }}">✏</button>
+          <button class="btn btn-sm btn-outline-danger"
+                  onclick="confirmAction('/tags/{{ item.tag.id }}/delete', 'Radera \'{{ item.tag.name|e }}\'? {{ item.count }} kopplingar tas också bort.')">×</button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 {% endif %}
 {% endfor %}
+
+{% if user.is_admin %}
+<div class="modal fade" id="newTagModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="/tags">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Ny tagg</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body row g-2">
+        <div class="col-md-7">
+          <label class="form-label">Namn</label>
+          <input type="text" name="name" class="form-control" required>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Typ</label>
+          <select name="kind" class="form-select">
+            {% for k in kinds %}
+            <option value="{{ k }}" {% if k == 'free' %}selected{% endif %}>{{ kind_labels.get(k, k) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Sorteringsordning</label>
+          <input type="number" name="sort_order" class="form-control" value="0">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+        <button type="submit" class="btn btn-primary">Skapa</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% for kind, items in by_kind.items() %}
+{% for item in items %}
+<div class="modal fade" id="editTagModal-{{ item.tag.id }}" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="/tags/{{ item.tag.id }}/update">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Redigera tagg</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body row g-2">
+        <div class="col-md-7">
+          <label class="form-label">Namn</label>
+          <input type="text" name="name" class="form-control" value="{{ item.tag.name }}" required>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Typ</label>
+          <select name="kind" class="form-select">
+            {% for k in kinds %}
+            <option value="{{ k }}" {% if item.tag.kind == k %}selected{% endif %}>{{ kind_labels.get(k, k) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Sorteringsordning</label>
+          <input type="number" name="sort_order" class="form-control" value="{{ item.tag.sort_order }}">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+        <button type="submit" class="btn btn-primary">Spara</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}
+{% endfor %}
+{% endif %}
 {% endblock %}

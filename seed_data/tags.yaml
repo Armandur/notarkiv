@@ -3,95 +3,39 @@
 # Tillfällen är kontexter där noter ofta används.
 # Justera fritt.
 
-- name: advent
-  kind: liturgical
-  sort_order: 10
-- name: jul
-  kind: liturgical
-  sort_order: 20
-- name: trettondedagstid
-  kind: liturgical
-  sort_order: 30
-- name: fastlagstid
-  kind: liturgical
-  sort_order: 40
-- name: fastan
-  kind: liturgical
-  sort_order: 50
-- name: stilla_veckan
-  kind: liturgical
-  sort_order: 60
-- name: pask
-  kind: liturgical
-  sort_order: 70
-- name: pasktid
-  kind: liturgical
-  sort_order: 80
-- name: kristi_himmelsfard
-  kind: liturgical
-  sort_order: 90
-- name: pingst
-  kind: liturgical
-  sort_order: 100
-- name: trefaldighetstid
-  kind: liturgical
-  sort_order: 110
-- name: midsommar
-  kind: liturgical
-  sort_order: 120
-- name: mikaelitid
-  kind: liturgical
-  sort_order: 130
-- name: alla_helgon
-  kind: liturgical
-  sort_order: 140
-- name: domssondag
-  kind: liturgical
-  sort_order: 150
-- name: allman_gudstjanst
-  kind: liturgical
-  sort_order: 200
+# Liturgiskt år (kyrkoåret)
+- { name: Advent, kind: liturgical, sort_order: 10 }
+- { name: Jul, kind: liturgical, sort_order: 20 }
+- { name: Trettondedagstid, kind: liturgical, sort_order: 30 }
+- { name: Fastlagstid, kind: liturgical, sort_order: 40 }
+- { name: Fastan, kind: liturgical, sort_order: 50 }
+- { name: Stilla veckan, kind: liturgical, sort_order: 60 }
+- { name: Påsk, kind: liturgical, sort_order: 70 }
+- { name: Påsktid, kind: liturgical, sort_order: 80 }
+- { name: Kristi himmelsfärd, kind: liturgical, sort_order: 90 }
+- { name: Pingst, kind: liturgical, sort_order: 100 }
+- { name: Trefaldighetstid, kind: liturgical, sort_order: 110 }
+- { name: Midsommar, kind: liturgical, sort_order: 120 }
+- { name: Mikaelitid, kind: liturgical, sort_order: 130 }
+- { name: Allhelgona, kind: liturgical, sort_order: 140 }
+- { name: Domsöndag, kind: liturgical, sort_order: 150 }
+- { name: Allmän gudstjänst, kind: liturgical, sort_order: 200 }
 
 # Tillfällen
-- name: begravning
-  kind: occasion
-  sort_order: 10
-- name: brollop
-  kind: occasion
-  sort_order: 20
-- name: dop
-  kind: occasion
-  sort_order: 30
-- name: konfirmation
-  kind: occasion
-  sort_order: 40
-- name: vigsel
-  kind: occasion
-  sort_order: 50
-- name: minnesgudstjanst
-  kind: occasion
-  sort_order: 60
-- name: skordegudstjanst
-  kind: occasion
-  sort_order: 70
-- name: gudstjanst_med_barn
-  kind: occasion
-  sort_order: 80
-- name: skolavslutning
-  kind: occasion
-  sort_order: 90
-- name: skoljul
-  kind: occasion
-  sort_order: 100
-- name: musikgudstjanst
-  kind: occasion
-  sort_order: 110
-- name: konsert
-  kind: occasion
-  sort_order: 120
+- { name: Begravning, kind: occasion, sort_order: 10 }
+- { name: Bröllop, kind: occasion, sort_order: 20 }
+- { name: Dop, kind: occasion, sort_order: 30 }
+- { name: Konfirmation, kind: occasion, sort_order: 40 }
+- { name: Vigsel, kind: occasion, sort_order: 50 }
+- { name: Minnesgudstjänst, kind: occasion, sort_order: 60 }
+- { name: Skördegudstjänst, kind: occasion, sort_order: 70 }
+- { name: Gudstjänst med barn, kind: occasion, sort_order: 80 }
+- { name: Skolavslutning, kind: occasion, sort_order: 90 }
+- { name: Skoljul, kind: occasion, sort_order: 100 }
+- { name: Musikgudstjänst, kind: occasion, sort_order: 110 }
+- { name: Konsert, kind: occasion, sort_order: 120 }
 
 # Besättningar (voicing) - tagg-formade så de kan kombineras
-# (t.ex. "SATB" + "soprano solo" på samma not).
 - { name: SATB, kind: voicing, sort_order: 10 }
 - { name: SAB, kind: voicing, sort_order: 20 }
 - { name: SSA, kind: voicing, sort_order: 30 }
@@ -101,21 +45,21 @@
 - { name: TB, kind: voicing, sort_order: 70 }
 - { name: ATB, kind: voicing, sort_order: 80 }
 - { name: SA, kind: voicing, sort_order: 90 }
-- { name: unison, kind: voicing, sort_order: 100 }
-- { name: kanon, kind: voicing, sort_order: 110 }
-- { name: solo, kind: voicing, sort_order: 120 }
-- { name: solo + kör, kind: voicing, sort_order: 130 }
-- { name: barnkör, kind: voicing, sort_order: 140 }
+- { name: Unison, kind: voicing, sort_order: 100 }
+- { name: Kanon, kind: voicing, sort_order: 110 }
+- { name: Solo, kind: voicing, sort_order: 120 }
+- { name: Solo + kör, kind: voicing, sort_order: 130 }
+- { name: Barnkör, kind: voicing, sort_order: 140 }
 
 # Ackompanjemang
-- { name: a cappella, kind: accompaniment, sort_order: 10 }
-- { name: piano, kind: accompaniment, sort_order: 20 }
-- { name: orgel, kind: accompaniment, sort_order: 30 }
-- { name: cembalo, kind: accompaniment, sort_order: 40 }
-- { name: gitarr, kind: accompaniment, sort_order: 50 }
-- { name: stråkkvartett, kind: accompaniment, sort_order: 60 }
-- { name: stråkar, kind: accompaniment, sort_order: 70 }
-- { name: mässing, kind: accompaniment, sort_order: 80 }
-- { name: blåsensemble, kind: accompaniment, sort_order: 90 }
-- { name: orkester, kind: accompaniment, sort_order: 100 }
-- { name: ensemble, kind: accompaniment, sort_order: 110 }
+- { name: A cappella, kind: accompaniment, sort_order: 10 }
+- { name: Piano, kind: accompaniment, sort_order: 20 }
+- { name: Orgel, kind: accompaniment, sort_order: 30 }
+- { name: Cembalo, kind: accompaniment, sort_order: 40 }
+- { name: Gitarr, kind: accompaniment, sort_order: 50 }
+- { name: Stråkkvartett, kind: accompaniment, sort_order: 60 }
+- { name: Stråkar, kind: accompaniment, sort_order: 70 }
+- { name: Mässing, kind: accompaniment, sort_order: 80 }
+- { name: Blåsensemble, kind: accompaniment, sort_order: 90 }
+- { name: Orkester, kind: accompaniment, sort_order: 100 }
+- { name: Ensemble, kind: accompaniment, sort_order: 110 }
