@@ -37,7 +37,16 @@
 
   <div class="col-md-5">
     {% if person.biography %}
+    {% set _bio_long = person.biography|length > 400 %}
+    {% if _bio_long %}
+    <div class="bio-collapsible">
+      <p class="bio-preview mb-1" style="white-space: pre-wrap">{{ person.biography[:400].rstrip() }}…</p>
+      <p class="bio-full mb-1 d-none" style="white-space: pre-wrap">{{ person.biography }}</p>
+      <button type="button" class="btn btn-link btn-sm p-0 bio-toggle">Visa mer</button>
+    </div>
+    {% else %}
     <p style="white-space: pre-wrap">{{ person.biography }}</p>
+    {% endif %}
     {% if person.biography_source_url %}
     <p class="small text-muted">
       Biografi från
@@ -90,4 +99,18 @@
     </div>
   </div>
 </div>
+
+<script>
+document.querySelectorAll('.bio-collapsible').forEach((box) => {
+  const btn = box.querySelector('.bio-toggle');
+  const preview = box.querySelector('.bio-preview');
+  const full = box.querySelector('.bio-full');
+  btn.addEventListener('click', () => {
+    const expand = preview.classList.contains('d-none') === false;
+    preview.classList.toggle('d-none', expand);
+    full.classList.toggle('d-none', !expand);
+    btn.textContent = expand ? 'Visa mindre' : 'Visa mer';
+  });
+});
+</script>
 {% endblock %}

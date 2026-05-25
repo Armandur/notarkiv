@@ -112,41 +112,58 @@ class MusicBrainzClient:
 
 
 async def fetch_wikipedia_summary(url: str) -> str | None:
-    """Hämta ett kort utdrag (första stycket) från ett Wikipedia-artikel-URL.
-
-    Använder REST API:t /page/summary som returnerar JSON med 'extract'.
+    """Hämta hela introduktionen (alla stycken innan första sektionsrubriken)
+    från en Wikipedia-artikel. Använder MediaWiki action API med
+    prop=extracts, exintro=1 och explaintext=1 för ren text.
     Best-effort - returnerar None vid fel.
     """
     if not url:
         return None
     import re
+    from urllib.parse import unquote
 
     m = re.match(r"https?://([a-z]+)\.wikipedia\.org/wiki/(.+)", url)
     if not m:
         return None
-    lang, title = m.group(1), m.group(2)
-    summary_url = f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{title}"
+    lang, title_raw = m.group(1), m.group(2)
+    title = unquote(title_raw).replace("_", " ")
+    api_url = f"https://{lang}.wikipedia.org/w/api.php"
+    params = {
+        "action": "query",
+        "format": "json",
+        "prop": "extracts",
+        "exintro": "1",
+        "explaintext": "1",
+        "redirects": "1",
+        "titles": title,
+    }
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
-                summary_url, headers={"User-Agent": get_musicbrainz_user_agent()}
+                api_url, params=params,
+                headers={"User-Agent": get_musicbrainz_user_agent()},
             )
             resp.raise_for_status()
             data = resp.json()
-            extract = data.get("extract")
-            return extract.strip() if extract else None
+            pages = (data.get("query") or {}).get("pages") or {}
+            for page in pages.values():
+                extract = page.get("extract")
+                if extract:
+                    return extract.strip()
     except (httpx.HTTPError, ValueError) as exc:
-        logger.warning("Wikipedia-summary misslyckades för {}: {}", url, exc)
-        return None
+        logger.warning("Wikipedia-extract misslyckades för {}: {}", url, exc)
+    return None
 
 
 def extract_wikipedia_url(artist: dict) -> str | None:
     """Plocka direkt Wikipedia-relation. Många nyare MB-poster har bara
-    wikidata-relation - använd get_wikipedia_url för fallback via Wikidata."""
+    wikidata-relation - använd get_wikipedia_url för fallback via Wikidata.
+    Filtrerar bort URL:er som inte pekar på en wikipedia.org-domän (MB har
+    historiskt haft wikidata-länkar registrerade som type='wikipedia')."""
     for rel in artist.get("relations", []):
         if rel.get("type") == "wikipedia":
             url = rel.get("url", {}).get("resource")
-            if url:
+            if url and "wikipedia.org" in url:
                 return url
     return None
 

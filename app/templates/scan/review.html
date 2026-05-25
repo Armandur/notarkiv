@@ -156,15 +156,21 @@
               {% if c.country %}<div>{{ country_display(c.country) }}</div>{% endif %}
               {% if c.disambiguation %}<div class="text-muted">{{ c.disambiguation }}</div>{% endif %}
             </div>
-            <form hx-post="/scan/{{ scan.id }}/apply-person-mb"
-                  hx-target="#{{ person_card_id }}"
-                  hx-swap="outerHTML">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-              <input type="hidden" name="name" value="{{ item.name }}">
-              <input type="hidden" name="role" value="{{ section.role }}">
-              <input type="hidden" name="mbid" value="{{ c.id }}">
-              <button type="submit" class="btn btn-sm btn-outline-primary">Använd</button>
-            </form>
+            <div class="d-flex gap-1 align-items-center">
+              <a href="https://musicbrainz.org/artist/{{ c.id }}" target="_blank" rel="noopener"
+                 class="btn btn-sm btn-outline-secondary" title="Öppna i MusicBrainz">MB ↗</a>
+              <a href="https://www.google.com/search?q={{ c.name|urlencode }}+wikipedia" target="_blank" rel="noopener"
+                 class="btn btn-sm btn-outline-secondary" title="Sök Wikipedia">Wiki ↗</a>
+              <form hx-post="/scan/{{ scan.id }}/apply-person-mb"
+                    hx-target="#{{ person_card_id }}"
+                    hx-swap="outerHTML" class="m-0">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="name" value="{{ item.name }}">
+                <input type="hidden" name="role" value="{{ section.role }}">
+                <input type="hidden" name="mbid" value="{{ c.id }}">
+                <button type="submit" class="btn btn-sm btn-outline-primary">Använd</button>
+              </form>
+            </div>
           </div>
           {% endfor %}
           {% endif %}
