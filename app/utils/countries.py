@@ -1,71 +1,26 @@
 """Hjälpare för land: ISO-koder → svenskt namn + emoji-flagga.
 
-Mappning hämtad från Wikipedia/SCB:s landlista. Inte komplett (~70 länder)
-men täcker de mest sannolika kompositörsländerna. Komplettera vid behov.
+Använder babel/CLDR för översättningarna - ger alla ~250 ISO 3166-1
+alpha-2-koder på svenska utan att hand-underhålla en lista.
 """
 
-# Svenska namn för vanliga länder. Fall tillbaka till ISO-koden för okända.
-COUNTRY_NAMES_SV = {
-    "AT": "Österrike",
-    "AU": "Australien",
-    "BE": "Belgien",
-    "BG": "Bulgarien",
-    "BR": "Brasilien",
-    "CA": "Kanada",
-    "CH": "Schweiz",
-    "CL": "Chile",
-    "CN": "Kina",
-    "CO": "Colombia",
-    "CR": "Costa Rica",
-    "CU": "Kuba",
-    "CY": "Cypern",
-    "CZ": "Tjeckien",
-    "DE": "Tyskland",
-    "DK": "Danmark",
-    "EE": "Estland",
-    "EG": "Egypten",
-    "ES": "Spanien",
-    "FI": "Finland",
-    "FR": "Frankrike",
-    "GB": "Storbritannien",
-    "GR": "Grekland",
-    "HU": "Ungern",
-    "IE": "Irland",
-    "IL": "Israel",
-    "IN": "Indien",
-    "IR": "Iran",
-    "IS": "Island",
-    "IT": "Italien",
-    "JP": "Japan",
-    "KR": "Sydkorea",
-    "LT": "Litauen",
-    "LU": "Luxemburg",
-    "LV": "Lettland",
-    "MX": "Mexiko",
-    "NL": "Nederländerna",
-    "NO": "Norge",
-    "NZ": "Nya Zeeland",
-    "PE": "Peru",
-    "PL": "Polen",
-    "PT": "Portugal",
-    "RO": "Rumänien",
-    "RS": "Serbien",
-    "RU": "Ryssland",
-    "SE": "Sverige",
-    "SK": "Slovakien",
-    "TR": "Turkiet",
-    "UA": "Ukraina",
-    "US": "USA",
-    "VA": "Vatikanstaten",
-    "ZA": "Sydafrika",
-}
+from functools import lru_cache
+
+from babel import Locale
+
+# Codes som CLDR har men som inte är riktiga ISO 3166-1-länder
+# (transnationella regioner mm). Filtrera bort så valbara länder är
+# bara riktiga territorier.
+_NON_COUNTRY_CODES = {"EU", "EZ", "UN", "QO", "XA", "XB"}
+
+
+@lru_cache(maxsize=1)
+def _sv_locale() -> Locale:
+    return Locale.parse("sv_SE")
 
 
 def country_flag_emoji(code: str | None) -> str:
-    """Konvertera ISO 3166-1 alpha-2 till emoji-flagga via regional indicator symbols.
-
-    Returnerar tom sträng för None eller ogiltig kod.
-    """
+    """Konvertera ISO 3166-1 alpha-2 till emoji-flagga via regional indicator symbols."""
     if not code or len(code) != 2 or not code.isalpha():
         return ""
     code = code.upper()
@@ -75,11 +30,12 @@ def country_flag_emoji(code: str | None) -> str:
 
 
 def country_name_sv(code: str | None) -> str:
-    """Returnera svenskt landsnamn eller koden själv om okänt."""
+    """Svenskt landsnamn för en ISO-kod (eller koden själv om okänt)."""
     if not code:
         return ""
     code = code.upper()
-    return COUNTRY_NAMES_SV.get(code, code)
+    name = _sv_locale().territories.get(code)
+    return name or code
 
 
 def country_display(code: str | None) -> str:
@@ -91,11 +47,22 @@ def country_display(code: str | None) -> str:
     return f"{flag} {name}".strip()
 
 
+@lru_cache(maxsize=1)
 def all_countries() -> list[dict]:
-    """Alla länder vi har svensk översättning för, sorterade alfabetiskt."""
-    rows = [
-        {"code": code, "name": name, "display": country_display(code)}
-        for code, name in COUNTRY_NAMES_SV.items()
-    ]
+    """Alla ISO 3166-1 alpha-2-koder sorterade på svenskt namn."""
+    sv = _sv_locale()
+    rows = []
+    for code, name in sv.territories.items():
+        if len(code) != 2 or not code.isalpha():
+            continue
+        if code in _NON_COUNTRY_CODES:
+            continue
+        rows.append(
+            {
+                "code": code,
+                "name": name,
+                "display": f"{country_flag_emoji(code)} {name}",
+            }
+        )
     rows.sort(key=lambda r: r["name"])
     return rows

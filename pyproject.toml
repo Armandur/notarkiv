@@ -23,6 +23,7 @@ dependencies = [
     "typer>=0.15",
     "rapidfuzz>=3.10",
     "qrcode[pil]>=8.0",
+    "babel>=2.16",
 ]
 
 [project.optional-dependencies]
