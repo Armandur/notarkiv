@@ -96,16 +96,27 @@
           <input type="text" name="edition_number" class="form-control" value="{{ piece.edition_number or '' }}">
         </div>
         <div class="col-md-6">
-          <label class="form-label">MusicBrainz work-ID</label>
-          <div class="input-group">
-            <input type="text" name="musicbrainz_work_id" id="musicbrainz_work_id" class="form-control" value="{{ piece.musicbrainz_work_id or '' }}">
-            <button type="button" class="btn btn-outline-secondary"
-                    hx-get="/pieces/{{ piece.id }}/musicbrainz?skip_search=1"
-                    hx-target="#mb-modal-target"
-                    hx-swap="innerHTML">
-              Sök i MusicBrainz
-            </button>
+          <label class="form-label">MusicBrainz work</label>
+          <input type="hidden" name="musicbrainz_work_id" id="musicbrainz_work_id" value="{{ piece.musicbrainz_work_id or '' }}">
+          {% if piece.musicbrainz_work_id %}
+          <div class="d-flex gap-1 align-items-center">
+            <a href="https://musicbrainz.org/work/{{ piece.musicbrainz_work_id }}" target="_blank"
+               class="text-decoration-none flex-grow-1 text-truncate"
+               title="{{ piece.musicbrainz_work_id }}">
+              {{ piece.musicbrainz_work_id }}
+            </a>
+            <button type="button" class="btn btn-sm btn-outline-danger"
+                    onclick="confirmAction('/pieces/{{ piece.id }}/musicbrainz-id/clear', 'Rensa MB-work-ID? Kopplingen mot MusicBrainz tas bort.', {submitLabel: 'Rensa'})"
+                    title="Rensa">×</button>
           </div>
+          {% else %}
+          <button type="button" class="btn btn-outline-secondary w-100"
+                  hx-get="/pieces/{{ piece.id }}/musicbrainz?skip_search=1"
+                  hx-target="#mb-modal-target"
+                  hx-swap="innerHTML">
+            Sök i MusicBrainz
+          </button>
+          {% endif %}
         </div>
         <div class="col-12">
           <label class="form-label">Anteckningar</label>

@@ -873,6 +873,24 @@ async def edit_piece_save(
     return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
 
 
+@router.post("/{piece_id}/musicbrainz-id/clear", dependencies=[Depends(verify_csrf)])
+async def clear_piece_mb_work_id(
+    request: Request,
+    piece_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    piece = session.get(Piece, piece_id)
+    if not piece:
+        raise HTTPException(404)
+    piece.musicbrainz_work_id = None
+    piece.updated_at = datetime.utcnow()
+    session.add(piece)
+    session.commit()
+    flash(request, "Rensade MusicBrainz-koppling", "success")
+    return RedirectResponse(f"/pieces/{piece_id}/edit", status.HTTP_302_FOUND)
+
+
 @router.post("/{piece_id}/re-ocr", dependencies=[Depends(verify_csrf)])
 async def re_ocr_piece(
     request: Request,
