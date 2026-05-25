@@ -921,14 +921,29 @@ async def delete_piece(
     for scan in scans:
         scan.resulting_piece_id = None
         session.add(scan)
+    # Också re-OCR-skanningar som har piecen som mål
+    target_scans = session.exec(
+        select(ScanSession).where(ScanSession.target_piece_id == piece_id)
+    ).all()
+    for scan in target_scans:
+        scan.target_piece_id = None
+        session.add(scan)
 
     title = piece.title
     session.delete(piece)
     session.commit()
 
-    # Radera bildfiler från disk
+    # Radera bildfiler från disk - men bara de som inte refereras av
+    # andra pieces (re-OCR och dubletter delar ofta samma image_path)
     for path in image_paths:
-        delete_saved_image(path)
+        still_used_piece = session.exec(
+            select(PieceImage.id).where(PieceImage.image_path == path).limit(1)
+        ).first()
+        still_used_scan = session.exec(
+            select(ScanSession.id).where(ScanSession.image_path == path).limit(1)
+        ).first()
+        if not still_used_piece and not still_used_scan:
+            delete_saved_image(path)
 
     # Kolla om någon av personerna nu saknar kopplingar
     orphaned_ids: list[int] = []

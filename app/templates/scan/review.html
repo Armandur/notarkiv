@@ -183,11 +183,12 @@
       <input type="hidden" name="musicbrainz_work_id" id="musicbrainz_work_id" value="">
 
       {# Helper-makro för OCR-förslags-pill (visas bara i re-OCR-läge när
-         existing-värdet skiljer sig från extracted) #}
+         existing-värdet skiljer sig från extracted). data-attribut undviker
+         citationsteckenkrock om värdet innehåller apostrofer. #}
       {% macro ocr_pill(input_id, ocr_value, existing_value) %}
         {% if existing and ocr_value and ocr_value != existing_value %}
-        <button type="button" class="btn btn-sm btn-outline-primary mt-1 py-0 px-2"
-                onclick="applyOcr('{{ input_id }}', {{ ocr_value|tojson }})">
+        <button type="button" class="btn btn-sm btn-outline-primary mt-1 py-0 px-2 ocr-apply"
+                data-target="{{ input_id }}" data-value="{{ ocr_value }}">
           OCR: {{ ocr_value }}
         </button>
         {% endif %}
@@ -243,8 +244,8 @@
             {% endfor %}
           </select>
           {% if existing and extracted.language and extracted.language != existing.language %}
-          <button type="button" class="btn btn-sm btn-outline-primary mt-1 py-0 px-2"
-                  onclick="applyOcrSelect('language', {{ extracted.language|tojson }})">
+          <button type="button" class="btn btn-sm btn-outline-primary mt-1 py-0 px-2 ocr-apply-select"
+                  data-target="language" data-value="{{ extracted.language }}">
             OCR: {{ extracted.language }}
           </button>
           {% endif %}
@@ -370,19 +371,26 @@
 </div>
 
 <script>
-// Re-OCR: applicera OCR-värde på ett input-fält
-function applyOcr(inputId, value) {
-  const el = document.getElementById(inputId);
-  if (!el) return;
-  el.value = value;
-  el.dispatchEvent(new Event('input', { bubbles: true }));
-}
-function applyOcrSelect(selectId, value) {
-  const el = document.getElementById(selectId);
-  if (!el) return;
-  el.value = value;
-  el.dispatchEvent(new Event('change', { bubbles: true }));
-}
+// Re-OCR: applicera OCR-värde på ett input-fält via data-attribut
+document.addEventListener('click', (e) => {
+  const inputBtn = e.target.closest('.ocr-apply');
+  if (inputBtn) {
+    const el = document.getElementById(inputBtn.dataset.target);
+    if (el) {
+      el.value = inputBtn.dataset.value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    return;
+  }
+  const selectBtn = e.target.closest('.ocr-apply-select');
+  if (selectBtn) {
+    const el = document.getElementById(selectBtn.dataset.target);
+    if (el) {
+      el.value = selectBtn.dataset.value;
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+});
 
 function applyMbSuggestion(mbid, title, composer, btn) {
   document.getElementById('musicbrainz_work_id').value = mbid;
