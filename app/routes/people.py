@@ -306,14 +306,34 @@ async def edit_person_form(
             wd = extract_wikidata_url(artist)
             if not image_page_url and wd:
                 image_page_url = await resolve_image_via_wikidata(wd)
-            # Kolla om wikidata-länken redan finns
-            wd_already_linked = False
+
+            # Spara länkar och wikidata_id direkt vid refresh - de är
+            # sekundära metadata som inte kräver per-fält-godkännande.
+            # Bio, namn, datum osv visas däremot som pillar för selektiv apply.
+            wd_id_now = wikidata_id_from_url(wd)
+            if wd_id_now and not person.wikidata_id:
+                person.wikidata_id = wd_id_now
+                session.add(person)
+            if wiki_url:
+                _ensure_link(session, person_id, PersonLinkKind.WIKIPEDIA, wiki_url)
             if wd:
-                wd_already_linked = session.exec(
-                    select(PersonLink)
-                    .where(PersonLink.person_id == person_id)
-                    .where(PersonLink.url == wd)
-                ).first() is not None
+                _ensure_link(session, person_id, PersonLinkKind.WIKIDATA, wd)
+            for kind_name, stream_url in extract_streaming_urls(artist).items():
+                try:
+                    _ensure_link(
+                        session, person_id, PersonLinkKind(kind_name), stream_url
+                    )
+                except ValueError:
+                    pass
+            session.commit()
+            # Ladda om links för att visa nya
+            links = session.exec(
+                select(PersonLink)
+                .where(PersonLink.person_id == person_id)
+                .order_by(PersonLink.sort_order, PersonLink.id)
+            ).all()
+
+            wd_already_linked = bool(wd)
             mb_preview = {
                 "name": artist.get("name") or "",
                 "sort_name": artist.get("sort-name") or artist.get("sort_name") or "",
