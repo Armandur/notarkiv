@@ -89,3 +89,13 @@ def country_display(code: str | None) -> str:
     flag = country_flag_emoji(code)
     name = country_name_sv(code)
     return f"{flag} {name}".strip()
+
+
+def all_countries() -> list[dict]:
+    """Alla länder vi har svensk översättning för, sorterade alfabetiskt."""
+    rows = [
+        {"code": code, "name": name, "display": country_display(code)}
+        for code, name in COUNTRY_NAMES_SV.items()
+    ]
+    rows.sort(key=lambda r: r["name"])
+    return rows

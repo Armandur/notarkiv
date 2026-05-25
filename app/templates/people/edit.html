@@ -34,8 +34,15 @@
         </div>
         <div class="col-md-3">
           <label class="form-label">Land</label>
-          <input type="text" name="country" class="form-control" maxlength="2" value="{{ person.country or '' }}" placeholder="SE">
-          <div class="form-text">ISO-kod (2 bokstäver)</div>
+          <select name="country" class="form-select">
+            <option value="">(inget)</option>
+            {% for c in countries %}
+            <option value="{{ c.code }}" {% if person.country == c.code %}selected{% endif %}>
+              {{ c.display }}
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-text">Sökbart - skriv första bokstäverna för att filtrera</div>
         </div>
         <div class="col-md-3">
           <label class="form-label">MusicBrainz MBID</label>

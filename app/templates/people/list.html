@@ -37,20 +37,22 @@
                 data-bs-toggle="dropdown" data-bs-auto-close="outside">
           Land: {% if active_countries %}{{ active_countries|length }} valda{% else %}alla{% endif %}
         </button>
-        <ul class="dropdown-menu w-100 px-3" style="max-height: 300px; overflow-y: auto">
+        <div class="dropdown-menu w-100 p-2" style="max-height: 360px; overflow-y: auto">
+          <input type="search" class="form-control form-control-sm mb-2"
+                 placeholder="Filtrera..."
+                 oninput="(function(el){var q=el.value.toLowerCase();el.parentElement.querySelectorAll('label.country-item').forEach(function(l){l.style.display=l.textContent.toLowerCase().indexOf(q)>=0?'':'none';});})(this)"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();}">
           {% if not country_options %}
-          <li class="text-muted small fst-italic">Inga länder registrerade än</li>
+          <div class="text-muted small fst-italic">Inga länder registrerade än</div>
           {% endif %}
           {% for c in country_options %}
-          <li>
-            <label class="form-check">
-              <input class="form-check-input me-1" type="checkbox" name="country" value="{{ c.code }}"
-                     {% if c.code in active_countries %}checked{% endif %}>
-              {{ c.label }}
-            </label>
-          </li>
+          <label class="form-check country-item d-block">
+            <input class="form-check-input me-1" type="checkbox" name="country" value="{{ c.code }}"
+                   {% if c.code in active_countries %}checked{% endif %}>
+            {{ c.label }}
+          </label>
           {% endfor %}
-        </ul>
+        </div>
       </div>
     </div>
 

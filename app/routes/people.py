@@ -196,6 +196,8 @@ async def edit_person_form(
         .where(PersonLink.person_id == person_id)
         .order_by(PersonLink.sort_order, PersonLink.id)
     ).all()
+    from app.utils.countries import all_countries
+
     return render(
         request,
         "people/edit.html",
@@ -209,6 +211,7 @@ async def edit_person_form(
             "death_date_str": format_partial_date(
                 person.death_year, person.death_month, person.death_day
             ),
+            "countries": all_countries(),
         },
         user=user,
     )
