@@ -89,3 +89,77 @@ async def change_password_submit(
 
     flash(request, "Lösenordet är bytt", "success")
     return RedirectResponse("/", status.HTTP_302_FOUND)
+
+
+@router.get("/profile")
+async def profile(
+    request: Request,
+    user: User = Depends(require_auth),
+) -> Response:
+    return render(request, "auth/profile.html", user=user)
+
+
+@router.get("/profile/kiosk-qr.png")
+async def profile_kiosk_qr(
+    request: Request,
+    user: User = Depends(require_auth),
+) -> Response:
+    """QR-bild för kiosk-auth. Data = 'u:<token>' så kiosken kan skilja
+    det från piece-QR. Användarens token är hemlig - behandla som lösenord."""
+    import io
+    import qrcode
+
+    if not user.kiosk_token:
+        raise HTTPException(404, "Ingen kiosk-token - logga ut och in igen")
+    img = qrcode.make(f"u:{user.kiosk_token}", box_size=8, border=2)
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    return Response(content=buf.getvalue(), media_type="image/png")
+
+
+@router.post("/profile/kiosk-token/regenerate", dependencies=[Depends(verify_csrf)])
+async def regenerate_kiosk_token(
+    request: Request,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> Response:
+    import secrets
+
+    user.kiosk_token = secrets.token_hex(16)
+    session.add(user)
+    session.commit()
+    flash(request, "Ny kiosk-QR genererad - gamla koden funkar inte längre", "success")
+    return RedirectResponse("/profile", status.HTTP_302_FOUND)
+
+
+@router.post("/profile/pin", dependencies=[Depends(verify_csrf)])
+async def set_pin(
+    request: Request,
+    pin: str = Form(...),
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> Response:
+    from app.auth import hash_pin
+
+    clean = pin.strip()
+    if not clean.isdigit() or not (4 <= len(clean) <= 8):
+        flash(request, "PIN måste vara 4-8 siffror", "danger")
+        return RedirectResponse("/profile", status.HTTP_302_FOUND)
+    user.pin_hash = hash_pin(clean)
+    session.add(user)
+    session.commit()
+    flash(request, "PIN-kod sparad", "success")
+    return RedirectResponse("/profile", status.HTTP_302_FOUND)
+
+
+@router.post("/profile/pin/clear", dependencies=[Depends(verify_csrf)])
+async def clear_pin(
+    request: Request,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> Response:
+    user.pin_hash = None
+    session.add(user)
+    session.commit()
+    flash(request, "PIN-kod borttagen", "info")
+    return RedirectResponse("/profile", status.HTTP_302_FOUND)

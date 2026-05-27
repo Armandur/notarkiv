@@ -16,6 +16,16 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
+def hash_pin(pin: str) -> str:
+    """PIN hashas med bcrypt på samma sätt som lösenord. Validering att
+    värdet är 4-8 siffror görs i route-lagret innan denna kallas."""
+    return bcrypt.hashpw(pin.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_pin(pin: str, pin_hash: str) -> bool:
+    return verify_password(pin, pin_hash)
+
+
 def get_user_by_username(session: Session, username: str) -> User | None:
     return session.exec(select(User).where(User.username == username)).first()
 

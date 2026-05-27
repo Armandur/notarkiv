@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Profil - Notarkiv{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-3">Min profil</h1>
+
+<dl class="row">
+  <dt class="col-sm-3">Användarnamn</dt><dd class="col-sm-9">{{ user.username }}</dd>
+  <dt class="col-sm-3">Roll</dt><dd class="col-sm-9">{{ user.role }}</dd>
+  {% if user.email %}
+  <dt class="col-sm-3">E-post</dt><dd class="col-sm-9">{{ user.email }}</dd>
+  {% endif %}
+</dl>
+
+<h2 class="h5 mt-4 mb-2">Lösenord</h2>
+<a href="/change-password" class="btn btn-outline-secondary">Byt lösenord</a>
+
+<h2 class="h5 mt-4 mb-2">PIN-kod för kiosken</h2>
+<p class="text-muted small">
+  PIN-koden används för att logga in på <a href="/kiosk">kiosken</a> i notförrådet
+  utan att skriva fullständigt lösenord. 4-8 siffror.
+  {% if user.pin_hash %}<span class="badge bg-success ms-2">PIN är satt</span>{% endif %}
+</p>
+
+<form method="post" action="/profile/pin" class="d-flex gap-2 align-items-end mb-2 flex-wrap">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div>
+    <label class="form-label small mb-1">{% if user.pin_hash %}Ny PIN{% else %}Sätt PIN{% endif %}</label>
+    <input type="password" name="pin" class="form-control" required
+           inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8"
+           autocomplete="new-password" style="width: 12em; letter-spacing: 0.3em">
+  </div>
+  <button type="submit" class="btn btn-primary">Spara PIN</button>
+</form>
+
+{% if user.pin_hash %}
+<form method="post" action="/profile/pin/clear" class="d-inline">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <button type="submit" class="btn btn-sm btn-outline-danger">Ta bort PIN</button>
+</form>
+{% endif %}
+
+<h2 class="h5 mt-4 mb-2">QR-kod för kiosken</h2>
+<p class="text-muted small">
+  Skanna QR-koden med kioskens handskanner för att logga in utan att skriva PIN.
+  Behandla bilden som lösenord - dela inte med andra.
+</p>
+{% if user.kiosk_token %}
+<div class="d-flex align-items-center gap-3 mb-3">
+  <img src="/profile/kiosk-qr.png" alt="Din QR-kod"
+       class="lightbox-image"
+       data-full-src="/profile/kiosk-qr.png"
+       style="width: 160px; height: 160px; cursor: zoom-in">
+  <div>
+    <p class="small mb-2"><strong>Klicka på QR:n för att visa stor</strong> - perfekt för att hålla upp mot kioskens skanner från mobilen.</p>
+    <form method="post" action="/profile/kiosk-token/regenerate"
+          onsubmit="return confirm('Generera ny QR? Den gamla slutar funka.')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit" class="btn btn-sm btn-outline-secondary">Generera ny QR</button>
+    </form>
+  </div>
+</div>
+{% else %}
+<p class="text-muted fst-italic">Ingen QR-token ännu - logga ut och in igen så genereras en.</p>
+{% endif %}
+{% endblock %}

@@ -1,8 +1,13 @@
+import secrets
 from datetime import datetime
 from enum import StrEnum
 
 from sqlalchemy import String
 from sqlmodel import Field, SQLModel
+
+
+def _new_kiosk_token() -> str:
+    return secrets.token_hex(16)
 
 
 class Role(StrEnum):
@@ -20,6 +25,14 @@ class User(SQLModel, table=True):
     password_hash: str
     role: Role = Field(default=Role.READER, sa_type=String)
     must_change_password: bool = Field(default=False)
+    # Hashad PIN för kiosk-autentisering (4-8 siffror). None = ej satt.
+    pin_hash: str | None = None
+    # Token för QR-baserad kiosk-auth. Slumpat hex, syns på /profile.
+    # QR-innehåll: "u:<token>" så kioskens scanner-input kan skilja det
+    # från piece-QR (rena hex utan prefix).
+    kiosk_token: str | None = Field(
+        default_factory=_new_kiosk_token, unique=True, index=True
+    )
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_login_at: datetime | None = None
 
