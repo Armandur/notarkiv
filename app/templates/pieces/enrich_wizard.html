@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Berika personer - {{ piece.title }}{% endblock %}
+{% block title %}Sök identitet - {{ piece.title }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-baseline mb-3">
   <div>
-    <h1 class="h3 mb-0">Berika personer från MusicBrainz</h1>
+    <h1 class="h3 mb-0">Sök identitet för personer</h1>
     <div class="text-muted small">{{ piece.title }}</div>
   </div>
   <a href="/pieces/{{ piece.id }}" class="btn btn-sm btn-outline-secondary">Hoppa till noten</a>
@@ -12,14 +12,14 @@
 
 {% if not unenriched %}
 <div class="alert alert-success">
-  Alla bidragsgivare har redan MusicBrainz-data. <a href="/pieces/{{ piece.id }}">Tillbaka till noten</a>.
+  Alla bidragsgivare är matchade mot MusicBrainz eller Wikidata.
+  <a href="/pieces/{{ piece.id }}">Tillbaka till noten</a>.
 </div>
 {% else %}
 <p class="text-muted small">
-  Top 3 MusicBrainz-matchningar visas per person. Klicka <strong>"Använd"</strong>
-  för att importera namn, levnadsår, land, Wikipedia-länk och biografi.
-  Klicka <strong>"Hoppa över"</strong> för att lämna personen som den är -
-  den dyker upp igen nästa gång du öppnar wizarden.
+  Topp 3 träffar visas per källa. Klicka <strong>"Använd"</strong> för att
+  importera namn, datum, land, Wikipedia-länk och biografi. Applicering av
+  en källa fyller också i den andra automatiskt om de är korslänkade.
 </p>
 
 <div class="vstack gap-3">
@@ -33,61 +33,88 @@
       <a href="/people/{{ item.person.id }}/edit" class="small">Manuell redigering →</a>
     </div>
     <div class="card-body">
-      {% if item.error %}
-      <div class="alert alert-danger small">MB-anrop misslyckades: {{ item.error }}</div>
-      {% elif not item.candidates %}
-      <p class="text-muted fst-italic small mb-0">
-        Inga matchningar hittades.
-        <a href="/people/{{ item.person.id }}/musicbrainz?return_to=/pieces/{{ piece.id }}/enrich"
-           hx-get="/people/{{ item.person.id }}/musicbrainz?return_to=/pieces/{{ piece.id }}/enrich"
-           hx-target="#mb-modal-target"
-           hx-swap="innerHTML">
-          Sök manuellt
-        </a>
-      </p>
-      {% else %}
-      <div class="list-group list-group-flush">
-        {% for a in item.candidates %}
-        <div class="list-group-item d-flex justify-content-between align-items-center">
-          <div>
-            <strong>{{ a.name }}</strong>
-            {% if a['sort-name'] and a['sort-name'] != a.name %}
-            <span class="text-muted small">({{ a['sort-name'] }})</span>
-            {% endif %}
-            {% set ls = a.get('life-span', {}) %}
-            {% if ls.get('begin') or ls.get('end') %}
-            <div class="small text-muted">
-              {{ ls.get('begin', '?') }}{% if ls.get('end') %} - {{ ls.get('end') }}{% endif %}
-              {% if a.get('country') %} · {{ a['country'] }}{% endif %}
-              {% if a.get('type') %} · {{ a['type'] }}{% endif %}
-            </div>
-            {% endif %}
-            {% if a.disambiguation %}<div class="small text-muted fst-italic">{{ a.disambiguation }}</div>{% endif %}
-            <div class="small">
-              <a href="https://musicbrainz.org/artist/{{ a.id }}" target="_blank">MB-länk</a>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <h3 class="h6">MusicBrainz</h3>
+          {% if item.error %}
+          <div class="alert alert-danger small">{{ item.error }}</div>
+          {% elif not item.candidates %}
+          <p class="text-muted fst-italic small mb-0">Inga träffar.</p>
+          {% else %}
+          {% for a in item.candidates %}
+          <div class="border rounded p-2 mb-2 small">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div>
+                <strong>{{ a.name }}</strong>
+                {% if a['sort-name'] and a['sort-name'] != a.name %}
+                <span class="text-muted">({{ a['sort-name'] }})</span>
+                {% endif %}
+                {% set ls = a.get('life-span', {}) %}
+                {% if ls.get('begin') or ls.get('end') %}
+                <div class="text-muted">
+                  {{ ls.get('begin', '?') }}{% if ls.get('end') %} - {{ ls.get('end') }}{% endif %}
+                  {% if a.get('country') %} · {{ country_display(a['country']) }}{% endif %}
+                </div>
+                {% endif %}
+                {% if a.disambiguation %}<div class="text-muted fst-italic">{{ a.disambiguation }}</div>{% endif %}
+                <a href="https://musicbrainz.org/artist/{{ a.id }}" target="_blank">MB ↗</a>
+              </div>
+              <form method="post" action="/people/{{ item.person.id }}/apply-musicbrainz">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="mbid" value="{{ a.id }}">
+                <input type="hidden" name="return_to" value="/pieces/{{ piece.id }}/enrich">
+                <button type="submit" class="btn btn-sm btn-primary">Använd</button>
+              </form>
             </div>
           </div>
-          <form method="post" action="/people/{{ item.person.id }}/apply-musicbrainz">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="mbid" value="{{ a.id }}">
-            <input type="hidden" name="return_to" value="/pieces/{{ piece.id }}/enrich">
-            <button type="submit" class="btn btn-sm btn-primary">Använd</button>
-          </form>
+          {% endfor %}
+          {% endif %}
         </div>
-        {% endfor %}
+
+        <div class="col-md-6">
+          <h3 class="h6">Wikidata</h3>
+          {% if item.wd_error %}
+          <div class="alert alert-danger small">{{ item.wd_error }}</div>
+          {% elif not item.wd_candidates %}
+          <p class="text-muted fst-italic small mb-0">Inga träffar.</p>
+          {% else %}
+          {% for r in item.wd_candidates %}
+          <div class="border rounded p-2 mb-2 small">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div>
+                <strong>{{ r.label }}</strong>
+                <span class="text-muted">({{ r.qid }})</span>
+                {% if r.birth or r.death %}
+                <div class="text-muted">
+                  {{ r.birth or '?' }}{% if r.death %} - {{ r.death }}{% endif %}
+                </div>
+                {% endif %}
+                {% if r.description %}<div>{{ r.description }}</div>{% endif %}
+                <div>
+                  <a href="https://www.wikidata.org/wiki/{{ r.qid }}" target="_blank">Wikidata ↗</a>
+                  {% if r.wikipedia_url %}
+                  · <a href="{{ r.wikipedia_url }}" target="_blank">Wikipedia ↗</a>
+                  {% endif %}
+                </div>
+              </div>
+              <form method="post" action="/people/{{ item.person.id }}/apply-wikidata">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="qid" value="{{ r.qid }}">
+                <input type="hidden" name="return_to" value="/pieces/{{ piece.id }}/enrich">
+                <button type="submit" class="btn btn-sm btn-primary">Använd</button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+          {% endif %}
+        </div>
       </div>
-      <div class="card-body small text-muted">
-        Ingen av träffarna stämmer?
-        <a href="#" hx-get="/people/{{ item.person.id }}/musicbrainz?return_to=/pieces/{{ piece.id }}/enrich"
-           hx-target="#mb-modal-target" hx-swap="innerHTML">Sök med annat namn</a>
-        eller <a href="/people/{{ item.person.id }}/edit">redigera manuellt</a>.
+      <div class="small text-muted mt-2">
+        Ingen av träffarna stämmer? <a href="/people/{{ item.person.id }}/edit">Redigera manuellt</a>.
       </div>
-      {% endif %}
     </div>
   </div>
   {% endfor %}
 </div>
 {% endif %}
-
-<div id="mb-modal-target"></div>
 {% endblock %}
