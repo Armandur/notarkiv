@@ -123,6 +123,32 @@ def logged_in_client(client, admin_user):
     return client
 
 
+@pytest.fixture
+def kiosk_session_client(client, session, admin_user):
+    """Som logged_in_client men aktiverar också en Kiosk i sessionen via
+    /kiosk/activate. Adminanvändaren loggas ut automatiskt av aktiveringen."""
+    from app.models import Kiosk
+
+    kiosk = Kiosk(name="Testkiosk")
+    session.add(kiosk)
+    session.commit()
+    session.refresh(kiosk)
+
+    # Logga in som admin först så vi har en CSRF-token i sessionen
+    r = client.get("/login")
+    m = re.search(r'name="csrf_token"\s+value="([^"]+)"', r.text)
+    assert m
+    client.post(
+        "/login",
+        data={"username": "testadmin", "password": "testpass", "csrf_token": m.group(1)},
+    )
+
+    # Aktivera kiosken - tar bort user-login
+    r = client.get(f"/kiosk/activate?token={kiosk.access_token}")
+    assert r.status_code in (302, 303), f"activate misslyckades: {r.status_code} {r.text[:200]}"
+    return client
+
+
 def get_csrf(client, path: str = "/") -> str:
     """Hämta csrf_token från en sida med formulär. Använd /pieces eller /loans/cart."""
     r = client.get(path)

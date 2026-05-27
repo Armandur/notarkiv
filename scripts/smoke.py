@@ -32,8 +32,9 @@ PAGES: list[tuple[str, set[int]]] = [
     ("/scan", {200}),
     ("/scan/queue", {200}),
     ("/inventory", {200}),
-    ("/kiosk", {200}),
+    ("/kiosk", {403}),  # kräver kiosk-aktivering, inte user-login
     ("/pieces/qr-labels", {200}),
+    ("/admin/kiosks", {200}),
     ("/admin/users", {200}),
     ("/admin/settings", {200}),
     ("/admin/jobs", {200}),
