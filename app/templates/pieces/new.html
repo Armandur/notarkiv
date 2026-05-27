@@ -48,7 +48,7 @@
         </div>
         <div class="col-md-3">
           <label class="form-label">Språk</label>
-          <select name="language" class="form-select">
+          <select name="language" class="form-select tomselect">
             <option value="">(inget)</option>
             {% for l in language_options %}
             <option value="{{ l.code }}">{{ l.label }}</option>
@@ -57,41 +57,21 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Besättning</label>
-          <div class="dropdown">
-            <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
-                    data-bs-toggle="dropdown" data-bs-auto-close="outside">
-              välj besättning
-            </button>
-            <ul class="dropdown-menu w-100 px-2" style="max-height: 260px; overflow-y: auto">
-              {% for t in voicing_tags %}
-              <li>
-                <label class="form-check">
-                  <input class="form-check-input me-1" type="checkbox" name="voicing_tag_id" value="{{ t.id }}">
-                  {{ t.name }}
-                </label>
-              </li>
-              {% endfor %}
-            </ul>
-          </div>
+          <select name="voicing_tag_id" class="form-select tomselect" multiple
+                  placeholder="Välj besättning...">
+            {% for t in voicing_tags %}
+            <option value="{{ t.id }}">{{ t.name }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-4">
           <label class="form-label">Ackompanjemang</label>
-          <div class="dropdown">
-            <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
-                    data-bs-toggle="dropdown" data-bs-auto-close="outside">
-              välj ackompanjemang
-            </button>
-            <ul class="dropdown-menu w-100 px-2" style="max-height: 260px; overflow-y: auto">
-              {% for t in accompaniment_tags %}
-              <li>
-                <label class="form-check">
-                  <input class="form-check-input me-1" type="checkbox" name="accompaniment_tag_id" value="{{ t.id }}">
-                  {{ t.name }}
-                </label>
-              </li>
-              {% endfor %}
-            </ul>
-          </div>
+          <select name="accompaniment_tag_id" class="form-select tomselect" multiple
+                  placeholder="Välj ackompanjemang...">
+            {% for t in accompaniment_tags %}
+            <option value="{{ t.id }}">{{ t.name }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-4">
           <label class="form-label">Förlag</label>
