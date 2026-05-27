@@ -59,6 +59,64 @@ Avviker från användarens globala defaulter på några punkter - se
 - **Tester**: pytest + httpx async client + factory_boy för
   testfixtures.
 
+## Köra dev-servern (Claude startar servern under utveckling)
+
+Under utveckling är det **Claude** som startar och stänger ner uvicorn
+och arq-worker - inte användaren via tmux. Det innebär att jag som agent
+måste komma ihåg att starta båda processer och hålla koll på dem.
+
+### Standardprocedur
+
+1. **Verifiera Redis** (kör i bakgrunden, oftast redan igång på 6379)
+2. **Starta uvicorn på 8766** med reload + dev.log som outputfil
+3. **Starta arq-worker** i bakgrunden mot samma Redis
+
+```bash
+# Kolla att Redis lyssnar
+ss -tlnp 2>/dev/null | grep 6379
+
+# Stoppa ev. gamla processer först
+pkill -f "uvicorn app.main"
+pkill -f "arq app.tasks.worker"
+
+# Starta uvicorn (run_in_background: true via Bash-verktyget)
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8766 --reload > dev.log 2>&1
+
+# Starta arq-worker (run_in_background: true)
+uv run arq app.tasks.worker.WorkerSettings > worker.log 2>&1
+```
+
+### Verifiering
+
+```bash
+# Båda processer ska finnas
+pgrep -af "uvicorn app.main"
+pgrep -af "arq.*WorkerSettings"
+
+# Servern svarar
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8766/login
+
+# Workern loggar "Starting worker for 2 functions"
+grep -i "starting worker" worker.log
+
+# Smoke som inloggad
+uv run python scripts/smoke.py
+```
+
+### Tystna fel
+
+- **OCR/MB hänger på "väntar på worker"** → arq-worker körs inte. Starta den.
+- **`/loans/cart` ger 500 med kolumn-fel** → init_db har inte kört. Restart uvicorn.
+- **`Address already in use`** → en gammal uvicorn-process hänger. `pkill -f "uvicorn app.main"` först.
+- **OCR-jobb failar med `ScanSession N saknas`** → flera arq-workers konkurrerar om samma queue och en gammal har stale SQLite-connection. Döda ALLA befintliga workers (`pkill -f "arq.*WorkerSettings"`) innan ny startas - en worker i taget räcker.
+
+### Filloggar
+
+- `dev.log` - uvicorn-output (requests, tracebacks)
+- `worker.log` - arq-output (jobb-utförande, fel)
+
+Båda är gitignored (via `*.log` i `.gitignore`).
+
 ## Filstruktur (faktisk)
 
 ```
@@ -76,25 +134,32 @@ notarkiv/
     seed.py                 # Läser seed_data/*.yaml och fyller DB
     models/
       user.py               # User, Role
-      piece.py              # Piece + Voicing/Accompaniment/CopyrightStatus
+      piece.py              # Piece + CopyrightStatus
       piece_image.py        # PieceImage (flera bilder per not)
-      person.py             # Person + PieceContributor + ContributorRole
+      piece_user_note.py    # Personliga anteckningar per användare på en not
+      person.py             # Person + PersonLink + PieceContributor + ContributorRole
       storage.py            # StorageLocation, StorageUnit, PiecePlacement, UnitKind
-      tag.py                # Tag, PieceTag
+      storage_unit_image.py # Bilder på lagringsenheter (skanna ryggen på pärmen)
+      tag.py                # Tag, PieceTag (besättning + ackompanjemang är taggar)
       scan_session.py       # ScanSession + ScanStatus
       scan_session_image.py # Extra bilder per skanning
       inventory.py          # InventorySession
       inventory_check.py    # InventoryCheck (en check per placering inom session)
+      loan.py               # Loan (kan vara fristående eller batch_id-länkad)
+      loan_batch.py         # LoanBatch + LoanBatchStatus (cart/picking/active/returned)
+      psalm.py              # PsalmBook, PsalmEntry, PiecePsalmRef
       app_setting.py        # Key-value-runtime-inställningar
     routes/
-      pages.py              # GET / med översikt
+      pages.py              # GET / med översikt (sort + senaste noter)
       auth.py               # login/logout/change-password
-      pieces.py             # CRUD, multi-bildhantering, MB-omsökning, taggar, placeringar (CRUD)
-      people.py             # Lista, detalj med "som composer/arranger" + redigera/radera
+      pieces.py             # CRUD, multi-bildhantering, MB-omsökning, taggar, placeringar, PDF-utskrift, psalmreferenser
+      people.py             # Lista, detalj med biografi (Wikipedia) + portrait (MB/Wikidata) + länkar
       scan.py               # /scan (vanlig), /scan/quick (mobil), /scan/queue, /scan/{id}/*
                             # /scan/{id}/discard|restore för avvisning, manuell MB-sökning
       storage.py            # CRUD för locations, units, unit-kinds (autocomplete)
       inventory.py          # CRUD för inventeringstillfällen + logg + per-enhet check-läge
+      loans.py              # Enskilda lån + LoanBatch-flöde (cart/checkout/pickup/return) + PDF-plocklista
+      tags.py               # Översikt + admin för taggar
       admin/
         users.py            # Listning, roller, lösenord, radering
         settings.py         # API-nyckel, Claude-modell, OCR-default, MB User-Agent
@@ -115,16 +180,17 @@ notarkiv/
     utils/
       images.py             # EXIF, JPEG, resize, thumbnail, rotate_saved_image, delete_saved_image
     templates/
-      base.html             # Navbar med badges, lightbox (med grupp-nav), confirm-modal
+      base.html             # Navbar med badges (kö/utlån/korg), lightbox (med grupp-nav), confirm-modal
       auth/                 # login.html, change_password.html
-      pages/                # index.html
+      pages/                # index.html (översikt + senaste noter)
       pieces/
-        list.html           # Kort- och list-vy via ?view=
+        list.html           # Kort/list/träd-vy via ?view=, multi-select-filter
         detail.html         # Read-orienterad: metadata, galleri, placeringar, taggar
-        edit.html           # Metadata + bilder + MB-sökning (allt redigerbart)
+        edit.html           # Metadata + bilder + MB-sökning (allt redigerbart, EasyMDE för anteckningar)
         new.html            # Manuell skapelse med valfri placering
+        pdf.html            # WeasyPrint-mall för utskrift av notkatalogen
         _musicbrainz_modal.html  # HTMX-modal med söksformulär + förslag
-        _tag_modal.html, _tag_pill.html  # Tagghantering
+        _tag_area.html, _tag_search_results.html  # HTMX-driven tagghantering
       scan/
         capture.html        # Vanlig (dator) skanningssida
         quick.html          # Mobil snabbskanning, multi-bild + rotation
@@ -133,12 +199,18 @@ notarkiv/
         queue.html          # Granskningskö (kort/list-toggle, avvisa/återställ)
         _status.html        # HTMX-fragment
         _musicbrainz_modal.html  # Manuell MB-sökning från granskning
-      people/               # list.html, detail.html
+      people/               # list.html, detail.html (biografi-markdown + lightbox-portrait)
       storage/
         manage.html, _tree.html, _unit_form.html, _kind_results.html
       inventory/
         list.html, detail.html
         check_pick.html, check.html, _check_row.html  # Per-enhet inventeringsläge
+      loans/
+        list.html           # Batches grupperade + enskilda lån
+        cart.html           # Utlåningskorg per användare (plats-grupperad)
+        pickup.html         # Plockläge med ✓ Hämtad / ✗ Hittade ej per rad
+        batch_detail.html   # Detalj-vy med delvis återlämning
+        pickup_pdf.html     # Utskrivbar plocklista (WeasyPrint)
       admin/
         users.html, settings.html
     static/
@@ -149,10 +221,13 @@ notarkiv/
     images/{covers,thumbnails}/
   seed_data/                # YAML för db seed
     tags.yaml, unit_kinds.yaml
+    psalms/                 # 1986 + 2003 års svenska psalmbok som referensdata
     (users.yaml, storage_locations.yaml - läggs till av användaren)
+  snapshots/                # Lokala DB+image-snapshots (gitignored)
   docs/
     datamodell.md, ocr-strategi.md, musicbrainz.md
-    postgres-migration.md, seed-data.md
+    postgres-migration.md, seed-data.md, backup.md
+    musikerbeskrivning.md   # Strategi för Wikipedia-biografi + Wikidata-portraits
   pyproject.toml, uv.lock
   Dockerfile, docker-compose.yml
   .env.example, .gitignore
@@ -328,6 +403,26 @@ och tas bort från piece-detalj. Om edit byter unit till en där
 samma piece redan har en placering så slås de samman (copies
 summeras, gamla raden raderas) - idiotsäker mot dubbel-placeringar.
 
+### 15. Bulk-utlån via LoanBatch och kundvagn
+
+Enskilda `Loan`-rader finns kvar (gamla flödet via piece-detalj-modalen)
+men det normala är nu **grupperade utlån** via `LoanBatch`. Statusfältet
+driver livscykeln: `cart → picking → active → returned`.
+
+- **cart**: en per användare. Loan-rader läggs till med null borrower
+  och null picked_up_at. Navbar visar "Korg (N)".
+- **checkout** flippar till **picking** och kräver obligatoriskt
+  syfte/namn (t.ex. "Konsert 14 juni") + låntagare + ev. förv. retur.
+- **picking** är plockläget: per rad ✓ Hämtad (sätter `picked_up_at`)
+  eller ✗ Hittade ej (raderar raden). Användaren kan lägga till fler
+  noter mitt under plockning. PDF-plocklista finns för fysisk avbockning.
+- **active** sätts när användaren slutregistrerar. Ohämtade rader
+  raderas helt. Återlämning kan göras per rad (delvis) eller helt batch.
+- **returned** sätts automatiskt när alla rader är återlämnade.
+
+`Loan.batch_id = null` betyder enskilt lån (gamla flödet) - de räknas
+direkt som hämtade (`picked_up_at` sätts vid registrering).
+
 ### 5. Sökning byggs runt körledarens mentalmodell
 
 Körledaren söker typiskt efter *tillfälle*, inte titel. UI:t designas
@@ -364,15 +459,33 @@ migrationsstrategi.
 
 ## Migrationsstrategi
 
-**Före prod (nuvarande läge): nuke + seed.** Vid schemaändringar
-raderar vi databasen och kör om seed-skriptet med testdata. Inga
-ALTER-guards behövs. Detta sparar enormt med tid när modellen
-fortfarande utvecklas. Se `docs/seed-data.md` för seed-strukturen
-och CLI-kommandona.
+**Default: ALTER TABLE-guards via `_ensure_column_guards()` i `app/db.py`.**
+`init_db()` kör `SQLModel.metadata.create_all()` (skapar nya tabeller
+som saknas) följt av en additions-dict per tabell med (kolumn, definition)-
+par. För varje par: kolla `PRAGMA table_info(table)` och kör `ALTER TABLE
+... ADD COLUMN ...` om kolumnen saknas. Idempotent och säkert på riktig data.
 
-**Efter prod**: `init_db()` med `SQLModel.metadata.create_all()` +
-ALTER-guards för nya kolumner. Tröskeln är när användaren börjar
-registrera skarp data och vi tar första riktiga backupen.
+**Aldrig `db reset` på en databas som har skarp data utan att fråga
+användaren först.** Det finns alltid en risk att det som ser ut som
+testdata egentligen är registrerat material (skannade noter, biografier,
+manuell metadata) - data minimization-principen gör att backupen kanske
+inte ens täcker allt mellan snapshots. Lokala snapshots ligger i
+`snapshots/` (gitignored) och kan användas för katastrofåterställning.
+
+Seed (`seed_all()`) körs alltid efter `init_db()` och är idempotent.
+Den fyller på baseline-data:
+- Taggar (`seed_data/tags.yaml`) inkl. besättning + ackompanjemang
+- UnitKinds (`seed_data/unit_kinds.yaml`)
+- Initial admin (om `INITIAL_ADMIN_*` är satt i env)
+- Psalmböcker (`seed_data/psalms/*.yaml`) - 1986 + 2003 års psalmbok
+
+Schemaändringar du gör i en modell **måste** alltså antingen:
+1. Bara skapa en ny tabell (då räcker `create_all()` automatiskt), eller
+2. Bara lägga till en kolumn på befintlig tabell (lägg in i `additions`-
+   dicten i `_ensure_column_guards()`).
+
+Andra ändringar (rename, drop, type change) kräver manuell SQL eller
+om-skanning av data. Diskutera med användaren först.
 
 Aldrig backwards-compat-shims för data ingen annan än användaren har -
 bara migrera och radera gammal kod.
@@ -423,13 +536,20 @@ LITESTREAM_SECRET_KEY=...
 
 ## Vanliga ändringar i framtiden
 
-- **Nytt metadatafält**: lägg i `pieces`-tabellen via `ALTER TABLE`-guard
-  i `init_db()`, uppdatera `pieces/edit.html`, lägg till i sökfiltret
+- **Nytt metadatafält** på en befintlig tabell: lägg till i SQLModel,
+  lägg in `(kolumn, "SQL_TYPE")` i `_ensure_column_guards()` i
+  `app/db.py`, uppdatera relevanta templates, lägg till i sökfiltret
   om relevant.
+- **Helt ny tabell**: skapa modell, importera i `app/models/__init__.py`
+  och `app/db.py` (för att triggra `create_all()`). Inga ALTER-guards
+  behövs - tabellen skapas automatiskt vid nästa start.
 - **Ny OCR-provider**: skapa fil i `app/services/ocr/`, implementera
   `OCRProvider`-protocol, registrera i `routes/scan.py`.
 - **Ny taggtyp**: utöka `kind`-enum i `tags`-tabellen, lägg till i
   taggvalsdropdown.
+- **Ny seed-data**: lägg yaml-fil i `seed_data/`, lägg en `_seed_X()`-
+  funktion i `app/seed.py` och anropa från `seed_all()`. Idempotent
+  via SELECT-före-INSERT.
 
 ## Testning
 

@@ -211,14 +211,14 @@ granska -> spara -> hitta igen.
       taggar live, "+ Skapa ny tagg" om inget matchar, aktiva
       pillar med klick=ta-bort. Toggle och create sker omedelbart
       utan att spara hela formuläret.
-- [ ] **Bulk-utlån / kundvagn för många noter samtidigt**: körledare
-      plockar ofta 5-30 noter till en konsert. Idag måste utlån
-      registreras per placering. Alternativ: (a) "Låna ut härifrån"
-      på en storage_unit som listar pieces med kryssrutor, (b)
-      kundvagn med session-state ("Lägg i utlåningskorg") som låter
-      användaren plocka från flera platser innan slutregistrering,
-      (c) multi-select i /pieces-listan + "Låna ut valda".
-      Vid implementation: överväg även PDF-utskrift av låneblankett.
+- [x] **Bulk-utlån / kundvagn för många noter samtidigt**: LoanBatch-
+      modell med status cart/picking/active/returned. En cart per
+      användare, "+ Korg"-knapp på placeringar, plats-grupperad cart-vy
+      med obligatoriskt syfte och låntagare vid checkout. Plockläge
+      med ✓ Hämtad / ✗ Hittade ej per rad (ohämtade raderas vid
+      slutregistrering), möjlighet att lägga till noter mitt under
+      plockning, PDF-plocklista via WeasyPrint. Delvis och total
+      återlämning från batch-detaljvy. Navbar-badge "Korg (N)".
 - [x] **MB-berikning av personer direkt i granskningsflödet**: en samlad
       "Hämta MB-förslag"-knapp i review-vyn som söker för både verk och
       alla namn (composer/arranger/lyricist), visar topp-träffar med
@@ -231,18 +231,23 @@ granska -> spara -> hitta igen.
       lookup-tabell för ~50 länder).
 - [x] **Filter och sökning på personer**: roll-, land- och
       MBID-status-dropdown plus fritextsökning på namn.
-- [ ] **Streckkod/QR-etiketter på enskilda noter + kioskvy**:
-      Idag har vi QR per lagringsenhet. Komplement: en etikett per piece
-      med en stabil kod (UUID eller löpnummer) som kan skannas med USB-
-      handskanner eller mobilens kamera. Användningsfall:
-      - Terminaldator i notförrådet med kioskvy: skanna -> piece-detalj
-        med snabb "Låna"/"Återlämna"-knapp (inloggad användare som
-        låntagare som default)
-      - Inventera genom att bara skanna varje not i en pärm - systemet
-        markerar som hittad automatiskt
-      USB-handskannrar fungerar som tangentbordsemulering så de skriver
-      koden i ett input-fält direkt. För kamera-baserad skanning krävs
-      HTTPS (kopplat till in-browser-QR-läsare-itemet ovan).
+- [x] **Streckkod/QR-etiketter på enskilda noter + kioskvy**:
+      `Piece.public_id` (UUID-hex) genereras vid skapande och backfillas
+      vid migration. `/pieces/{id}/qr.png` ger en QR och `/pieces/qr-labels`
+      + `/pieces/qr-labels.pdf` genererar utskrivbara etikett-grids
+      (filtrerbara via samma `?unit=`/`?tag=`-syntax som /pieces).
+      `/kiosk`-vyn har två-stegs flöde: PIN- eller QR-baserad
+      inloggning av låntagare (separat från den fasta kiosk-användaren
+      som håller webbsessionen), sen skanna-not-flöde med cart i sidopanel
+      och snabb checkout som hoppar pickup-fasen. Auto-logout efter
+      registrering. Rate-limit på auth (5 fel/15min, 5 min lockout).
+- [ ] **NFC/RFID-tagg-inloggning i kiosken**: Komplement till PIN/QR
+      där användaren har en fysisk tagg/kort. Kräver hårdvara (USB
+      NFC-läsare som ACR122U eller liknande) plus en bryggtjänst som
+      skickar UID:t till kiosken som tangentbordsinput. Förenkling:
+      lägg ett "nfc:<uid>"-mönster på samma input-fält som hanterar
+      både piece- och user-QR, samt en NFC-UID-lista per User (många-
+      till-en så samma användare kan ha både kort och armband).
 - [x] **Psalmnummer som strukturerad psalmref istället för fritext-fält**:
       ny PsalmBook + PiecePsalmRef-modell. Admin-CRUD på
       /admin/psalmbooks. Flera referenser per not via lägg-till-form
@@ -267,9 +272,27 @@ granska -> spara -> hitta igen.
       sane_lists och tables. Jinja-filter `| markdown | safe` används
       för biografi (person-detalj) och anteckningar (piece-detalj).
       Wikipedia ==-rubriker normaliseras till markdown-rubriker före
-      rendering. Form-hjälp-texter informerar om format-stöd. Ingen
-      editor-widget än - plain textarea räcker, EasyMDE kan läggas
-      till senare om behov uppstår.
+      rendering (i `_truncate_wiki_extract`, vid fetch-tid).
+      Form-hjälp-texter informerar om format-stöd. EasyMDE-widget
+      auto-initialiseras på `textarea.markdown-editor` via base.html.
+- [x] **ALTER TABLE-guards i `init_db()`**: schemaändringar tar
+      additions-dict i `_ensure_column_guards()` så DB inte behöver
+      nukas vid kolumn-tillägg. Reset är destruktivt och kräver
+      explicit godkännande från användaren.
+- [x] **Psalmböcker som default seed**: `seed_psalms()` anropas
+      automatiskt från `seed_all()` med 1986 års svenska psalmbok
+      (700 psalmer) + Verbums tillägg 2003 (100 psalmer).
+- [ ] **Förlag som strukturerad entitet** (liknande Person-modellen):
+      `Publisher`-tabell med name + sort_name + ev. country, IMSLP-länk,
+      hemsida, beskrivning. `Piece.publisher` (fritext) ersätts med
+      FK till Publisher (eller PieceContributor-stil länktabell om en
+      not kan ha flera utgivare). UI: autocomplete-fält som matchar
+      befintliga förlag eller skapar nytt. Vid OCR/Claude Vision: matcha
+      extraherad förlagstext mot befintliga Publisher-namn med fuzz-score
+      innan ny post skapas - hjälper mot stavningsvarianter ("Verbum",
+      "Verbum Förlag", "Verbum AB"). Migration kräver dedup av befintliga
+      fritext-värden. Tar an `MUSIC PUBLISHER`-MBID-länkningen från
+      MusicBrainz om relevant så Wikipedia-länk + logotyp kan följa med.
 
 ## V3 - "Långt fram"
 

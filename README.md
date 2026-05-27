@@ -21,9 +21,13 @@ MVP är funktionsmässigt komplett: skanning med OCR och MusicBrainz,
 granskning, sökning, lagringsplatser, två-personers-flöde, inventerings-
 tillfällen med per-enhet checklista, admin (användare och inställningar),
 multi-bilder per not med rotation, manuell skapelse, redigering,
-borttagning, taggar, dubblettkoll, kompositörer som egna entiteter,
-placeringshantering. Återstår innan prod-deploy: backup via litestream
-och eventuellt fler V2-finputs. Se `ROADMAP.md` för fullständig status.
+borttagning, taggar, dubblettkoll, kompositörer som egna entiteter
+med biografi från Wikipedia och porträtt från MusicBrainz/Wikidata,
+placeringshantering, psalmreferenser mot 1986 + 2003 års svenska
+psalmbok, utlåning (både enskilt och grupperat med kundvagn/plockläge),
+PDF-utskrift av notkatalog och plocklistor. Återstår innan prod-deploy:
+backup via litestream, hybrid-OCR och eventuellt fler V2-finputs. Se
+`ROADMAP.md` för fullständig status.
 
 ## Tänkt drift
 
