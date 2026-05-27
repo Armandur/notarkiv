@@ -5,7 +5,14 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse, Response, StreamingResponse
 from sqlmodel import Session, select
 
-from app.deps import get_session, require_admin, require_auth, require_editor, verify_csrf
+from app.deps import (
+    get_session,
+    require_admin,
+    require_auth,
+    require_cart_actor,
+    require_editor,
+    verify_csrf,
+)
 from app.models import (
     Loan,
     LoanBatch,
@@ -77,9 +84,19 @@ def _get_or_create_cart(session: Session, user_id: int) -> LoanBatch:
 
 
 def _enrich_loans(session: Session, loans: list[Loan]) -> list[dict]:
-    """Berika loans med placement/piece/unit/location för rendering."""
+    """Berika loans med placement/piece/unit/location + registered_by-username
+    för rendering."""
     if not loans:
         return []
+    # Username för den som registrerade lånet (om finns)
+    registered_ids = {la.registered_by for la in loans if la.registered_by}
+    registered_users = {}
+    if registered_ids:
+        registered_users = {
+            u.id: u.username for u in session.exec(
+                select(User).where(User.id.in_(list(registered_ids)))
+            ).all()
+        }
     placements = {
         pl.id: pl for pl in session.exec(
             select(PiecePlacement).where(
@@ -118,6 +135,8 @@ def _enrich_loans(session: Session, loans: list[Loan]) -> list[dict]:
                 "piece": piece,
                 "unit": unit,
                 "location": loc,
+                "path": _unit_path(session, unit) if unit else "",
+                "registered_by_username": registered_users.get(loan.registered_by),
             }
         )
     return items
@@ -152,8 +171,16 @@ async def list_loans(
     session: Session = Depends(get_session),
 ) -> Response:
     """Visa enskilda lån + grupperade batches. Cart-batchar exkluderas."""
-    # Enskilda lån (utan batch_id)
-    stmt = select(Loan).where(Loan.batch_id.is_(None)).order_by(Loan.borrowed_at.desc())
+    # Enskilda lån (utan batch_id) - aktiva först, sedan återlämnade
+    stmt = (
+        select(Loan)
+        .where(Loan.batch_id.is_(None))
+        .order_by(
+            Loan.returned_at.is_not(None),
+            Loan.returned_at.desc(),
+            Loan.borrowed_at.desc(),
+        )
+    )
     if not show_returned:
         stmt = stmt.where(Loan.returned_at.is_(None))
     solo_loans = session.exec(stmt).all()
@@ -169,10 +196,27 @@ async def list_loans(
         batch_stmt = batch_stmt.where(LoanBatch.status != LoanBatchStatus.RETURNED)
     batches = session.exec(batch_stmt).all()
 
+    # Username för batches' created_by (ansvarig)
+    creator_ids = {b.created_by for b in batches if b.created_by}
+    creators = {}
+    if creator_ids:
+        creators = {
+            u.id: u.username for u in session.exec(
+                select(User).where(User.id.in_(list(creator_ids)))
+            ).all()
+        }
+
     batch_items = []
     for batch in batches:
         loans = session.exec(
-            select(Loan).where(Loan.batch_id == batch.id).order_by(Loan.id)
+            select(Loan)
+            .where(Loan.batch_id == batch.id)
+            .order_by(
+                Loan.returned_at.is_not(None),
+                Loan.returned_at.desc(),
+                Loan.borrowed_at.desc(),
+                Loan.id.desc(),
+            )
         ).all()
         items = _enrich_loans(session, loans)
         total = len(loans)
@@ -185,6 +229,7 @@ async def list_loans(
                 "total": total,
                 "picked": picked,
                 "returned": returned,
+                "created_by_username": creators.get(batch.created_by),
             }
         )
 
@@ -256,7 +301,7 @@ async def add_loan(
 async def return_loan(
     request: Request,
     loan_id: int,
-    user: User = Depends(require_editor),
+    user: User = Depends(require_cart_actor),
     session: Session = Depends(get_session),
 ) -> Response:
     loan = session.get(Loan, loan_id)
@@ -320,7 +365,7 @@ async def cart_add(
     placement_id: int = Form(...),
     copies: int = Form(1),
     return_to: str | None = Form(None),
-    user: User = Depends(require_editor),
+    user: User = Depends(require_cart_actor),
     session: Session = Depends(get_session),
 ) -> Response:
     placement = session.get(PiecePlacement, placement_id)
@@ -528,7 +573,7 @@ async def cart_update(
 async def cart_remove(
     request: Request,
     loan_id: int,
-    user: User = Depends(require_editor),
+    user: User = Depends(require_cart_actor),
     session: Session = Depends(get_session),
 ) -> Response:
     loan = session.get(Loan, loan_id)
@@ -606,8 +651,17 @@ def _load_batch_with_loans(session: Session, batch_id: int) -> tuple[LoanBatch, 
     batch = session.get(LoanBatch, batch_id)
     if not batch:
         raise HTTPException(404)
+    # Sortering: aktiva först (returned_at NULL), sedan återlämnade nyast först.
+    # Inom aktiva: senast tillagda först (id desc - approximation av borrowed_at).
     loans = session.exec(
-        select(Loan).where(Loan.batch_id == batch.id).order_by(Loan.id)
+        select(Loan)
+        .where(Loan.batch_id == batch.id)
+        .order_by(
+            Loan.returned_at.is_not(None),  # False (aktiva) före True (returned)
+            Loan.returned_at.desc(),
+            Loan.borrowed_at.desc(),
+            Loan.id.desc(),
+        )
     ).all()
     return batch, _enrich_loans(session, loans)
 
@@ -724,6 +778,76 @@ async def batch_activate(
     return RedirectResponse(f"/loans/batch/{batch_id}", status.HTTP_302_FOUND)
 
 
+@router.post(
+    "/loans/batch/{batch_id}/return-at-kiosk", dependencies=[Depends(verify_csrf)]
+)
+async def batch_return_at_kiosk(
+    request: Request,
+    batch_id: int,
+    user: User = Depends(require_cart_actor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Återlämna alla loans i batchen vars placering finns på aktuell
+    kiosks plats. Resten kvarstår som aktiva och måste återlämnas där
+    de hör hemma."""
+    from app.models import Kiosk
+
+    kiosk_id = request.session.get("kiosk_id")
+    if not kiosk_id:
+        raise HTTPException(403, "Bara från en aktiverad kiosk")
+    kiosk = session.get(Kiosk, kiosk_id)
+    if not kiosk or not kiosk.location_id:
+        raise HTTPException(400, "Kiosken är inte knuten till en lagringsplats")
+
+    batch = session.get(LoanBatch, batch_id)
+    if not batch or batch.status != LoanBatchStatus.ACTIVE:
+        raise HTTPException(404)
+
+    # Hitta units i kioskens plats
+    allowed_unit_ids = {
+        u.id for u in session.exec(
+            select(StorageUnit).where(StorageUnit.location_id == kiosk.location_id)
+        ).all()
+    }
+
+    now = datetime.utcnow()
+    loans = session.exec(
+        select(Loan).where(Loan.batch_id == batch.id).where(Loan.returned_at.is_(None))
+    ).all()
+    placements = {
+        p.id: p for p in session.exec(
+            select(PiecePlacement).where(
+                PiecePlacement.id.in_([la.placement_id for la in loans])
+            )
+        ).all()
+    } if loans else {}
+
+    returned_count = 0
+    skipped_count = 0
+    for la in loans:
+        placement = placements.get(la.placement_id)
+        if placement and placement.storage_unit_id in allowed_unit_ids:
+            la.returned_at = now
+            session.add(la)
+            returned_count += 1
+        else:
+            skipped_count += 1
+
+    # Om alla återlämnade -> markera batch som returned
+    if skipped_count == 0:
+        batch.status = LoanBatchStatus.RETURNED
+        batch.returned_at = now
+        session.add(batch)
+
+    session.commit()
+
+    msg = f'Återlämnade {returned_count} noter från "{batch.name}" till {kiosk.name}'
+    if skipped_count:
+        msg += f" - {skipped_count} kvar (finns på andra platser)"
+    flash(request, msg, "success")
+    return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
+
+
 @router.post("/loans/batch/{batch_id}/return-all", dependencies=[Depends(verify_csrf)])
 async def batch_return_all(
     request: Request,
@@ -760,7 +884,7 @@ async def batch_search_placements(
     """HTMX-autocomplete: hitta placeringar matchande sökterm. Returnerar
     HTML-fragment med kandidater + 'Lägg till'-knapp per rad."""
     batch = session.get(LoanBatch, batch_id)
-    if not batch or batch.status != LoanBatchStatus.PICKING:
+    if not batch or batch.status not in (LoanBatchStatus.PICKING, LoanBatchStatus.ACTIVE):
         raise HTTPException(404)
 
     q = q.strip()
@@ -815,21 +939,42 @@ async def batch_add_more(
     batch_id: int,
     placement_id: int = Form(...),
     copies: int = Form(1),
-    user: User = Depends(require_editor),
+    return_to: str | None = Form(None),
+    user: User = Depends(require_cart_actor),
     session: Session = Depends(get_session),
 ) -> Response:
-    """Lägg till fler placeringar mitt under plockning (fynd-noter)."""
+    """Lägg till fler placeringar i en pågående batch.
+
+    Tillåts både under picking (fynd-noter) och på en active batch (man kom
+    på efter slutregistrering att man glömt en not). Vid active sätts
+    picked_up_at = now eftersom noten är fysiskt med från start."""
     batch = session.get(LoanBatch, batch_id)
-    if not batch or batch.status != LoanBatchStatus.PICKING:
+    if not batch or batch.status not in (LoanBatchStatus.PICKING, LoanBatchStatus.ACTIVE):
         raise HTTPException(404)
     placement = session.get(PiecePlacement, placement_id)
     if not placement:
         raise HTTPException(404)
 
+    if return_to and return_to.startswith("/"):
+        redirect_to = return_to
+    else:
+        redirect_to = (
+            f"/loans/batch/{batch_id}/pickup"
+            if batch.status == LoanBatchStatus.PICKING
+            else f"/loans/batch/{batch_id}"
+        )
+
+    piece = session.get(Piece, placement.piece_id) if placement.piece_id else None
+    title = piece.title if piece else "noten"
+
+    # Hitta AKTIVA lån på denna placement i batchen. En redan återlämnad
+    # loan ska INTE räknas - om man lämnar tillbaka och lånar igen ska det
+    # bli en ny rad, inte att copies ökar på den återlämnade.
     existing = session.exec(
         select(Loan)
         .where(Loan.batch_id == batch.id)
         .where(Loan.placement_id == placement_id)
+        .where(Loan.returned_at.is_(None))
     ).first()
     requested = max(1, copies)
     if existing:
@@ -838,16 +983,27 @@ async def batch_add_more(
             session, placement_id, new_total, exclude_loan_id=existing.id
         )
         if avail is not None and new_total > capped:
-            flash(request, f"Bara {capped} ex tillgängliga - antalet sattes till max", "warning")
+            flash(
+                request,
+                f"Bara {capped} ex tillgängliga - antalet sattes till max på {title} i {batch.name}",
+                "warning",
+            )
+        else:
+            flash(
+                request,
+                f"Ökade antal till {capped} på {title} i {batch.name}",
+                "success",
+            )
         existing.copies = max(1, capped)
         session.add(existing)
     else:
         capped, avail = _cap_to_available(session, placement_id, requested)
         if avail is not None and capped == 0:
             flash(request, "Inga lediga exemplar på denna placering", "warning")
-            return RedirectResponse(f"/loans/batch/{batch_id}/pickup", status.HTTP_302_FOUND)
+            return RedirectResponse(redirect_to, status.HTTP_302_FOUND)
         if avail is not None and requested > capped:
             flash(request, f"Bara {capped} ex lediga - lade till så många", "warning")
+        now = datetime.utcnow()
         session.add(
             Loan(
                 placement_id=placement_id,
@@ -858,10 +1014,13 @@ async def batch_add_more(
                 borrowed_at=batch.borrowed_at,
                 expected_return_at=batch.expected_return_at,
                 registered_by=user.id,
+                # Active-batch räknas som "redan hämtad" eftersom noten är med
+                picked_up_at=now if batch.status == LoanBatchStatus.ACTIVE else None,
             )
         )
+        flash(request, f'La till "{title}" i {batch.name}', "success")
     session.commit()
-    return RedirectResponse(f"/loans/batch/{batch_id}/pickup", status.HTTP_302_FOUND)
+    return RedirectResponse(redirect_to, status.HTTP_302_FOUND)
 
 
 # ----- PDF-plocklista -----------------------------------------------------

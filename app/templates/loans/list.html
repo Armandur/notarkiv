@@ -29,7 +29,7 @@
         <a href="/loans/batch/{{ b.id }}" class="text-reset text-decoration-none">
           <strong>{{ b.name }}</strong>
         </a>
-        <span class="text-muted small">· {{ b.borrower_name }}</span>
+        <span class="text-muted small">· {{ b.borrower_name }}{% if bi.created_by_username and bi.created_by_username != b.borrower_name %} ({{ bi.created_by_username }}){% endif %}</span>
         {% if b.borrowed_at %}
         <span class="text-muted small">· {{ b.borrowed_at.strftime('%Y-%m-%d') }}</span>
         {% endif %}
@@ -57,8 +57,12 @@
           {% else %}<span class="text-muted me-1">○</span>{% endif %}
           {% if item.piece %}<a href="/pieces/{{ item.piece.id }}" class="text-reset">{{ item.piece.title }}</a>{% endif %}
           <span class="text-muted">· {{ item.loan.copies }} ex</span>
+          <div class="text-muted small ms-3">
+            Lånat {{ item.loan.borrowed_at.strftime('%Y-%m-%d %H:%M') }}
+            {% if item.loan.returned_at %} · återlämnad {{ item.loan.returned_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}
+          </div>
         </div>
-        <div class="text-muted">{% if item.unit %}{{ item.unit.name }}{% endif %}</div>
+        <div class="text-muted small">{{ item.path }}</div>
       </li>
       {% endfor %}
       {% if bi.entries|length > 5 %}
@@ -93,21 +97,26 @@
     <tbody>
       {% for item in solo_items %}
       <tr>
-        <td><strong>{{ item.loan.borrower_name }}</strong></td>
+        <td>
+          <strong>{{ item.loan.borrower_name }}</strong>
+          {% if item.registered_by_username and item.registered_by_username != item.loan.borrower_name %}
+          <span class="text-muted small">({{ item.registered_by_username }})</span>
+          {% endif %}
+        </td>
         <td>
           {% if item.piece %}<a href="/pieces/{{ item.piece.id }}">{{ item.piece.title }}</a>{% endif %}
         </td>
         <td class="small">
-          {% if item.unit %}<a href="/storage/units/{{ item.unit.id }}">{{ item.unit.name }}</a>{% endif %}
+          {% if item.unit %}<a href="/storage/units/{{ item.unit.id }}" class="text-decoration-none">{{ item.path }}</a>{% endif %}
         </td>
         <td>{{ item.loan.copies }}</td>
-        <td class="small">{{ item.loan.borrowed_at.strftime('%Y-%m-%d') }}</td>
+        <td class="small">{{ item.loan.borrowed_at.strftime('%Y-%m-%d %H:%M') }}</td>
         <td class="small">
           {% if item.loan.expected_return_at %}{{ item.loan.expected_return_at.strftime('%Y-%m-%d') }}{% endif %}
         </td>
         <td>
           {% if item.loan.returned_at %}
-          <span class="badge bg-success">återlämnad {{ item.loan.returned_at.strftime('%Y-%m-%d') }}</span>
+          <span class="badge bg-success">återlämnad {{ item.loan.returned_at.strftime('%Y-%m-%d %H:%M') }}</span>
           {% else %}
           <span class="badge bg-warning text-dark">utlånad</span>
           {% endif %}

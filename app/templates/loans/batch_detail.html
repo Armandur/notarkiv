@@ -47,17 +47,23 @@
   </div>
   <ul class="list-group list-group-flush small">
     {% for item in group.entries %}
-    <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2 {% if item.loan.returned_at %}bg-light{% endif %}">
       <div>
         <a href="/pieces/{{ item.piece.id }}" class="text-reset"><strong>{{ item.piece.title }}</strong></a>
         · {{ item.loan.copies }} ex
         {% if item.piece.contributors_cache %}
         <div class="text-muted">{{ item.piece.contributors_cache }}</div>
         {% endif %}
+        <div class="text-muted small">
+          Lånat {{ item.loan.borrowed_at.strftime('%Y-%m-%d %H:%M') }}
+          {% if item.loan.returned_at %}
+          · återlämnad {{ item.loan.returned_at.strftime('%Y-%m-%d %H:%M') }}
+          {% endif %}
+        </div>
       </div>
       <div>
         {% if item.loan.returned_at %}
-          <span class="badge bg-success">återlämnad {{ item.loan.returned_at.strftime('%Y-%m-%d') }}</span>
+          <span class="badge bg-success">återlämnad</span>
         {% elif batch.status == 'active' and user.can_edit %}
           <form method="post" action="/loans/{{ item.loan.id }}/return" class="mb-0">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -72,6 +78,20 @@
 {% endfor %}
 
 {% if batch.status == 'active' and user.can_edit %}
+<div class="card mt-4">
+  <div class="card-header"><strong>Lägg till fler noter i lånet</strong></div>
+  <div class="card-body">
+    <p class="small text-muted mb-2">Kom du på att en not glömts? Sök på titel eller kompositör.</p>
+    <input type="search" name="q" class="form-control form-control-sm"
+           placeholder="Sök titel eller kompositör (minst 2 tecken)..."
+           hx-get="/loans/batch/{{ batch.id }}/search-placements"
+           hx-trigger="input changed delay:200ms"
+           hx-target="#batch-add-results"
+           hx-swap="innerHTML">
+    <div id="batch-add-results" class="mt-2"></div>
+  </div>
+</div>
+
 <div class="d-flex justify-content-end mt-4">
   <button type="button" class="btn btn-success"
           onclick="confirmAction('/loans/batch/{{ batch.id }}/return-all',
