@@ -1,0 +1,111 @@
+<div class="modal fade show d-block" id="identityModal" tabindex="-1" style="background: rgba(0,0,0,0.5)">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Sök identitet: {{ person.name }}</h2>
+        <button type="button" class="btn-close"
+                onclick="document.getElementById('id-modal-target').innerHTML=''"></button>
+      </div>
+      <div class="modal-body">
+        <form hx-get="/people/{{ person.id }}/identity-search"
+              hx-target="#id-modal-target"
+              hx-swap="innerHTML"
+              class="d-flex gap-2 mb-3">
+          <input type="text" name="q_name" class="form-control" value="{{ search_name }}"
+                 placeholder="Sök namn..." autofocus>
+          <button type="submit" class="btn btn-primary">Sök</button>
+        </form>
+
+        <p class="text-muted small mb-3">
+          MusicBrainz är musik-specifikt, Wikidata har bredare täckning.
+          Om personen finns i båda så är de oftast korslänkade - applicera den
+          ena så fyller den andra i automatiskt via P434/url-relationer.
+        </p>
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <h3 class="h6">MusicBrainz</h3>
+            {% if mb_error %}<div class="alert alert-danger small">{{ mb_error }}</div>{% endif %}
+            {% if not mb_results and search_name %}
+            <p class="text-muted fst-italic small">Inga träffar.</p>
+            {% endif %}
+            {% for a in mb_results %}
+            <div class="border rounded p-2 mb-2 small">
+              {% if a.get('linked_qid') %}
+              <div class="text-success small mb-1">⚯ Länkad till Wikidata - samma person</div>
+              {% endif %}
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div>
+                  <strong>{{ a.name }}</strong>
+                  {% if a['sort-name'] and a['sort-name'] != a.name %}
+                  <span class="text-muted">({{ a['sort-name'] }})</span>
+                  {% endif %}
+                  {% set ls = a.get('life-span', {}) %}
+                  {% if ls.get('begin') or ls.get('end') %}
+                  <div class="text-muted">
+                    {{ ls.get('begin', '?') }}{% if ls.get('end') %} - {{ ls.get('end') }}{% endif %}
+                    {% if a.get('country') %} · {{ country_display(a['country']) }}{% endif %}
+                    {% if a.get('type') %} · {{ a['type'] }}{% endif %}
+                  </div>
+                  {% endif %}
+                  {% if a.disambiguation %}<div class="text-muted fst-italic">{{ a.disambiguation }}</div>{% endif %}
+                  <a href="https://musicbrainz.org/artist/{{ a.id }}" target="_blank">{{ a.id[:8] }}…</a>
+                </div>
+                <form method="post" action="/people/{{ person.id }}/apply-musicbrainz">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="mbid" value="{{ a.id }}">
+                  <button type="submit" class="btn btn-sm btn-primary">Använd MB</button>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+
+          <div class="col-md-6">
+            <h3 class="h6">Wikidata</h3>
+            {% if wd_error %}<div class="alert alert-danger small">{{ wd_error }}</div>{% endif %}
+            {% if not wd_results and search_name %}
+            <p class="text-muted fst-italic small">Inga träffar.</p>
+            {% endif %}
+            {% for r in wd_results %}
+            <div class="border rounded p-2 mb-2 small">
+              {% if r.get('linked') %}
+              <div class="text-success small mb-1">⚯ Länkad till MusicBrainz - samma person</div>
+              {% endif %}
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div>
+                  <strong>{{ r.label }}</strong>
+                  <span class="text-muted">({{ r.qid }})</span>
+                  {% if r.birth or r.death %}
+                  <div class="text-muted">
+                    {{ r.birth or '?' }}{% if r.death %} - {{ r.death }}{% endif %}
+                  </div>
+                  {% endif %}
+                  {% if r.description %}
+                  <div>{{ r.description }}</div>
+                  {% endif %}
+                  <div>
+                    <a href="https://www.wikidata.org/wiki/{{ r.qid }}" target="_blank">Wikidata ↗</a>
+                    {% if r.wikipedia_url %}
+                    · <a href="{{ r.wikipedia_url }}" target="_blank">Wikipedia ↗</a>
+                    {% endif %}
+                  </div>
+                </div>
+                <form method="post" action="/people/{{ person.id }}/apply-wikidata">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="qid" value="{{ r.qid }}">
+                  <button type="submit" class="btn btn-sm btn-primary">Använd WD</button>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link"
+                onclick="document.getElementById('id-modal-target').innerHTML=''">Stäng</button>
+      </div>
+    </div>
+  </div>
+</div>

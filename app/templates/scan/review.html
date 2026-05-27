@@ -113,9 +113,26 @@
       </button>
     </div>
 
+    {% if existing and existing.musicbrainz_work_id %}
+    <div class="alert alert-info py-2 mt-3 small mb-0">
+      <strong>Befintlig MB-koppling</strong>
+      <div id="current-mbid-display" class="mt-1">
+        <a href="https://musicbrainz.org/work/{{ existing.musicbrainz_work_id }}" target="_blank">
+          {{ existing.musicbrainz_work_id }}
+        </a>
+        <button type="button" class="btn btn-sm btn-link p-0 ms-2 text-danger" id="clear-mbid-btn">
+          rensa
+        </button>
+      </div>
+    </div>
+    {% endif %}
+
     {% if suggestions or person_sections %}
     <div class="card mt-3">
-      <div class="card-header">MusicBrainz-förslag</div>
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Metadataförslag</span>
+        <span class="small text-muted">Källor: MusicBrainz, Wikidata</span>
+      </div>
       <div class="card-body p-2">
 
         {% if suggestions %}
@@ -123,8 +140,11 @@
         <div class="list-group list-group-flush mb-3">
           {% for s in suggestions %}
           <div class="list-group-item px-2">
-            <div class="d-flex justify-content-between">
-              <strong class="small">{{ s.title }}</strong>
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <strong class="small">{{ s.title }}</strong>
+                <span class="badge bg-light text-muted border ms-1" title="Träff från MusicBrainz">MB</span>
+              </div>
               <span class="badge bg-secondary">{{ s.score }}</span>
             </div>
             {% if s.composer %}<div class="small text-muted">{{ s.composer }}</div>{% endif %}
@@ -150,41 +170,112 @@
             <span class="badge bg-secondary ms-1">finns sedan tidigare</span>
             {% endif %}
           </div>
-          {% if item.error %}
-          <div class="alert alert-warning small mb-0 py-1">MB-fel: {{ item.error }}</div>
-          {% elif item.has_mbid %}
-          <div class="small text-muted">Hoppa över - MBID redan satt.</div>
-          {% elif not item.candidates %}
-          <div class="small text-muted fst-italic">Inga MB-träffar.</div>
+          {% if item.has_mbid or item.has_wikidata %}
+          <div class="small text-muted">Personen är redan identifierad - hoppa över.</div>
           {% else %}
+
+          {% if item.error %}<div class="alert alert-warning small mb-1 py-1">MB-fel: {{ item.error }}</div>{% endif %}
+          {% if item.wd_error %}<div class="alert alert-warning small mb-1 py-1">Wikidata-fel: {{ item.wd_error }}</div>{% endif %}
+
           {% for c in item.candidates %}
+          {% set linked_wd = c.get('linked_qid') %}
+          <div class="border-top pt-1 mt-1 small">
+            {% if linked_wd %}
+            <div class="text-success small mb-1">
+              ⚯ MB och Wikidata pekar på samma person - välj vilken källas data du vill använda
+            </div>
+            {% endif %}
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div>
+                <span class="badge bg-light text-muted border" title="Träff från MusicBrainz">MB</span>
+                {% if c.name != item.name %}<strong>{{ c.name }}</strong>{% endif %}
+                {% if c['life-span'] %}
+                  {% set ls = c['life-span'] %}
+                  <span class="text-muted">{{ ls.begin or '?' }}{% if ls.end %} - {{ ls.end }}{% endif %}</span>
+                {% endif %}
+                {% if c.country %}<div>{{ country_display(c.country) }}</div>{% endif %}
+                {% if c.disambiguation %}<div class="text-muted">{{ c.disambiguation }}</div>{% endif %}
+              </div>
+              <div class="d-flex gap-1 align-items-center">
+                <a href="https://musicbrainz.org/artist/{{ c.id }}" target="_blank" rel="noopener"
+                   class="btn btn-sm btn-outline-secondary" title="Öppna i MusicBrainz">↗</a>
+                <form hx-post="/scan/{{ scan.id }}/apply-person-mb"
+                      hx-target="#{{ person_card_id }}"
+                      hx-swap="outerHTML" class="m-0">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="name" value="{{ item.name }}">
+                  <input type="hidden" name="role" value="{{ section.role }}">
+                  <input type="hidden" name="mbid" value="{{ c.id }}">
+                  <button type="submit" class="btn btn-sm btn-outline-primary">Använd MB</button>
+                </form>
+              </div>
+            </div>
+
+            {# Visa WD-träff inline om länkad så användaren kan välja WD som primär #}
+            {% if linked_wd %}
+              {% for w in item.wd_candidates %}
+              {% if w.qid == linked_wd %}
+              <div class="d-flex justify-content-between align-items-start gap-2 mt-1 ps-3 border-start">
+                <div>
+                  <span class="badge bg-light text-muted border" title="Träff från Wikidata">WD</span>
+                  {% if w.label != c.name %}<strong>{{ w.label }}</strong>{% endif %}
+                  {% if w.birth or w.death %}
+                  <span class="text-muted">{{ w.birth or '?' }}{% if w.death %} - {{ w.death }}{% endif %}</span>
+                  {% endif %}
+                  {% if w.description %}<div class="text-muted">{{ w.description }}</div>{% endif %}
+                </div>
+                <div class="d-flex gap-1 align-items-center">
+                  <a href="https://www.wikidata.org/wiki/{{ w.qid }}" target="_blank" rel="noopener"
+                     class="btn btn-sm btn-outline-secondary" title="Öppna i Wikidata">↗</a>
+                  <form hx-post="/scan/{{ scan.id }}/apply-person-wd"
+                        hx-target="#{{ person_card_id }}"
+                        hx-swap="outerHTML" class="m-0">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="name" value="{{ item.name }}">
+                    <input type="hidden" name="role" value="{{ section.role }}">
+                    <input type="hidden" name="qid" value="{{ w.qid }}">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Använd WD</button>
+                  </form>
+                </div>
+              </div>
+              {% endif %}
+              {% endfor %}
+            {% endif %}
+          </div>
+          {% endfor %}
+
+          {# Oparade WD-träffar (utan motsvarighet i MB) #}
+          {% for w in item.wd_candidates %}
+          {% if not w.get('linked') %}
           <div class="d-flex justify-content-between align-items-start small border-top pt-1 mt-1">
             <div>
-              <strong>{{ c.name }}</strong>
-              {% if c['life-span'] %}
-                {% set ls = c['life-span'] %}
-                <span class="text-muted">({{ ls.begin or '?' }}{% if ls.end %}-{{ ls.end }}{% endif %})</span>
+              <span class="badge bg-light text-muted border" title="Träff från Wikidata">WD</span>
+              {% if w.label != item.name %}<strong>{{ w.label }}</strong>{% endif %}
+              {% if w.birth or w.death %}
+              <span class="text-muted">{{ w.birth or '?' }}{% if w.death %} - {{ w.death }}{% endif %}</span>
               {% endif %}
-              {% if c.country %}<div>{{ country_display(c.country) }}</div>{% endif %}
-              {% if c.disambiguation %}<div class="text-muted">{{ c.disambiguation }}</div>{% endif %}
+              {% if w.description %}<div class="text-muted">{{ w.description }}</div>{% endif %}
             </div>
             <div class="d-flex gap-1 align-items-center">
-              <a href="https://musicbrainz.org/artist/{{ c.id }}" target="_blank" rel="noopener"
-                 class="btn btn-sm btn-outline-secondary" title="Öppna i MusicBrainz">MB ↗</a>
-              <a href="https://www.google.com/search?q={{ c.name|urlencode }}+wikipedia" target="_blank" rel="noopener"
-                 class="btn btn-sm btn-outline-secondary" title="Sök Wikipedia">Wiki ↗</a>
-              <form hx-post="/scan/{{ scan.id }}/apply-person-mb"
+              <a href="https://www.wikidata.org/wiki/{{ w.qid }}" target="_blank" rel="noopener"
+                 class="btn btn-sm btn-outline-secondary" title="Öppna i Wikidata">↗</a>
+              <form hx-post="/scan/{{ scan.id }}/apply-person-wd"
                     hx-target="#{{ person_card_id }}"
                     hx-swap="outerHTML" class="m-0">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="name" value="{{ item.name }}">
                 <input type="hidden" name="role" value="{{ section.role }}">
-                <input type="hidden" name="mbid" value="{{ c.id }}">
-                <button type="submit" class="btn btn-sm btn-outline-primary">Använd</button>
+                <input type="hidden" name="qid" value="{{ w.qid }}">
+                <button type="submit" class="btn btn-sm btn-outline-primary">Använd WD</button>
               </form>
             </div>
           </div>
+          {% endif %}
           {% endfor %}
+
+          {% if not item.candidates and not item.wd_candidates and not item.error and not item.wd_error %}
+          <div class="small text-muted fst-italic">Inga träffar i MusicBrainz eller Wikidata.</div>
+          {% endif %}
           {% endif %}
         </div>
         {% endfor %}
@@ -198,7 +289,8 @@
   <div class="col-md-8">
     <form method="post" action="/scan/{{ scan.id }}/save">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <input type="hidden" name="musicbrainz_work_id" id="musicbrainz_work_id" value="">
+      <input type="hidden" name="musicbrainz_work_id" id="musicbrainz_work_id"
+             value="{{ existing.musicbrainz_work_id if existing else '' }}">
 
       {# Helper-makro för OCR-förslags-pill (visas bara i re-OCR-läge när
          existing-värdet skiljer sig från extracted). data-attribut undviker
@@ -255,7 +347,7 @@
         <div class="col-md-3">
           <label class="form-label">Språk</label>
           {% set lang_selected = existing.language if existing else extracted.language %}
-          <select name="language" id="language" class="form-select">
+          <select name="language" id="language" class="form-select tomselect">
             <option value="">(inget)</option>
             {% for l in language_options %}
             <option value="{{ l.code }}" {% if lang_selected == l.code %}selected{% endif %}>{{ l.label }}</option>
@@ -269,54 +361,28 @@
           {% endif %}
         </div>
         <div class="col-md-4">
-          <label class="form-label">Besättning</label>
-          <div class="dropdown">
-            <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
-                    data-bs-toggle="dropdown" data-bs-auto-close="outside">
-              <span id="voicing-summary">
-                {% if matched_voicing_ids %}{{ matched_voicing_ids|length }} val{% else %}välj besättning{% endif %}
-              </span>
-            </button>
-            <ul class="dropdown-menu w-100 px-2" style="max-height: 260px; overflow-y: auto">
-              {% if extracted_voicing_raw %}
-              <li class="small text-muted px-1 mb-1">OCR-förslag: <em>{{ extracted_voicing_raw }}</em></li>
-              <li><hr class="dropdown-divider my-1"></li>
-              {% endif %}
-              {% for t in voicing_tags %}
-              <li>
-                <label class="form-check">
-                  <input class="form-check-input me-1" type="checkbox" name="voicing_tag_id" value="{{ t.id }}"
-                         {% if t.id in matched_voicing_ids %}checked{% endif %}>
-                  {{ t.name }}
-                </label>
-              </li>
-              {% endfor %}
-            </ul>
-          </div>
+          <label class="form-label">
+            Besättning
+            {% if extracted_voicing_raw %}<small class="text-muted">(OCR: <em>{{ extracted_voicing_raw }}</em>)</small>{% endif %}
+          </label>
+          <select name="voicing_tag_id" class="form-select tomselect" multiple
+                  placeholder="Välj besättning...">
+            {% for t in voicing_tags %}
+            <option value="{{ t.id }}" {% if t.id in matched_voicing_ids %}selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-4">
-          <label class="form-label">Ackompanjemang</label>
-          <div class="dropdown">
-            <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
-                    data-bs-toggle="dropdown" data-bs-auto-close="outside">
-              {% if matched_accompaniment_ids %}{{ matched_accompaniment_ids|length }} val{% else %}välj ackompanjemang{% endif %}
-            </button>
-            <ul class="dropdown-menu w-100 px-2" style="max-height: 260px; overflow-y: auto">
-              {% if extracted_accompaniment_raw %}
-              <li class="small text-muted px-1 mb-1">OCR-förslag: <em>{{ extracted_accompaniment_raw }}</em></li>
-              <li><hr class="dropdown-divider my-1"></li>
-              {% endif %}
-              {% for t in accompaniment_tags %}
-              <li>
-                <label class="form-check">
-                  <input class="form-check-input me-1" type="checkbox" name="accompaniment_tag_id" value="{{ t.id }}"
-                         {% if t.id in matched_accompaniment_ids %}checked{% endif %}>
-                  {{ t.name }}
-                </label>
-              </li>
-              {% endfor %}
-            </ul>
-          </div>
+          <label class="form-label">
+            Ackompanjemang
+            {% if extracted_accompaniment_raw %}<small class="text-muted">(OCR: <em>{{ extracted_accompaniment_raw }}</em>)</small>{% endif %}
+          </label>
+          <select name="accompaniment_tag_id" class="form-select tomselect" multiple
+                  placeholder="Välj ackompanjemang...">
+            {% for t in accompaniment_tags %}
+            <option value="{{ t.id }}" {% if t.id in matched_accompaniment_ids %}selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-4">
           <label class="form-label">Förlag</label>
@@ -410,8 +476,30 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Rensa-MBID-knappen: nollställer hidden-input och uppdaterar badge
+function bindClearMbid() {
+  const btn = document.getElementById('clear-mbid-btn');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    document.getElementById('musicbrainz_work_id').value = '';
+    const display = document.getElementById('current-mbid-display');
+    if (display) {
+      display.innerHTML = '<em class="text-muted">Ingen koppling - sparas utan MBID</em>';
+    }
+  });
+}
+bindClearMbid();
+
 function applyMbSuggestion(mbid, title, composer, btn) {
   document.getElementById('musicbrainz_work_id').value = mbid;
+  // Uppdatera badge-vyn om den finns (re-OCR-läge)
+  const display = document.getElementById('current-mbid-display');
+  if (display) {
+    display.innerHTML = '<a href="https://musicbrainz.org/work/' + mbid + '" target="_blank">' + mbid + '</a>' +
+      ' <span class="badge bg-success ms-2">nyss applicerad</span>' +
+      ' <button type="button" class="btn btn-sm btn-link p-0 ms-2 text-danger" id="clear-mbid-btn">rensa</button>';
+    bindClearMbid();
+  }
   const changes = [];
   function setIfChanged(id, val, label) {
     const el = document.getElementById(id);

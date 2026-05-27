@@ -225,6 +225,16 @@ def enrich_person_from_mb(
     if mb_artist.get("country") and not person.country:
         person.country = mb_artist["country"]
         changed = True
+
+    # Wikidata-Q-id via MB:s url-relationer - bidirektionell utfyllnad
+    if not person.wikidata_id:
+        from app.services.musicbrainz import extract_wikidata_url, wikidata_id_from_url
+
+        wd_url = extract_wikidata_url(mb_artist)
+        wd_qid = wikidata_id_from_url(wd_url)
+        if wd_qid:
+            person.wikidata_id = wd_qid
+            changed = True
     if biography and not person.biography:
         person.biography = biography
         person.biography_source_url = wikipedia_url
@@ -260,6 +270,7 @@ async def enqueue_enrich_for_piece(session: Session, piece_id: int) -> int:
         .join(PieceContributor, PieceContributor.person_id == Person.id)
         .where(PieceContributor.piece_id == piece_id)
         .where(Person.musicbrainz_artist_id.is_(None))
+        .where(Person.wikidata_id.is_(None))
     ).all()
     if not rows:
         return 0
