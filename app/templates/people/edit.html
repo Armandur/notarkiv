@@ -57,7 +57,7 @@
         </div>
         <div class="col-md-3">
           <label class="form-label">Land</label>
-          <select name="country" id="country" class="form-select">
+          <select name="country" id="country" class="form-select tomselect">
             <option value="">(inget)</option>
             {% for c in countries %}
             <option value="{{ c.code }}" {% if person.country == c.code %}selected{% endif %}>
@@ -73,45 +73,39 @@
           {% endif %}
           <div class="form-text">Sökbart - skriv första bokstäverna för att filtrera</div>
         </div>
-        <div class="col-md-3">
-          <label class="form-label">MusicBrainz</label>
+        <div class="col-md-6">
+          <label class="form-label">Identitet (MusicBrainz / Wikidata)</label>
           <input type="hidden" name="musicbrainz_artist_id" value="{{ person.musicbrainz_artist_id or '' }}">
-          {% if person.musicbrainz_artist_id %}
-          <div class="d-flex gap-1 align-items-center">
-            <a href="https://musicbrainz.org/artist/{{ person.musicbrainz_artist_id }}" target="_blank"
-               class="text-decoration-none flex-grow-1 text-truncate"
-               title="{{ person.musicbrainz_artist_id }}">
-              {{ person.musicbrainz_artist_id[:8] }}…
-            </a>
-            <button type="button" class="btn btn-sm btn-outline-danger"
-                    onclick="confirmAction('/people/{{ person.id }}/musicbrainz-id/clear', 'Rensa MBID? Personen kopplas bort från MusicBrainz.', {submitLabel: 'Rensa'})"
-                    title="Rensa">×</button>
-          </div>
-          {% else %}
-          <button type="button" class="btn btn-outline-secondary w-100"
-                  hx-get="/people/{{ person.id }}/musicbrainz?skip_search=1"
-                  hx-target="#mb-modal-target"
-                  hx-swap="innerHTML">
-            Sök i MusicBrainz
-          </button>
-          {% endif %}
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">Wikidata</label>
           <input type="hidden" name="wikidata_id" value="{{ person.wikidata_id or '' }}">
-          {% if person.wikidata_id %}
-          <div class="d-flex gap-1 align-items-center">
-            <a href="https://www.wikidata.org/wiki/{{ person.wikidata_id }}" target="_blank"
-               class="text-decoration-none flex-grow-1 text-truncate">
-              {{ person.wikidata_id }}
-            </a>
-            <button type="button" class="btn btn-sm btn-outline-danger"
-                    onclick="confirmAction('/people/{{ person.id }}/wikidata-id/clear', 'Rensa Wikidata-id?', {submitLabel: 'Rensa'})"
-                    title="Rensa">×</button>
+          <div class="d-flex gap-2 align-items-center flex-wrap">
+            {% if person.musicbrainz_artist_id %}
+            <span class="badge bg-light text-dark border d-flex align-items-center gap-1">
+              <a href="https://musicbrainz.org/artist/{{ person.musicbrainz_artist_id }}" target="_blank"
+                 class="text-decoration-none" title="{{ person.musicbrainz_artist_id }}">
+                MB: {{ person.musicbrainz_artist_id[:8] }}…
+              </a>
+              <button type="button" class="btn-close btn-close-sm" aria-label="Rensa MBID"
+                      onclick="confirmAction('/people/{{ person.id }}/musicbrainz-id/clear', 'Rensa MBID? Personen kopplas bort från MusicBrainz.', {submitLabel: 'Rensa'})"></button>
+            </span>
+            {% endif %}
+            {% if person.wikidata_id %}
+            <span class="badge bg-light text-dark border d-flex align-items-center gap-1">
+              <a href="https://www.wikidata.org/wiki/{{ person.wikidata_id }}" target="_blank"
+                 class="text-decoration-none">WD: {{ person.wikidata_id }}</a>
+              <button type="button" class="btn-close btn-close-sm" aria-label="Rensa Wikidata-id"
+                      onclick="confirmAction('/people/{{ person.id }}/wikidata-id/clear', 'Rensa Wikidata-id?', {submitLabel: 'Rensa'})"></button>
+            </span>
+            {% endif %}
+            {% if not person.musicbrainz_artist_id and not person.wikidata_id %}
+            <span class="text-muted small fst-italic">Ingen koppling</span>
+            {% endif %}
+            <button type="button" class="btn btn-sm btn-outline-secondary ms-auto"
+                    hx-get="/people/{{ person.id }}/identity-search"
+                    hx-target="#id-modal-target"
+                    hx-swap="innerHTML">
+              Sök identitet
+            </button>
           </div>
-          {% else %}
-          <span class="text-muted small fst-italic">Sätts via MB-refresh</span>
-          {% endif %}
         </div>
         <div class="col-12">
           <label class="form-label">Biografi</label>
@@ -278,7 +272,7 @@
   </div>
 </div>
 
-<div id="mb-modal-target"></div>
+<div id="id-modal-target"></div>
 
 {% if mb_preview and mb_preview.biography and mb_preview.biography != (person.biography or '') %}
 <div class="card mt-3">
@@ -289,16 +283,18 @@
       Applicera biografi
     </button>
   </div>
-  <div class="card-body small text-muted">
-    {% for p in to_paragraphs(mb_preview.biography) %}
-      {% if p.kind == 'heading' %}<h6 class="mt-2 mb-1">{{ p.text }}</h6>
-      {% else %}<p class="mb-2">{{ p.text }}</p>{% endif %}
-    {% endfor %}
-    {% if mb_preview.wikipedia_url %}
-    <div class="mt-2">
-      Källa: <a href="{{ mb_preview.wikipedia_url }}" target="_blank">{{ mb_preview.wikipedia_url }}</a>
+  <div class="card-body small text-muted p-0">
+    <div class="bio-preview-content p-3" style="max-height: 400px; overflow-y: auto;">
+      {% for p in to_paragraphs(mb_preview.biography) %}
+        {% if p.kind == 'heading' %}<h6 class="mt-2 mb-1">{{ p.text }}</h6>
+        {% else %}<p class="mb-2">{{ p.text }}</p>{% endif %}
+      {% endfor %}
+      {% if mb_preview.wikipedia_url %}
+      <div class="mt-2">
+        Källa: <a href="{{ mb_preview.wikipedia_url }}" target="_blank">{{ mb_preview.wikipedia_url }}</a>
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 </div>
 {% endif %}

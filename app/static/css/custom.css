@@ -73,3 +73,28 @@
 .htmx-request.htmx-indicator {
   display: inline-block;
 }
+
+/* Knappar som är mitt i en HTMX-request får tydligt "håller på"-state */
+button.htmx-request,
+a.htmx-request,
+input.htmx-request {
+  cursor: wait;
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+/* Global page-spinner-overlay - visas via JS i base.html under långsamma
+   HTMX-requests (default 250ms grace för att slippa flash på snabba). */
+#global-spinner {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  pointer-events: none;
+}
+#global-spinner.visible {
+  display: flex;
+}

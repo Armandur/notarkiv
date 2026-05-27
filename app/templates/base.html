@@ -10,6 +10,8 @@
   <script src="/static/js/sort_name.js" defer></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
   <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js" defer></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js" defer></script>
 </head>
 <body class="d-flex flex-column min-vh-100">
 
@@ -32,6 +34,17 @@
             {% if active_loans_count %}<span class="badge bg-warning text-dark">{{ active_loans_count }}</span>{% endif %}
           </a>
         </li>
+        {% if user and user.can_edit %}
+        <li class="nav-item">
+          <a class="nav-link" href="/loans/cart">
+            Korg
+            {% if cart_count %}<span class="badge bg-success">{{ cart_count }}</span>{% endif %}
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/kiosk">Kiosk</a>
+        </li>
+        {% endif %}
         {% if user.can_edit %}
         <li class="nav-item"><a class="nav-link" href="/scan">Skanna</a></li>
         <li class="nav-item">
@@ -65,9 +78,9 @@
       </ul>
       <ul class="navbar-nav ms-auto align-items-center">
         <li class="nav-item me-3">
-          <span class="navbar-text">
+          <a href="/profile" class="navbar-text text-decoration-none text-light">
             {{ user.username }} <span class="badge bg-secondary">{{ user.role }}</span>
-          </span>
+          </a>
         </li>
         <li class="nav-item">
           <form method="post" action="/logout" class="d-inline">
@@ -138,8 +151,36 @@
   </div>
 </div>
 
+<div id="global-spinner" role="status" aria-label="Laddar...">
+  <div class="bg-white shadow-sm rounded-pill px-3 py-2 d-flex align-items-center gap-2">
+    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+    <span>Hämtar data...</span>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+// Global HTMX-laddningsindikator: visa overlay 250ms efter request startat
+// (slippar flash på snabba calls). htmx:beforeRequest fires omedelbart men
+// htmx:afterRequest fires när responsen kommer.
+(function() {
+  var spinner = document.getElementById('global-spinner');
+  var pending = 0;
+  var showTimer = null;
+  function update() {
+    if (showTimer) { clearTimeout(showTimer); showTimer = null; }
+    if (pending > 0) {
+      showTimer = setTimeout(function() { spinner.classList.add('visible'); }, 250);
+    } else {
+      spinner.classList.remove('visible');
+    }
+  }
+  document.body.addEventListener('htmx:beforeRequest', function() { pending++; update(); });
+  document.body.addEventListener('htmx:afterRequest', function() { pending = Math.max(0, pending - 1); update(); });
+  document.body.addEventListener('htmx:sendError', function() { pending = Math.max(0, pending - 1); update(); });
+  document.body.addEventListener('htmx:timeout', function() { pending = Math.max(0, pending - 1); update(); });
+})();
+
 window.confirmAction = function(url, message, opts) {
   opts = opts || {};
   document.getElementById('confirmModalForm').action = url;
@@ -224,6 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
       spellChecker: false,
       status: false,
       minHeight: '120px',
+      maxHeight: '400px',
       toolbar: [
         'bold', 'italic', 'heading', '|',
         'unordered-list', 'ordered-list', '|',
@@ -233,6 +275,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     // Spara referens så annan JS (t.ex. mb-apply-pillar) kan uppdatera värdet
     el._easymde = mde;
+  });
+});
+
+// Tom Select på alla <select class="tomselect"> - söker live i options.
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof TomSelect === 'undefined') return;
+  document.querySelectorAll('select.tomselect').forEach(function(el) {
+    new TomSelect(el, {
+      maxOptions: null,
+      allowEmptyOption: true,
+    });
   });
 });
 </script>

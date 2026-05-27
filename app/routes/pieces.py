@@ -59,6 +59,288 @@ from app.utils.images import (
 
 router = APIRouter(prefix="/pieces", tags=["pieces"])
 
+# Separat router för /p/{public_id} - landningssidan QR-koder pekar på.
+public_router = APIRouter(tags=["pieces"])
+# Separat router för kiosk-vyn - skannerinput → piece.
+kiosk_router = APIRouter(prefix="/kiosk", tags=["pieces"])
+
+
+@public_router.get("/p/{public_id}")
+async def by_public_id(
+    request: Request,
+    public_id: str,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Slå upp piece via stabil UUID (från QR-kod) och redirecta till detalj."""
+    piece = session.exec(select(Piece).where(Piece.public_id == public_id)).first()
+    if not piece:
+        raise HTTPException(404, "Hittade ingen not med den koden")
+
+    # Kiosk-läge: om query-param ?kiosk=1, redirecta till kiosk-vy istället
+    if request.query_params.get("kiosk"):
+        return RedirectResponse(f"/kiosk/{public_id}", status.HTTP_302_FOUND)
+    return RedirectResponse(f"/pieces/{piece.id}", status.HTTP_302_FOUND)
+
+
+def _kiosk_borrower(request: Request, session: Session) -> User | None:
+    """Den autentiserade låntagaren för aktuell kiosk-session (via PIN).
+    Skiljt från den inloggade kioskanvändaren - kioskuser håller bara
+    webbsessionen, låntagaren autentiserar sig per skanning."""
+    bid = request.session.get("kiosk_borrower_id")
+    if not bid:
+        return None
+    user = session.get(User, bid)
+    return user
+
+
+def _kiosk_context(request: Request, session: Session, user: User) -> dict:
+    """Hämta cart-batch + items + auth-state för kiosk-vyn.
+
+    Cart är knuten till den autentiserade låntagaren (via PIN), inte till
+    kioskanvändaren. Det gör att kioskdatorn kan delas av många användare
+    utan att korgar blandas."""
+    from app.models import Loan
+    from app.routes.loans import _enrich_loans, _get_or_create_cart
+
+    borrower = _kiosk_borrower(request, session)
+    cart = None
+    items: list = []
+    if borrower:
+        cart = _get_or_create_cart(session, borrower.id)
+        loans = session.exec(
+            select(Loan).where(Loan.batch_id == cart.id).order_by(Loan.id)
+        ).all()
+        items = _enrich_loans(session, loans)
+
+    return {
+        "borrower": borrower,
+        "cart": cart,
+        "cart_items": items,
+        "cart_total": len(items),
+    }
+
+
+@kiosk_router.get("")
+async def kiosk_input(
+    request: Request,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Kioskstartvy: pinkod-input om ej autentiserad, annars scanner+cart."""
+    ctx = _kiosk_context(request, session, user)
+    return render(request, "pieces/kiosk.html", ctx, user=user)
+
+
+@kiosk_router.post("/auth", dependencies=[Depends(verify_csrf)])
+async def kiosk_auth(
+    request: Request,
+    username: str = Form(...),
+    pin: str = Form(...),
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Autentisera en låntagare via användarnamn + PIN. Sätter session-
+    state så efterföljande kiosk-anrop kopplas till den användaren.
+    Rate-limit: max 5 fel/15 min per IP, sen 5 min lockout."""
+    from app.auth import verify_pin
+    from app.utils.ratelimit import check_kiosk_attempts, record_kiosk_failure, reset_kiosk_attempts
+
+    ip = request.client.host if request.client else "unknown"
+    if not check_kiosk_attempts(ip):
+        flash(request, "För många misslyckade försök - vänta några minuter", "danger")
+        return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
+
+    clean_pin = pin.strip()
+    target = session.exec(select(User).where(User.username == username.strip())).first()
+    if not target or not target.pin_hash or not verify_pin(clean_pin, target.pin_hash):
+        record_kiosk_failure(ip)
+        flash(request, "Fel användarnamn eller PIN", "danger")
+        return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
+
+    reset_kiosk_attempts(ip)
+    request.session["kiosk_borrower_id"] = target.id
+    flash(request, f"Inloggad som {target.username}", "success")
+    return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
+
+
+@kiosk_router.post("/qr-auth", dependencies=[Depends(verify_csrf)])
+async def kiosk_qr_auth(
+    request: Request,
+    token: str = Form(...),
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Autentisera en låntagare via QR-token från deras profil. Token
+    skickas utan "u:"-prefixet (JS strippar det). Rate-limit gäller."""
+    from app.utils.ratelimit import check_kiosk_attempts, record_kiosk_failure, reset_kiosk_attempts
+
+    ip = request.client.host if request.client else "unknown"
+    if not check_kiosk_attempts(ip):
+        flash(request, "För många misslyckade försök - vänta några minuter", "danger")
+        return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
+
+    clean = token.strip()
+    target = (
+        session.exec(select(User).where(User.kiosk_token == clean)).first()
+        if clean
+        else None
+    )
+    if not target:
+        record_kiosk_failure(ip)
+        flash(request, "Ogiltig QR-kod", "danger")
+        return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
+
+    reset_kiosk_attempts(ip)
+    request.session["kiosk_borrower_id"] = target.id
+    flash(request, f"Inloggad som {target.username}", "success")
+    return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
+
+
+@kiosk_router.post("/logout", dependencies=[Depends(verify_csrf)])
+async def kiosk_logout(
+    request: Request,
+    user: User = Depends(require_auth),
+) -> Response:
+    """Avslutar låntagar-sessionen i kiosken. Webbsessionen (kioskanvändaren)
+    påverkas inte."""
+    request.session.pop("kiosk_borrower_id", None)
+    return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
+
+
+@kiosk_router.post("/checkout", dependencies=[Depends(verify_csrf)])
+async def kiosk_checkout(
+    request: Request,
+    name: str | None = Form(None),
+    expected_return: str | None = Form(None),
+    external_name: str | None = Form(None),
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Snabb-checkout för kiosken: hoppar pickup-fasen eftersom alla noter
+    redan är fysiskt i handen. Auto-loggar ut låntagaren efter lyckad
+    registrering så nästa person måste autentisera sig igen.
+
+    external_name: om satt sparas det som borrower_name istället för den
+    autentiserade användarens namn. Den autentiserade användaren är
+    fortfarande ansvarig (registered_by)."""
+    from app.models import Loan, LoanBatchStatus
+    from app.routes.loans import _get_or_create_cart, _parse_date
+
+    borrower = _kiosk_borrower(request, session)
+    if not borrower:
+        flash(request, "Ingen låntagare inloggad - logga in med PIN först", "danger")
+        return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
+
+    cart = _get_or_create_cart(session, borrower.id)
+    loans = session.exec(select(Loan).where(Loan.batch_id == cart.id)).all()
+    if not loans:
+        flash(request, "Korgen är tom", "warning")
+        return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
+
+    # Avgör vem som faktiskt är låntagare. registered_by/created_by är alltid
+    # den autentiserade användaren (ansvarig). external_name skickar utlånet
+    # till extern person men ansvaret förblir.
+    ext = (external_name or "").strip()
+    if ext:
+        b_user_id: int | None = None
+        b_name = ext
+    else:
+        b_user_id = borrower.id
+        b_name = borrower.username
+
+    now = datetime.utcnow()
+    clean_name = (name or "").strip() or f"Kiosk-utlån {now.strftime('%Y-%m-%d %H:%M')}"
+    cart.name = clean_name
+    cart.borrower_user_id = b_user_id
+    cart.borrower_name = b_name
+    cart.expected_return_at = _parse_date(expected_return)
+    cart.status = LoanBatchStatus.ACTIVE
+    cart.borrowed_at = now
+    cart.registered_at = now
+    cart.activated_at = now
+    session.add(cart)
+
+    for loan in loans:
+        loan.borrower_name = b_name
+        loan.borrower_user_id = b_user_id
+        loan.expected_return_at = cart.expected_return_at
+        loan.borrowed_at = now
+        loan.picked_up_at = now
+        # registered_by = borrower (den autentiserade) - sattes redan av cart_add
+        session.add(loan)
+
+    session.commit()
+    request.session.pop("kiosk_borrower_id", None)
+    flash(
+        request,
+        f'Registrerade "{clean_name}" - {len(loans)} noter utlånade till {b_name}',
+        "success",
+    )
+    return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
+
+
+@kiosk_router.get("/{public_id}")
+async def kiosk_piece(
+    request: Request,
+    public_id: str,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Förenklad piece-vy i kiosk-läge med stora Låna/Återlämna-knappar.
+    Kräver att en låntagare är autentiserad via PIN - annars redirect
+    tillbaka till /kiosk för auth."""
+    borrower = _kiosk_borrower(request, session)
+    if not borrower:
+        flash(request, "Logga in med PIN för att låna", "warning")
+        return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
+
+    piece = session.exec(select(Piece).where(Piece.public_id == public_id)).first()
+    if not piece:
+        raise HTTPException(404)
+
+    placements = session.exec(
+        select(PiecePlacement).where(PiecePlacement.piece_id == piece.id)
+    ).all()
+    units = {
+        u.id: u for u in session.exec(
+            select(StorageUnit).where(
+                StorageUnit.id.in_([pl.storage_unit_id for pl in placements])
+            )
+        ).all()
+    } if placements else {}
+
+    # Aktiva lån grupperade per placering
+    active_loans = session.exec(
+        select(Loan)
+        .where(Loan.placement_id.in_([pl.id for pl in placements]))
+        .where(Loan.returned_at.is_(None))
+    ).all() if placements else []
+    loans_by_placement: dict[int, list[Loan]] = {}
+    for la in active_loans:
+        loans_by_placement.setdefault(la.placement_id, []).append(la)
+
+    rows = []
+    for pl in placements:
+        unit = units.get(pl.storage_unit_id)
+        out = sum(la.copies for la in loans_by_placement.get(pl.id, []))
+        rows.append(
+            {
+                "placement": pl,
+                "unit": unit,
+                "home": (pl.copies or 0) - out if pl.copies else None,
+                "out_count": out,
+                "loans": loans_by_placement.get(pl.id, []),
+            }
+        )
+
+    return render(
+        request,
+        "pieces/kiosk_piece.html",
+        {"piece": piece, "placements": rows, "borrower": borrower},
+        user=user,
+    )
+
 
 def _covers_by_piece(session: Session, piece_ids: list[int]) -> dict[int, PieceImage]:
     """Returnera mappning piece_id -> första bilden (sort_order asc) för en lista pieces."""
@@ -448,9 +730,14 @@ def _language_options(codes: list[str]) -> list[dict]:
 
 def _apply_filters(stmt, session, tags, voicings, languages, unit=None, include_subunits=False):
     if tags:
-        tag_ids = list(
-            session.exec(select(Tag.id).where(Tag.name.in_(tags))).all()
+        from app.models import TagAlias
+
+        # Matcha tagg-namn OR tagg-alias
+        tag_ids = set(session.exec(select(Tag.id).where(Tag.name.in_(tags))).all())
+        tag_ids.update(
+            session.exec(select(TagAlias.tag_id).where(TagAlias.name.in_(tags))).all()
         )
+        tag_ids = list(tag_ids)
         if tag_ids:
             piece_ids_with_tag = list(
                 session.exec(
@@ -510,6 +797,152 @@ def _apply_filters(stmt, session, tags, voicings, languages, unit=None, include_
         else:
             stmt = stmt.where(Piece.id == -1)
     return stmt
+
+
+@router.get("/qr-labels")
+async def qr_labels(
+    request: Request,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+    tag: list[str] | None = Query(None),
+    unit: int | None = Query(None),
+) -> Response:
+    """Utskriftsvänlig sida med QR-etiketter för pieces. Stödjer filter
+    via tag och unit (samma syntax som /pieces) så man kan skriva ut
+    etiketter för en delmängd."""
+    stmt = select(Piece).order_by(Piece.title)
+    if unit:
+        piece_ids = list(
+            session.exec(
+                select(PiecePlacement.piece_id)
+                .where(PiecePlacement.storage_unit_id == unit)
+                .distinct()
+            ).all()
+        )
+        if piece_ids:
+            stmt = stmt.where(Piece.id.in_(piece_ids))
+        else:
+            stmt = stmt.where(Piece.id == -1)
+    if tag:
+        from app.models import TagAlias
+        tag_ids = set(session.exec(select(Tag.id).where(Tag.name.in_(tag))).all())
+        tag_ids.update(
+            session.exec(select(TagAlias.tag_id).where(TagAlias.name.in_(tag))).all()
+        )
+        if tag_ids:
+            piece_ids = list(
+                session.exec(
+                    select(PieceTag.piece_id)
+                    .where(PieceTag.tag_id.in_(list(tag_ids)))
+                    .distinct()
+                ).all()
+            )
+            if piece_ids:
+                stmt = stmt.where(Piece.id.in_(piece_ids))
+            else:
+                stmt = stmt.where(Piece.id == -1)
+        else:
+            stmt = stmt.where(Piece.id == -1)
+    pieces = session.exec(stmt).all()
+    return render(
+        request,
+        "pieces/qr_labels.html",
+        {"pieces": pieces},
+        user=user,
+    )
+
+
+@router.get("/qr-labels.pdf")
+async def qr_labels_pdf(
+    request: Request,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+    tag: list[str] | None = Query(None),
+    unit: int | None = Query(None),
+) -> Response:
+    """Samma filter som /pieces/qr-labels men genererar PDF via WeasyPrint.
+    QR-bilderna embeddas som base64-data-URI så WeasyPrint kan rendera utan
+    HTTP-callbacks till egna servern."""
+    import base64
+    import io
+    from datetime import datetime
+    import qrcode
+
+    stmt = select(Piece).order_by(Piece.title)
+    if unit:
+        piece_ids = list(
+            session.exec(
+                select(PiecePlacement.piece_id)
+                .where(PiecePlacement.storage_unit_id == unit)
+                .distinct()
+            ).all()
+        )
+        stmt = stmt.where(Piece.id.in_(piece_ids)) if piece_ids else stmt.where(Piece.id == -1)
+    if tag:
+        from app.models import TagAlias
+        tag_ids = set(session.exec(select(Tag.id).where(Tag.name.in_(tag))).all())
+        tag_ids.update(
+            session.exec(select(TagAlias.tag_id).where(TagAlias.name.in_(tag))).all()
+        )
+        if tag_ids:
+            piece_ids = list(
+                session.exec(
+                    select(PieceTag.piece_id)
+                    .where(PieceTag.tag_id.in_(list(tag_ids)))
+                    .distinct()
+                ).all()
+            )
+            stmt = stmt.where(Piece.id.in_(piece_ids)) if piece_ids else stmt.where(Piece.id == -1)
+        else:
+            stmt = stmt.where(Piece.id == -1)
+    pieces = session.exec(stmt).all()
+
+    base = str(request.base_url).rstrip("/")
+    items = []
+    for p in pieces:
+        if not p.public_id:
+            continue
+        img = qrcode.make(f"{base}/p/{p.public_id}", box_size=6, border=1)
+        buf = io.BytesIO()
+        img.save(buf, "PNG")
+        data_uri = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+        items.append({"piece": p, "qr_data_uri": data_uri})
+
+    from weasyprint import HTML
+
+    html = templates_setup.templates.get_template("pieces/qr_labels_pdf.html").render(
+        request=request,
+        items=items,
+        generated_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
+    )
+    pdf_bytes = HTML(string=html).write_pdf()
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'inline; filename="qr-etiketter.pdf"'},
+    )
+
+
+@router.get("/{piece_id}/qr.png")
+async def piece_qr(
+    request: Request,
+    piece_id: int,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> Response:
+    import io
+    import qrcode
+
+    piece = session.get(Piece, piece_id)
+    if not piece or not piece.public_id:
+        raise HTTPException(404)
+
+    base = str(request.base_url).rstrip("/")
+    url = f"{base}/p/{piece.public_id}"
+    img = qrcode.make(url, box_size=10, border=2)
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    return Response(content=buf.getvalue(), media_type="image/png")
 
 
 @router.get("/new")
@@ -615,6 +1048,10 @@ async def new_piece_save(
 
     session.commit()
 
+    # Kö MB-berikning för nya bidragsgivare utan MBID (idempotent, tål Redis-fel).
+    from app.services.people import enqueue_enrich_for_piece
+    await enqueue_enrich_for_piece(session, piece.id)
+
     flash(request, f"Skapade '{piece.title}'", "success")
     return RedirectResponse(f"/pieces/{piece.id}", status.HTTP_302_FOUND)
 
@@ -645,8 +1082,13 @@ async def piece_detail(
     units = {u.id: u for u in session.exec(select(StorageUnit)).all()}
     kinds = {k.id: k.name for k in session.exec(select(UnitKind)).all()}
 
-    # Aktiva utlån per placering
+    # Aktiva utlån per placering. Hämtar även batch-namn så detalj-vyn
+    # kan visa "Konsert 14 juni" bredvid låntagaren - annars omöjligt att
+    # skilja flera lån av samma not till samma person åt.
+    from app.models import LoanBatch
+
     placement_loans: dict[int, list[Loan]] = {}
+    batch_by_id: dict[int, LoanBatch] = {}
     if placements:
         active_loans = session.exec(
             select(Loan)
@@ -656,6 +1098,13 @@ async def piece_detail(
         ).all()
         for loan in active_loans:
             placement_loans.setdefault(loan.placement_id, []).append(loan)
+        batch_ids = {la.batch_id for la in active_loans if la.batch_id}
+        if batch_ids:
+            batch_by_id = {
+                b.id: b for b in session.exec(
+                    select(LoanBatch).where(LoanBatch.id.in_(list(batch_ids)))
+                ).all()
+            }
 
     for p in placements:
         unit = units.get(p.storage_unit_id)
@@ -687,12 +1136,13 @@ async def piece_detail(
 
     contributors = collect_contributors(session, piece_id)
 
-    # Bidragsgivare utan MBID - för "slå upp i MB"-banner
-    contributors_without_mbid = []
+    # Bidragsgivare utan matchning mot någon extern identitetskälla.
+    # En person räknas som "matchad" om hen har antingen MBID eller Wikidata-Q-id.
+    contributors_without_match = []
     for role, people_list in contributors.items():
         for p in people_list:
-            if not p.musicbrainz_artist_id:
-                contributors_without_mbid.append({"person": p, "role": str(role)})
+            if not p.musicbrainz_artist_id and not p.wikidata_id:
+                contributors_without_match.append({"person": p, "role": str(role)})
 
     # Taggar
     tag_rows = session.exec(
@@ -735,7 +1185,7 @@ async def piece_detail(
             "images": images,
             "placements": placement_views,
             "contributors": contributors,
-            "contributors_without_mbid": contributors_without_mbid,
+            "contributors_without_match": contributors_without_match,
             "tags": tag_rows,
             "my_note": my_note,
             "others_notes": others_notes,
@@ -745,6 +1195,7 @@ async def piece_detail(
             "image_kinds": [k.value for k in PieceImageKind],
             "loan_users": loan_users,
             "psalm_refs": psalm_refs,
+            "batch_by_id": batch_by_id,
         },
         user=user,
     )
@@ -1000,6 +1451,10 @@ async def edit_piece_save(
 
     session.commit()
 
+    # Kö MB-berikning för nya bidragsgivare utan MBID (idempotent, tål Redis-fel).
+    from app.services.people import enqueue_enrich_for_piece
+    await enqueue_enrich_for_piece(session, piece_id)
+
     flash(request, "Sparat", "success")
     return RedirectResponse(f"/pieces/{piece_id}", status.HTTP_302_FOUND)
 
@@ -1163,8 +1618,12 @@ async def enrich_wizard(
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
-    """Auto-sök MB för varje bidragsgivare utan MBID. Visa topp 3 per person
-    så användaren accepterar eller skippar."""
+    """Auto-sök MB och Wikidata för varje bidragsgivare utan identitetsmatch
+    (saknar både MBID och Wikidata-Q-id). Visa topp 3 per källa."""
+    import asyncio
+
+    from app.services.wikidata import search_persons
+
     piece = session.get(Piece, piece_id)
     if not piece:
         raise HTTPException(404)
@@ -1173,18 +1632,30 @@ async def enrich_wizard(
     unenriched = []
     for role, people_list in contributors.items():
         for p in people_list:
-            if not p.musicbrainz_artist_id:
+            if not p.musicbrainz_artist_id and not p.wikidata_id:
                 unenriched.append({"person": p, "role": str(role)})
 
     client = get_client()
     for item in unenriched:
-        try:
-            results = await client.search_artist(item["person"].name)
-            item["candidates"] = results[:3]
-            item["error"] = None
-        except Exception as exc:
-            item["candidates"] = []
-            item["error"] = str(exc)
+        name = item["person"].name
+
+        async def _mb():
+            try:
+                return (await client.search_artist(name))[:3], None
+            except Exception as exc:
+                return [], str(exc)
+
+        async def _wd():
+            try:
+                return (await search_persons(name, limit=3)), None
+            except Exception as exc:
+                return [], str(exc)
+
+        (mb_results, mb_error), (wd_results, wd_error) = await asyncio.gather(_mb(), _wd())
+        item["candidates"] = mb_results
+        item["wd_candidates"] = wd_results
+        item["error"] = mb_error
+        item["wd_error"] = wd_error
 
     return render(
         request,

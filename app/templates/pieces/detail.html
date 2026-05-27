@@ -39,19 +39,7 @@
         {% if piece.original_title %}<div class="text-muted">{{ piece.original_title }}</div>{% endif %}
       </div>
       {% if user.can_edit %}
-      <div class="btn-group btn-group-sm">
-        <a href="/pieces/{{ piece.id }}/edit" class="btn btn-outline-secondary">Redigera</a>
-        <button class="btn btn-outline-secondary"
-                onclick="confirmAction('/pieces/{{ piece.id }}/re-ocr', 'Kör OCR igen på primärbilden? Resultatet hamnar i granskningskön - originalnoten påverkas inte förrän du sparar därifrån.', {submitLabel: 'Kör OCR'})">
-          Kör OCR igen
-        </button>
-        {% if user.is_admin %}
-        <button class="btn btn-outline-danger"
-                onclick="confirmAction('/pieces/{{ piece.id }}/delete', 'Radera \'{{ piece.title|e }}\' permanent? Detta tar bort alla placeringar och bilder.')">
-          Radera
-        </button>
-        {% endif %}
-      </div>
+      <a href="/pieces/{{ piece.id }}/edit" class="btn btn-sm btn-outline-secondary">Redigera</a>
       {% endif %}
     </div>
 
@@ -96,16 +84,16 @@
     </a>
     {% endif %}
 
-    {% if contributors_without_mbid and user.can_edit %}
+    {% if contributors_without_match and user.can_edit %}
     <div class="alert alert-warning py-2 mt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
       <div class="small">
-        <strong>{{ contributors_without_mbid|length }}</strong>
-        {% if contributors_without_mbid|length == 1 %}person saknar{% else %}personer saknar{% endif %}
-        MusicBrainz-data. Auto-sökning kan hämta levnadsår, land, Wikipedia
-        och biografi.
+        <strong>{{ contributors_without_match|length }}</strong>
+        {% if contributors_without_match|length == 1 %}person saknar{% else %}personer saknar{% endif %}
+        matchning mot MusicBrainz eller Wikidata. Auto-sökning kan hämta
+        levnadsår, land, Wikipedia och biografi.
       </div>
       <a href="/pieces/{{ piece.id }}/enrich" class="btn btn-sm btn-warning">
-        Berika från MusicBrainz →
+        Sök identitet →
       </a>
     </div>
     {% endif %}
@@ -116,7 +104,7 @@
     <div class="mt-3 d-flex gap-2 align-items-baseline flex-wrap">
       <strong class="small">Taggar:</strong>
       {% for t in display_tags %}
-        {% set color = {'liturgical': 'primary', 'occasion': 'success', 'free': 'secondary'}.get(t.kind, 'secondary') %}
+        {% set color = {'occasion': 'success', 'free': 'secondary'}.get(t.kind, 'secondary') %}
         <span class="badge bg-{{ color }}">{{ t.name }}</span>
       {% endfor %}
     </div>
@@ -177,6 +165,13 @@
               {% if pv.out_count %}<span class="badge bg-warning text-dark">{{ pv.out_count }} utlånade</span>{% endif %}
             {% endif %}
             {% if user.can_edit %}
+            <form method="post" action="/loans/cart/add" class="mb-0 d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="placement_id" value="{{ pv.placement.id }}">
+              <button type="submit" class="btn btn-sm btn-outline-success" title="Lägg i utlåningskorg">
+                + Korg
+              </button>
+            </form>
             <button class="btn btn-sm btn-outline-primary" type="button"
                     data-bs-toggle="modal" data-bs-target="#addLoanModal-{{ pv.placement.id }}">
               + Lån
@@ -187,22 +182,32 @@
         {% if pv.loans %}
         <ul class="list-group list-group-flush small">
           {% for loan in pv.loans %}
+          {% set batch = batch_by_id.get(loan.batch_id) if loan.batch_id else None %}
           <li class="list-group-item d-flex justify-content-between align-items-center">
             <div>
               <strong>{{ loan.borrower_name }}</strong>
               · {{ loan.copies }} ex
               · lånat {{ loan.borrowed_at.strftime('%Y-%m-%d') }}
               {% if loan.expected_return_at %}
-              · {% set overdue = loan.expected_return_at < (loan.expected_return_at.now() if loan.expected_return_at else None) %}
-              förv. retur {{ loan.expected_return_at.strftime('%Y-%m-%d') }}
+              · förv. retur {{ loan.expected_return_at.strftime('%Y-%m-%d') }}
+              {% endif %}
+              {% if batch %}
+              <div class="text-muted">
+                Del av <a href="/loans/batch/{{ batch.id }}">{{ batch.name }}</a>
+              </div>
               {% endif %}
               {% if loan.notes %}<div class="text-muted">{{ loan.notes }}</div>{% endif %}
             </div>
             {% if user.can_edit %}
+            {% if batch %}
+            {# Batch-utlån återlämnas via batch-vyn så hela batchen kan hanteras ihop #}
+            <a href="/loans/batch/{{ batch.id }}" class="btn btn-sm btn-outline-success">Återlämna →</a>
+            {% else %}
             <form method="post" action="/loans/{{ loan.id }}/return">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-              <button class="btn btn-sm btn-outline-success" type="submit">Återlämnad</button>
+              <button class="btn btn-sm btn-outline-success" type="submit">Återlämna</button>
             </form>
+            {% endif %}
             {% endif %}
           </li>
           {% endfor %}

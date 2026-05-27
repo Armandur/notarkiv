@@ -408,9 +408,6 @@ async def review_form(
     from app.routes.pieces import _find_psalm_title_matches
     from app.utils.languages import all_languages
 
-    title_for_psalm = ((existing or {}).get("title") if existing else extracted.get("title")) or ""
-    psalm_title_matches = _find_psalm_title_matches(session, title_for_psalm)
-
     # Voicing-taggar: fördefinierad lista, plus försök matcha OCR-extraherad
     # voicing mot dem så användaren bara behöver bekräfta innan spara
     voicing_tags = list(
@@ -486,6 +483,9 @@ async def review_form(
                 ).all()
             )
 
+    title_for_psalm = ((existing or {}).get("title") if existing else extracted.get("title")) or ""
+    psalm_title_matches = _find_psalm_title_matches(session, title_for_psalm)
+
     return render(
         request,
         "scan/review.html",
@@ -521,23 +521,33 @@ async def _build_person_sections(
     arranger: str,
     lyricist: str,
 ) -> list[dict]:
-    """Slå upp MB-kandidater för composer/arranger/lyricist-namn. Returnerar
-    sektioner: [{label, role, entries: [{name, candidates, error, ...}]}]."""
+    """Slå upp MB- och Wikidata-kandidater för composer/arranger/lyricist.
+    Returnerar sektioner: [{label, role, entries: [{name, candidates,
+    wd_candidates, error, wd_error, ...}]}]. Båda källor söks parallellt."""
+    import asyncio
+
+    from app.services.wikidata import search_persons as wd_search
+
     client = get_client()
 
-    async def search_person(name: str) -> dict:
+    async def search_mb(name: str):
         if not name:
-            return {"name": "", "candidates": [], "error": None}
+            return [], None
         try:
             results = await client.search_artist(name)
         except Exception as exc:
-            return {"name": name, "candidates": [], "error": str(exc)}
-        candidates = []
-        for r in results[:3]:
-            if r.get("type") and r["type"].lower() != "person":
-                continue
-            candidates.append(r)
-        return {"name": name, "candidates": candidates, "error": None}
+            return [], str(exc)
+        return [r for r in results[:3] if not r.get("type") or r["type"].lower() == "person"], None
+
+    async def search_wd(name: str):
+        if not name:
+            return [], None
+        try:
+            return (await wd_search(name, limit=3)), None
+        except Exception as exc:
+            return [], str(exc)
+
+    from app.services.wikidata import link_mb_wd_candidates
 
     sections: list[dict] = []
     for role_label, role_key, names_field in [
@@ -551,10 +561,22 @@ async def _build_person_sections(
             existing = session.exec(
                 select(Person).where(Person.name.ilike(name))
             ).first()
-            res = await search_person(name)
-            res["existing_person_id"] = existing.id if existing else None
-            res["has_mbid"] = bool(existing and existing.musicbrainz_artist_id)
-            entries.append(res)
+            (mb_cands, mb_err), (wd_cands, wd_err) = await asyncio.gather(
+                search_mb(name), search_wd(name)
+            )
+            link_mb_wd_candidates(mb_cands, wd_cands)
+            entries.append(
+                {
+                    "name": name,
+                    "candidates": mb_cands,
+                    "wd_candidates": wd_cands,
+                    "error": mb_err,
+                    "wd_error": wd_err,
+                    "existing_person_id": existing.id if existing else None,
+                    "has_mbid": bool(existing and existing.musicbrainz_artist_id),
+                    "has_wikidata": bool(existing and existing.wikidata_id),
+                }
+            )
         if entries:
             sections.append(
                 {"label": role_label, "role": role_key, "entries": entries}
@@ -706,6 +728,100 @@ async def apply_person_mb(
         wikipedia_url=wiki_url,
         biography=wiki_bio,
     )
+    session.commit()
+
+    return render(
+        request,
+        "scan/_mb_person_result.html",
+        {"name": person.name, "role": role, "person_id": person.id, "ok": True},
+        user=user,
+    )
+
+
+@router.post("/{scan_id}/apply-person-wd", dependencies=[Depends(verify_csrf)])
+async def apply_person_wd(
+    request: Request,
+    scan_id: int,
+    name: str = Form(...),
+    role: str = Form(...),
+    qid: str = Form(...),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Hitta/skapa Person och applicera Wikidata-data direkt. Returnerar
+    HTMX-fragment likt apply-person-mb. Fyller även i MBID om Wikidata har
+    P434-claim."""
+    from app.services.musicbrainz import (
+        commons_file_to_thumb_url,
+        download_image_bytes,
+        fetch_wikipedia_summary,
+    )
+    from app.services.wikidata import (
+        country_iso_from_qid,
+        extract_birth_date,
+        extract_country_qid,
+        extract_death_date,
+        extract_image_filename,
+        extract_musicbrainz_id,
+        extract_wikipedia_url,
+        get_entity,
+    )
+    from app.utils.images import save_uploaded_cover
+
+    scan = session.get(ScanSession, scan_id)
+    if not scan:
+        raise HTTPException(404)
+    name = name.strip()
+    if not name:
+        raise HTTPException(400, "name saknas")
+
+    entity = await get_entity(qid.strip())
+    if not entity:
+        return render(
+            request,
+            "scan/_mb_person_result.html",
+            {"name": name, "role": role, "error": "Wikidata returnerade inget", "ok": False},
+            user=user,
+        )
+
+    mbid = extract_musicbrainz_id(entity)
+    person = find_or_create_person(session, name, musicbrainz_artist_id=mbid)
+    person.wikidata_id = qid.strip()
+
+    by, bm, bd = extract_birth_date(entity)
+    if by and not person.birth_year:
+        person.birth_year, person.birth_month, person.birth_day = by, bm, bd
+    dy, dm, dd = extract_death_date(entity)
+    if dy and not person.death_year:
+        person.death_year, person.death_month, person.death_day = dy, dm, dd
+    if not person.country:
+        iso = await country_iso_from_qid(extract_country_qid(entity))
+        if iso:
+            person.country = iso
+
+    wiki_url = extract_wikipedia_url(entity, "sv") or extract_wikipedia_url(entity, "en")
+    if wiki_url and not person.biography:
+        bio = await fetch_wikipedia_summary(wiki_url)
+        if bio:
+            person.biography = bio
+            person.biography_source_url = wiki_url
+            person.biography_fetched_at = datetime.utcnow()
+
+    if not person.portrait_image_path:
+        filename = extract_image_filename(entity)
+        if filename:
+            thumb_url = commons_file_to_thumb_url(filename, 600)
+            img_bytes = await download_image_bytes(thumb_url)
+            if img_bytes:
+                try:
+                    person.portrait_image_path = save_uploaded_cover(img_bytes)
+                    person.portrait_source_url = thumb_url
+                    person.portrait_fetched_at = datetime.utcnow()
+                except Exception:
+                    pass
+
+    person.updated_at = datetime.utcnow()
+    session.add(person)
     session.commit()
 
     return render(
@@ -893,6 +1009,10 @@ async def save_piece(
     scan.resulting_piece_id = piece.id
     session.add(scan)
     session.commit()
+
+    # Kö MB-berikning för nya bidragsgivare utan MBID (idempotent, tål Redis-fel).
+    from app.services.people import enqueue_enrich_for_piece
+    await enqueue_enrich_for_piece(session, piece.id)
 
     if next_in_queue:
         next_scan = session.exec(

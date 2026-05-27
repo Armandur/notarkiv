@@ -44,7 +44,6 @@ async def list_people(
     q: str | None = None,
     role: list[str] | None = Query(default=None),
     country: list[str] | None = Query(default=None),
-    has_mbid: str | None = None,
     user: User = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -58,10 +57,6 @@ async def list_people(
         upper_countries = [c.upper() for c in country if c]
         if upper_countries:
             stmt = stmt.where(Person.country.in_(upper_countries))
-    if has_mbid == "yes":
-        stmt = stmt.where(Person.musicbrainz_artist_id.is_not(None))
-    elif has_mbid == "no":
-        stmt = stmt.where(Person.musicbrainz_artist_id.is_(None))
     if role:
         valid_roles = [r for r in role if r]
         if valid_roles:
@@ -107,7 +102,6 @@ async def list_people(
             "q": q or "",
             "active_roles": set(role or []),
             "active_countries": set(country or []),
-            "active_has_mbid": has_mbid or "",
             "country_options": country_options,
             "country_display": country_display,
             "roles": roles,
@@ -605,46 +599,162 @@ async def update_person(
     return RedirectResponse(f"/people/{person_id}", status.HTTP_302_FOUND)
 
 
-@router.get("/{person_id}/musicbrainz")
-async def person_mb_modal(
+@router.get("/{person_id}/identity-search")
+async def person_identity_search(
     request: Request,
     person_id: int,
     q_name: str | None = None,
     skip_search: int = 0,
-    return_to: str | None = None,
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
+    """Gemensamt sökflöde över både MusicBrainz och Wikidata. Returnerar en
+    HTMX-modal med två kolumner side-by-side så användaren kan jämföra träffar
+    och välja vilken källa som ska appliceras."""
+    import asyncio
+
+    from app.services.wikidata import search_persons
+
     person = session.get(Person, person_id)
     if not person:
         raise HTTPException(404)
 
     search_name = (q_name if q_name is not None else person.name).strip()
+    mb_results: list[dict] = []
+    wd_results: list[dict] = []
+    mb_error: str | None = None
+    wd_error: str | None = None
 
-    results = []
-    error = None
-    searched = False
     if not skip_search and search_name:
-        searched = True
-        try:
-            client = get_client()
-            results = await client.search_artist(search_name)
-        except Exception as exc:
-            error = str(exc)
+        from app.services.wikidata import link_mb_wd_candidates
+
+        async def _mb():
+            try:
+                return await get_client().search_artist(search_name), None
+            except Exception as exc:
+                return [], str(exc)
+
+        async def _wd():
+            try:
+                return await search_persons(search_name), None
+            except Exception as exc:
+                return [], str(exc)
+
+        (mb_results, mb_error), (wd_results, wd_error) = await asyncio.gather(_mb(), _wd())
+        link_mb_wd_candidates(mb_results, wd_results)
 
     return render(
         request,
-        "people/_musicbrainz_modal.html",
+        "people/_identity_modal.html",
         {
             "person": person,
-            "results": results,
-            "error": error,
+            "mb_results": mb_results,
+            "wd_results": wd_results,
+            "mb_error": mb_error,
+            "wd_error": wd_error,
             "search_name": search_name,
-            "searched": searched,
-            "return_to": return_to or "",
         },
         user=user,
     )
+
+
+@router.post("/{person_id}/apply-wikidata", dependencies=[Depends(verify_csrf)])
+async def apply_wikidata(
+    request: Request,
+    person_id: int,
+    qid: str = Form(...),
+    return_to: str | None = Form(None),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Hämta Wikidata-entity och fyll i biografi, portrait, datum, MBID."""
+    from app.services.musicbrainz import (
+        commons_file_to_thumb_url,
+        download_image_bytes,
+        fetch_wikipedia_summary,
+    )
+    from app.services.wikidata import (
+        country_iso_from_qid,
+        extract_birth_date,
+        extract_country_qid,
+        extract_death_date,
+        extract_image_filename,
+        extract_musicbrainz_id,
+        extract_wikipedia_url,
+        get_entity,
+    )
+    from app.utils.images import save_uploaded_cover
+
+    person = session.get(Person, person_id)
+    if not person:
+        raise HTTPException(404)
+
+    entity = await get_entity(qid.strip())
+    if not entity:
+        flash(request, "Kunde inte hämta från Wikidata", "danger")
+        return RedirectResponse(f"/people/{person_id}/edit", status.HTTP_302_FOUND)
+
+    person.wikidata_id = qid.strip()
+    _ensure_link(
+        session, person_id, PersonLinkKind.WIKIDATA,
+        f"https://www.wikidata.org/wiki/{person.wikidata_id}",
+    )
+
+    # MBID via P434
+    mbid = extract_musicbrainz_id(entity)
+    if mbid and not person.musicbrainz_artist_id:
+        person.musicbrainz_artist_id = mbid
+
+    # Födelse-/dödsdatum (fyller bara i saknade fält - skriv inte över manuellt satta)
+    by, bm, bd = extract_birth_date(entity)
+    if by and not person.birth_year:
+        person.birth_year = by
+        person.birth_month = bm
+        person.birth_day = bd
+    dy, dm, dd = extract_death_date(entity)
+    if dy and not person.death_year:
+        person.death_year = dy
+        person.death_month = dm
+        person.death_day = dd
+
+    # Land via P27 → P297 (ISO-kod)
+    if not person.country:
+        country_qid = extract_country_qid(entity)
+        iso = await country_iso_from_qid(country_qid)
+        if iso:
+            person.country = iso
+
+    # Wikipedia-länk + biografi
+    wiki_url = extract_wikipedia_url(entity, "sv") or extract_wikipedia_url(entity, "en")
+    if wiki_url:
+        _ensure_link(session, person_id, PersonLinkKind.WIKIPEDIA, wiki_url)
+        if not person.biography:
+            bio = await fetch_wikipedia_summary(wiki_url)
+            if bio:
+                person.biography = bio
+                person.biography_source_url = wiki_url
+                person.biography_fetched_at = datetime.utcnow()
+
+    # Portrait via P18 om saknas
+    if not person.portrait_image_path:
+        filename = extract_image_filename(entity)
+        if filename:
+            thumb_url = commons_file_to_thumb_url(filename, 800)
+            data = await download_image_bytes(thumb_url)
+            if data:
+                rel = save_uploaded_cover(data, "person-portrait.jpg")
+                if rel:
+                    person.portrait_image_path = rel
+                    person.portrait_source_url = thumb_url
+                    person.portrait_fetched_at = datetime.utcnow()
+
+    person.updated_at = datetime.utcnow()
+    session.add(person)
+    session.commit()
+
+    flash(request, f"Tillämpade Wikidata-data ({qid})", "success")
+    target = return_to if return_to and return_to.startswith("/") else f"/people/{person_id}/edit"
+    return RedirectResponse(target, status.HTTP_302_FOUND)
 
 
 def _ensure_link(

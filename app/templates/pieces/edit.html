@@ -2,9 +2,24 @@
 {% block title %}Redigera {{ piece.title }} - Notarkiv{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-baseline mb-3">
-  <h1 class="h3 mb-0">Redigera not</h1>
-  <a href="/pieces/{{ piece.id }}" class="small">← Tillbaka till noten</a>
+<div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="h3 mb-0">Redigera not</h1>
+    <a href="/pieces/{{ piece.id }}" class="small">← Tillbaka till noten</a>
+  </div>
+  <div class="btn-group btn-group-sm">
+    <a href="/pieces/{{ piece.id }}/qr.png" target="_blank" class="btn btn-outline-secondary" title="QR-kod för utskrift">QR</a>
+    <button type="button" class="btn btn-outline-secondary"
+            onclick="confirmAction('/pieces/{{ piece.id }}/re-ocr', 'Kör OCR igen på primärbilden? Resultatet hamnar i granskningskön - originalnoten påverkas inte förrän du sparar därifrån.', {submitLabel: 'Kör OCR'})">
+      Kör OCR igen
+    </button>
+    {% if user.is_admin %}
+    <button type="button" class="btn btn-outline-danger"
+            onclick="confirmAction('/pieces/{{ piece.id }}/delete', 'Radera \'{{ piece.title|e }}\' permanent? Detta tar bort alla placeringar och bilder.')">
+      Radera
+    </button>
+    {% endif %}
+  </div>
 </div>
 
 {% if piece.musicbrainz_work_id and not mb_preview %}
@@ -66,7 +81,7 @@
         </div>
         <div class="col-md-3">
           <label class="form-label">Språk</label>
-          <select name="language" class="form-select">
+          <select name="language" class="form-select tomselect">
             <option value="">(inget)</option>
             {% for l in language_options %}
             <option value="{{ l.code }}" {% if piece.language == l.code %}selected{% endif %}>{{ l.label }}</option>
@@ -75,43 +90,21 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Besättning</label>
-          <div class="dropdown">
-            <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
-                    data-bs-toggle="dropdown" data-bs-auto-close="outside">
-              {% if selected_voicing_ids %}{{ selected_voicing_ids|length }} val{% else %}välj besättning{% endif %}
-            </button>
-            <ul class="dropdown-menu w-100 px-2" style="max-height: 260px; overflow-y: auto">
-              {% for t in voicing_tags %}
-              <li>
-                <label class="form-check">
-                  <input class="form-check-input me-1" type="checkbox" name="voicing_tag_id" value="{{ t.id }}"
-                         {% if t.id in selected_voicing_ids %}checked{% endif %}>
-                  {{ t.name }}
-                </label>
-              </li>
-              {% endfor %}
-            </ul>
-          </div>
+          <select name="voicing_tag_id" class="form-select tomselect" multiple
+                  placeholder="Välj besättning...">
+            {% for t in voicing_tags %}
+            <option value="{{ t.id }}" {% if t.id in selected_voicing_ids %}selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-4">
           <label class="form-label">Ackompanjemang</label>
-          <div class="dropdown">
-            <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
-                    data-bs-toggle="dropdown" data-bs-auto-close="outside">
-              {% if selected_accompaniment_ids %}{{ selected_accompaniment_ids|length }} val{% else %}välj ackompanjemang{% endif %}
-            </button>
-            <ul class="dropdown-menu w-100 px-2" style="max-height: 260px; overflow-y: auto">
-              {% for t in accompaniment_tags %}
-              <li>
-                <label class="form-check">
-                  <input class="form-check-input me-1" type="checkbox" name="accompaniment_tag_id" value="{{ t.id }}"
-                         {% if t.id in selected_accompaniment_ids %}checked{% endif %}>
-                  {{ t.name }}
-                </label>
-              </li>
-              {% endfor %}
-            </ul>
-          </div>
+          <select name="accompaniment_tag_id" class="form-select tomselect" multiple
+                  placeholder="Välj ackompanjemang...">
+            {% for t in accompaniment_tags %}
+            <option value="{{ t.id }}" {% if t.id in selected_accompaniment_ids %}selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-4">
           <label class="form-label">Förlag</label>
@@ -160,18 +153,63 @@
   </div>
 
   <div class="mt-4 d-flex gap-2">
-    <button type="submit" class="btn btn-primary">Spara metadata</button>
+    <button type="submit" class="btn btn-primary" id="metadata-save-btn">Spara metadata</button>
     <a href="/pieces/{{ piece.id }}" class="btn btn-link">Avbryt</a>
   </div>
+
+  {# Flytande spara-knapp som syns när användaren scrollat förbi den vanliga.
+     Submitar samma formulär via form-attributet. #}
+  <button type="submit" id="metadata-save-floating"
+          class="btn btn-primary shadow d-none"
+          style="position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 1030; padding: 0.6rem 1.2rem">
+    💾 Spara metadata
+  </button>
 </form>
 
-{# Taggar utanför huvudformuläret - togglas direkt via HTMX, inte vid spara #}
-<div class="card mt-3">
-  <div class="card-header"><h2 class="h6 mb-0">Taggar</h2></div>
-  <div class="card-body">
-    {% set active_tags = piece_active_other_tags %}
-    {% include "pieces/_tag_area.html" %}
+<script>
+(function() {
+  const original = document.getElementById('metadata-save-btn');
+  const floating = document.getElementById('metadata-save-floating');
+  if (!original || !floating) return;
+  const obs = new IntersectionObserver((entries) => {
+    floating.classList.toggle('d-none', entries[0].isIntersecting);
+  });
+  obs.observe(original);
+})();
+</script>
+
+<div class="card mt-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h2 class="h6 mb-0">Placeringar</h2>
+    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#addPlacementModal">
+      + Lägg till placering
+    </button>
   </div>
+  {% if placements %}
+  <div class="list-group list-group-flush">
+    {% for pv in placements %}
+    <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        {% if pv.location_kind == 'digital' %}☁{% else %}■{% endif %}
+        {{ pv.path }}
+        {% if pv.placement.copies %}<span class="badge bg-secondary ms-1">{{ pv.placement.copies }} ex</span>{% endif %}
+        {% if pv.placement.notes %}<div class="small text-muted">{{ pv.placement.notes }}</div>{% endif %}
+      </div>
+      <div class="btn-group btn-group-sm">
+        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#editPlacementModal-{{ pv.placement.id }}">
+          Redigera
+        </button>
+        <button class="btn btn-outline-danger" type="button"
+                onclick="confirmAction('/pieces/{{ piece.id }}/placements/{{ pv.placement.id }}/delete', 'Ta bort denna placering?')">
+          Ta bort
+        </button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card-body text-muted fst-italic">Inga placeringar än.</div>
+  {% endif %}
 </div>
 
 <div class="card mt-4">
@@ -309,38 +347,13 @@
   </div>
 </div>
 
+{# Taggar utanför huvudformuläret - togglas direkt via HTMX, inte vid spara #}
 <div class="card mt-4">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <h2 class="h6 mb-0">Placeringar</h2>
-    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#addPlacementModal">
-      + Lägg till placering
-    </button>
+  <div class="card-header"><h2 class="h6 mb-0">Taggar</h2></div>
+  <div class="card-body">
+    {% set active_tags = piece_active_other_tags %}
+    {% include "pieces/_tag_area.html" %}
   </div>
-  {% if placements %}
-  <div class="list-group list-group-flush">
-    {% for pv in placements %}
-    <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
-      <div>
-        {% if pv.location_kind == 'digital' %}☁{% else %}■{% endif %}
-        {{ pv.path }}
-        {% if pv.placement.copies %}<span class="badge bg-secondary ms-1">{{ pv.placement.copies }} ex</span>{% endif %}
-        {% if pv.placement.notes %}<div class="small text-muted">{{ pv.placement.notes }}</div>{% endif %}
-      </div>
-      <div class="btn-group btn-group-sm">
-        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#editPlacementModal-{{ pv.placement.id }}">
-          Redigera
-        </button>
-        <button class="btn btn-outline-danger" type="button"
-                onclick="confirmAction('/pieces/{{ piece.id }}/placements/{{ pv.placement.id }}/delete', 'Ta bort denna placering?')">
-          Ta bort
-        </button>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="card-body text-muted fst-italic">Inga placeringar än.</div>
-  {% endif %}
 </div>
 
 <!-- Modaler för placeringshantering -->
