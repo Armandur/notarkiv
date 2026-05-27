@@ -1,5 +1,5 @@
 {% for t in results %}
-{% set color = {'liturgical': 'primary', 'occasion': 'success', 'free': 'secondary'}.get(t.kind, 'secondary') %}
+{% set color = {'occasion': 'success', 'free': 'secondary'}.get(t.kind, 'secondary') %}
 <button type="button"
         class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
         hx-post="/pieces/{{ piece_id }}/tags/{{ t.id }}/toggle"

@@ -9,7 +9,7 @@
       <div class="modal-body">
         <p class="text-muted small">Klicka för att slå av/på. Ändringar sparas direkt.</p>
 
-        {% set kind_labels = {'liturgical': 'Kyrkoåret', 'occasion': 'Tillfällen', 'free': 'Fria taggar'} %}
+        {% set kind_labels = {'occasion': 'Tillfälle', 'free': 'Fria taggar'} %}
         {% for kind, label in kind_labels.items() %}
         {% if by_kind.get(kind) %}
         <h3 class="h6 mt-3">{{ label }}</h3>
@@ -35,7 +35,6 @@
             <label class="form-label small mb-1">Typ</label>
             <select name="kind" class="form-select form-select-sm">
               <option value="free" selected>Fri</option>
-              <option value="liturgical">Kyrkoåret</option>
               <option value="occasion">Tillfälle</option>
             </select>
           </div>

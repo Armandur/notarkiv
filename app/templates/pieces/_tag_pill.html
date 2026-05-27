@@ -1,4 +1,4 @@
-{% set kind_color = {'liturgical': 'primary', 'occasion': 'success', 'free': 'secondary'}.get(tag.kind, 'secondary') %}
+{% set kind_color = {'occasion': 'success', 'free': 'secondary'}.get(tag.kind, 'secondary') %}
 <button type="button"
         id="tag-pill-{{ tag.id }}"
         hx-post="/pieces/{{ piece.id }}/tags/{{ tag.id }}/toggle"

@@ -1,33 +1,43 @@
 # Default-taggar för Notarkiv.
-# Liturgiska kategorier följer Svenska kyrkans kyrkoår.
-# Tillfällen är kontexter där noter ofta används.
-# Justera fritt.
+# Alla tillfälle-relaterade taggar har kind: occasion.
+# Hierarki via 'parent:' grupperar t.ex. kyrkoåret eller kyrkliga handlingar.
 
-# Liturgiskt år (kyrkoåret)
-- { name: Advent, kind: liturgical, sort_order: 10 }
-- { name: Jul, kind: liturgical, sort_order: 20 }
-- { name: Trettondedagstid, kind: liturgical, sort_order: 30 }
-- { name: Fastlagstid, kind: liturgical, sort_order: 40 }
-- { name: Fastan, kind: liturgical, sort_order: 50 }
-- { name: Stilla veckan, kind: liturgical, sort_order: 60 }
-- { name: Påsk, kind: liturgical, sort_order: 70 }
-- { name: Påsktid, kind: liturgical, sort_order: 80 }
-- { name: Kristi himmelsfärd, kind: liturgical, sort_order: 90 }
-- { name: Pingst, kind: liturgical, sort_order: 100 }
-- { name: Trefaldighetstid, kind: liturgical, sort_order: 110 }
-- { name: Midsommar, kind: liturgical, sort_order: 120 }
-- { name: Mikaelitid, kind: liturgical, sort_order: 130 }
-- { name: Allhelgona, kind: liturgical, sort_order: 140 }
-- { name: Domsöndag, kind: liturgical, sort_order: 150 }
-- { name: Allmän gudstjänst, kind: liturgical, sort_order: 200 }
+# Tillfällen - kyrkoåret som rot-tag med söndagar/perioder som barn
+- name: Kyrkoåret
+  kind: occasion
+  description: Tider och söndagar i kyrkoåret
+  sort_order: 0
+- { name: Advent, kind: occasion, sort_order: 10, parent: Kyrkoåret }
+- { name: Jul, kind: occasion, sort_order: 20, parent: Kyrkoåret }
+- { name: Trettondedagstid, kind: occasion, sort_order: 30, parent: Kyrkoåret }
+- { name: Fastlagstid, kind: occasion, sort_order: 40, parent: Kyrkoåret }
+- { name: Fastan, kind: occasion, sort_order: 50, parent: Kyrkoåret }
+- { name: Stilla veckan, kind: occasion, sort_order: 60, parent: Kyrkoåret }
+- { name: Påsk, kind: occasion, sort_order: 70, parent: Kyrkoåret }
+- { name: Påsktid, kind: occasion, sort_order: 80, parent: Kyrkoåret }
+- { name: Kristi himmelsfärd, kind: occasion, sort_order: 90, parent: Kyrkoåret }
+- { name: Pingst, kind: occasion, sort_order: 100, parent: Kyrkoåret }
+- { name: Trefaldighetstid, kind: occasion, sort_order: 110, parent: Kyrkoåret }
+- { name: Midsommar, kind: occasion, sort_order: 120, parent: Kyrkoåret }
+- { name: Mikaelitid, kind: occasion, sort_order: 130, parent: Kyrkoåret }
+- { name: Allhelgona, kind: occasion, sort_order: 140, parent: Kyrkoåret }
+- { name: Domsöndag, kind: occasion, sort_order: 150, parent: Kyrkoåret }
+- { name: Allmän gudstjänst, kind: occasion, sort_order: 200, parent: Kyrkoåret }
 
-# Tillfällen
-- { name: Begravning, kind: occasion, sort_order: 10 }
-- { name: Bröllop, kind: occasion, sort_order: 20 }
-- { name: Dop, kind: occasion, sort_order: 30 }
-- { name: Konfirmation, kind: occasion, sort_order: 40 }
-- { name: Vigsel, kind: occasion, sort_order: 50 }
-- { name: Minnesgudstjänst, kind: occasion, sort_order: 60 }
+# Tillfällen - kyrkliga handlingar
+- name: Kyrklig handling
+  kind: occasion
+  description: Samlingsnamn för dop, konfirmation, vigsel och begravning
+  sort_order: 300
+- { name: Begravning, kind: occasion, sort_order: 310, parent: Kyrklig handling }
+- { name: Dop, kind: occasion, sort_order: 330, parent: Kyrklig handling }
+- { name: Konfirmation, kind: occasion, sort_order: 340, parent: Kyrklig handling }
+- name: Vigsel
+  kind: occasion
+  sort_order: 350
+  parent: Kyrklig handling
+  aliases: [Bröllop]
+- { name: Minnesgudstjänst, kind: occasion, sort_order: 360 }
 - { name: Skördegudstjänst, kind: occasion, sort_order: 70 }
 - { name: Gudstjänst med barn, kind: occasion, sort_order: 80 }
 - { name: Skolavslutning, kind: occasion, sort_order: 90 }

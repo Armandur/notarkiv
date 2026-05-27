@@ -40,6 +40,10 @@ def seed_all(clear_pieces: bool = False) -> None:
             logger.warning("--clear-pieces ignoreras i MVP - inga noter finns i seed än")
 
         session.commit()
+
+    # Psalmböcker är statiska referensdata - alltid seedade som default.
+    seed_psalms()
+
     logger.info("Seed klar")
 
 
@@ -66,9 +70,15 @@ def _load_yaml(filename: str) -> Any:
 
 
 def _seed_tags(session: Session) -> None:
+    """Seed taggar med stöd för parent + aliases. Två-pass-iteration:
+    skapa alla taggar först, sedan koppla parent och alias."""
+    from app.models import TagAlias
+
     data = _load_yaml("tags.yaml")
     if not data:
         return
+
+    # Pass 1: skapa taggar utan parent
     added = 0
     for row in data:
         existing = session.exec(select(Tag).where(Tag.name == row["name"])).first()
@@ -78,11 +88,45 @@ def _seed_tags(session: Session) -> None:
             Tag(
                 name=row["name"],
                 kind=TagKind(row.get("kind", "free")),
+                description=row.get("description"),
                 sort_order=row.get("sort_order", 0),
             )
         )
         added += 1
-    logger.info("Tags: skapade {} nya", added)
+    session.flush()
+
+    # Pass 2: koppla parent och lägg in alias
+    parent_set = 0
+    alias_added = 0
+    for row in data:
+        tag = session.exec(select(Tag).where(Tag.name == row["name"])).first()
+        if not tag:
+            continue
+
+        parent_name = row.get("parent")
+        if parent_name and tag.parent_id is None:
+            parent = session.exec(select(Tag).where(Tag.name == parent_name)).first()
+            if parent and parent.kind == tag.kind:
+                tag.parent_id = parent.id
+                session.add(tag)
+                parent_set += 1
+
+        for alias_name in row.get("aliases") or []:
+            existing_alias = session.exec(
+                select(TagAlias).where(TagAlias.name == alias_name)
+            ).first()
+            if existing_alias:
+                continue
+            # Skippa om namnet krockar med befintlig tag
+            if session.exec(select(Tag).where(Tag.name == alias_name)).first():
+                continue
+            session.add(TagAlias(tag_id=tag.id, name=alias_name))
+            alias_added += 1
+
+    logger.info(
+        "Tags: {} nya, {} parent-kopplingar, {} alias",
+        added, parent_set, alias_added,
+    )
 
 
 def _seed_users(session: Session) -> None:

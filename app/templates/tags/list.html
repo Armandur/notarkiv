@@ -2,8 +2,50 @@
 {% block title %}Taggar - Notarkiv{% endblock %}
 
 {% block content %}
-{% set kind_labels = {'liturgical': 'Kyrkoåret', 'occasion': 'Tillfällen', 'voicing': 'Besättning', 'accompaniment': 'Ackompanjemang', 'free': 'Fria taggar'} %}
-{% set kind_colors = {'liturgical': 'primary', 'occasion': 'success', 'voicing': 'secondary', 'accompaniment': 'info', 'free': 'secondary'} %}
+{% set kind_labels = {'occasion': 'Tillfälle', 'voicing': 'Besättning', 'accompaniment': 'Ackompanjemang', 'free': 'Fria taggar'} %}
+{% set kind_colors = {'occasion': 'success', 'voicing': 'secondary', 'accompaniment': 'info', 'free': 'secondary'} %}
+
+{% macro render_node(node, kind, color, depth=0) %}
+  <tr>
+    <td>
+      <div style="padding-left: {{ depth * 1.5 }}em">
+        {% if depth > 0 %}<span class="text-muted me-1">└─</span>{% endif %}
+        <a href="/pieces?tag={{ node.tag.name|urlencode }}" class="text-decoration-none">
+          <span class="badge bg-{{ color }}">{{ node.tag.name }}</span>
+        </a>
+        {% for alias in aliases_by_tag.get(node.tag.id, []) %}
+        <span class="badge bg-light text-muted border" title="Alias för {{ node.tag.name }}">
+          {{ alias.name }}
+          {% if user.is_admin %}
+          <a href="#" class="text-reset text-decoration-none ms-1"
+             onclick="event.preventDefault();confirmAction('/tags/{{ node.tag.id }}/alias/{{ alias.id }}/delete',
+                                                            'Ta bort aliaset \'{{ alias.name|e }}\'?',
+                                                            {submitLabel: 'Ta bort'})">×</a>
+          {% endif %}
+        </span>
+        {% endfor %}
+        {% if node.tag.description %}
+        <div class="small text-muted mt-1" style="padding-left: 1em">{{ node.tag.description }}</div>
+        {% endif %}
+      </div>
+    </td>
+    <td class="text-end">{{ node.count }}</td>
+    <td class="text-end">
+      {% if user.is_admin %}
+      <button class="btn btn-sm btn-outline-secondary"
+              data-bs-toggle="modal" data-bs-target="#editTagModal-{{ node.tag.id }}">✏</button>
+      <button class="btn btn-sm btn-outline-secondary"
+              data-bs-toggle="modal" data-bs-target="#aliasModal-{{ node.tag.id }}"
+              title="Hantera alias">α</button>
+      <button class="btn btn-sm btn-outline-danger"
+              onclick="confirmAction('/tags/{{ node.tag.id }}/delete', 'Radera \'{{ node.tag.name|e }}\'? {{ node.count }} kopplingar tas också bort.')">×</button>
+      {% endif %}
+    </td>
+  </tr>
+  {% for child in node.children %}
+    {{ render_node(child, kind, color, depth + 1) }}
+  {% endfor %}
+{% endmacro %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Taggar</h1>
@@ -15,13 +57,15 @@
 </div>
 
 <p class="text-muted small">
-  Klicka på en tagg för att se alla noter som har den. Taggar läggs
-  till per not via Redigera-sidan.
+  Klicka på en tagg för att se alla noter som har den. Taggar kan grupperas
+  hierarkiskt och få alias för att hjälpa sökning (t.ex. "Minnesgudstjänst"
+  → "Allhelgona").
 </p>
 
 {% for kind, label in kind_labels.items() %}
 {% if by_kind.get(kind) %}
-<h2 class="h5 mt-4">{{ label }} <span class="badge bg-light text-muted">{{ by_kind[kind]|length }}</span></h2>
+{% set color = kind_colors.get(kind, 'secondary') %}
+<h2 class="h5 mt-4">{{ label }}</h2>
 <div class="card">
   <table class="table table-hover mb-0 align-middle">
     <thead>
@@ -32,28 +76,8 @@
       </tr>
     </thead>
     <tbody>
-      {% for item in by_kind[kind] %}
-      {% set color = kind_colors.get(kind, 'secondary') %}
-      <tr>
-        <td>
-          <a href="/pieces?tag={{ item.tag.name|urlencode }}"
-             class="text-decoration-none">
-            <span class="badge bg-{{ color }}">{{ item.tag.name }}</span>
-          </a>
-          {% if item.tag.description %}
-          <div class="small text-muted mt-1">{{ item.tag.description }}</div>
-          {% endif %}
-        </td>
-        <td class="text-end">{{ item.count }}</td>
-        <td class="text-end">
-          {% if user.is_admin %}
-          <button class="btn btn-sm btn-outline-secondary"
-                  data-bs-toggle="modal" data-bs-target="#editTagModal-{{ item.tag.id }}">✏</button>
-          <button class="btn btn-sm btn-outline-danger"
-                  onclick="confirmAction('/tags/{{ item.tag.id }}/delete', 'Radera \'{{ item.tag.name|e }}\'? {{ item.count }} kopplingar tas också bort.')">×</button>
-          {% endif %}
-        </td>
-      </tr>
+      {% for root in by_kind[kind] %}
+        {{ render_node(root, kind, color) }}
       {% endfor %}
     </tbody>
   </table>
@@ -84,6 +108,15 @@
           </select>
         </div>
         <div class="col-12">
+          <label class="form-label">Förälder (valfri, måste vara samma typ)</label>
+          <select name="parent_id" class="form-select tomselect">
+            <option value="">(ingen)</option>
+            {% for t in all_tags %}
+            <option value="{{ t.id }}" data-kind="{{ t.kind }}">{{ kind_labels.get(t.kind, t.kind) }} · {{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
           <label class="form-label">Beskrivning (valfri)</label>
           <textarea name="description" class="form-control" rows="2"
                     placeholder="T.ex. 'Veckan från Palmsöndag till Påskafton'"></textarea>
@@ -97,11 +130,10 @@
   </div>
 </div>
 
-{% for kind, items in by_kind.items() %}
-{% for item in items %}
-<div class="modal fade" id="editTagModal-{{ item.tag.id }}" tabindex="-1">
+{% for t in all_tags %}
+<div class="modal fade" id="editTagModal-{{ t.id }}" tabindex="-1">
   <div class="modal-dialog">
-    <form class="modal-content" method="post" action="/tags/{{ item.tag.id }}/update">
+    <form class="modal-content" method="post" action="/tags/{{ t.id }}/update">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="modal-header">
         <h2 class="modal-title h5">Redigera tagg</h2>
@@ -110,19 +142,30 @@
       <div class="modal-body row g-2">
         <div class="col-md-7">
           <label class="form-label">Namn</label>
-          <input type="text" name="name" class="form-control" value="{{ item.tag.name }}" required>
+          <input type="text" name="name" class="form-control" value="{{ t.name }}" required>
         </div>
         <div class="col-md-5">
           <label class="form-label">Typ</label>
           <select name="kind" class="form-select">
             {% for k in kinds %}
-            <option value="{{ k }}" {% if item.tag.kind == k %}selected{% endif %}>{{ kind_labels.get(k, k) }}</option>
+            <option value="{{ k }}" {% if t.kind == k %}selected{% endif %}>{{ kind_labels.get(k, k) }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Förälder (samma typ)</label>
+          <select name="parent_id" class="form-select tomselect">
+            <option value="">(ingen)</option>
+            {% for pt in all_tags %}
+              {% if pt.id != t.id and pt.kind == t.kind %}
+              <option value="{{ pt.id }}" {% if t.parent_id == pt.id %}selected{% endif %}>{{ pt.name }}</option>
+              {% endif %}
             {% endfor %}
           </select>
         </div>
         <div class="col-12">
           <label class="form-label">Beskrivning (valfri)</label>
-          <textarea name="description" class="form-control" rows="2">{{ item.tag.description or '' }}</textarea>
+          <textarea name="description" class="form-control" rows="2">{{ t.description or '' }}</textarea>
         </div>
       </div>
       <div class="modal-footer">
@@ -132,7 +175,45 @@
     </form>
   </div>
 </div>
-{% endfor %}
+
+<div class="modal fade" id="aliasModal-{{ t.id }}" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Alias för {{ t.name }}</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted">
+          Alias låter sökning hitta samma tagg via olika benämningar.
+          T.ex. "Minnesgudstjänst" som alias för "Allhelgona".
+        </p>
+        {% set tag_aliases = aliases_by_tag.get(t.id, []) %}
+        {% if tag_aliases %}
+        <ul class="list-group mb-3">
+          {% for alias in tag_aliases %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>{{ alias.name }}</span>
+            <button type="button" class="btn btn-sm btn-outline-danger"
+                    onclick="confirmAction('/tags/{{ t.id }}/alias/{{ alias.id }}/delete', 'Ta bort aliaset \'{{ alias.name|e }}\'?', {submitLabel: 'Ta bort'})">×</button>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted fst-italic small">Inga alias än.</p>
+        {% endif %}
+        <form method="post" action="/tags/{{ t.id }}/alias/add" class="d-flex gap-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="text" name="name" class="form-control form-control-sm" placeholder="Nytt alias..." required>
+          <button type="submit" class="btn btn-sm btn-primary">Lägg till</button>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Stäng</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endfor %}
 {% endif %}
 {% endblock %}
