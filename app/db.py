@@ -13,6 +13,7 @@ from app.models import (  # noqa: F401
     InventoryCheck,
     InventorySession,
     Loan,
+    LoanBatch,
     Person,
     PersonLink,
     Piece,
@@ -26,6 +27,7 @@ from app.models import (  # noqa: F401
     StorageLocation,
     StorageUnit,
     Tag,
+    TagAlias,
     UnitKind,
     User,
 )
@@ -59,7 +61,108 @@ def init_db() -> None:
     settings.ensure_dirs()
     SQLModel.metadata.create_all(engine)
     _ensure_fts_objects()
+    _ensure_column_guards()
+    _backfill_public_ids()
+    _backfill_kiosk_tokens()
     logger.info("Databas initialiserad: {}", settings.database_url)
+
+
+def _backfill_public_ids() -> None:
+    """Sätt public_id på pieces som saknar det (efter ALTER). Idempotent."""
+    if "sqlite" not in settings.database_url:
+        return
+    import uuid as _uuid
+
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        rows = conn.execute(text("SELECT id FROM pieces WHERE public_id IS NULL")).fetchall()
+        for (pid,) in rows:
+            conn.execute(
+                text("UPDATE pieces SET public_id = :uid WHERE id = :id"),
+                {"uid": _uuid.uuid4().hex, "id": pid},
+            )
+        if rows:
+            logger.info("Backfillade public_id på {} pieces", len(rows))
+
+
+def _backfill_kiosk_tokens() -> None:
+    """Slumpa kiosk_token för users som saknar det. Idempotent."""
+    if "sqlite" not in settings.database_url:
+        return
+    import secrets
+
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        rows = conn.execute(text("SELECT id FROM users WHERE kiosk_token IS NULL")).fetchall()
+        for (uid,) in rows:
+            conn.execute(
+                text("UPDATE users SET kiosk_token = :tok WHERE id = :id"),
+                {"tok": secrets.token_hex(16), "id": uid},
+            )
+        if rows:
+            logger.info("Backfillade kiosk_token på {} users", len(rows))
+
+
+def _ensure_column_guards() -> None:
+    """ALTER TABLE-guards för nya kolumner som tillkommit efter prod-data.
+    SQLite saknar IF NOT EXISTS för ADD COLUMN, så vi kollar PRAGMA först."""
+    if "sqlite" not in settings.database_url:
+        return
+
+    from sqlalchemy import text
+
+    additions = {
+        "loans": [
+            ("batch_id", "INTEGER REFERENCES loan_batches(id)"),
+            ("picked_up_at", "DATETIME"),
+        ],
+        "psalm_books": [
+            ("edition", "VARCHAR"),
+        ],
+        "psalm_entries": [
+            ("edition", "VARCHAR"),
+        ],
+        "piece_psalm_refs": [
+            ("edition", "VARCHAR"),
+        ],
+        "pieces": [
+            ("spotify_url", "VARCHAR"),
+            ("public_id", "VARCHAR"),
+        ],
+        "people": [
+            ("wikidata_id", "VARCHAR"),
+            ("biography_fetched_at", "DATETIME"),
+            ("portrait_fetched_at", "DATETIME"),
+        ],
+        "tags": [
+            ("description", "VARCHAR"),
+        ],
+        "scan_sessions": [
+            ("target_piece_id", "INTEGER REFERENCES pieces(id)"),
+        ],
+        "tags": [
+            ("parent_id", "INTEGER REFERENCES tags(id)"),
+        ],
+        "users": [
+            ("pin_hash", "VARCHAR"),
+            ("kiosk_token", "VARCHAR"),
+        ],
+    }
+
+    with engine.begin() as conn:
+        for table, columns in additions.items():
+            existing = {
+                row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})").fetchall()
+            }
+            if not existing:
+                continue  # tabellen finns inte alls
+            for col_name, col_def in columns:
+                if col_name in existing:
+                    continue
+                conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_def}")
+                logger.info("ALTER TABLE {} ADD COLUMN {}", table, col_name)
 
 
 def _ensure_fts_objects() -> None:

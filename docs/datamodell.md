@@ -21,14 +21,18 @@ Huvudsakliga koncept:
    utgåva/arrangemang
 2. **Bilder** (`piece_images`) - en eller flera bilder per not (omslag,
    baksida, försättsblad m.m.)
-3. **Person** (`people` + `piece_contributors`) - kompositör, arrangör,
-   textförfattare som egna entiteter med relation till piece via roll
+3. **Person** (`people` + `piece_contributors` + `person_links`) -
+   kompositör, arrangör, textförfattare som egna entiteter med relation
+   till piece via roll. `person_links` håller URL:er till
+   Wikipedia/Spotify/MusicBrainz osv. Biografi (markdown) hämtas från
+   Wikipedia och porträtt från MusicBrainz/Wikidata.
 4. **Lagringsplats** (`storage_locations` + `storage_units`) - var noten
-   finns, fysiskt eller digitalt. Enhetstyper i `unit_kinds`.
+   finns, fysiskt eller digitalt. Enhetstyper i `unit_kinds`. Bilder
+   per enhet i `storage_unit_images`.
 5. **Placering** (`piece_placements`) - många-till-många: en not kan
    finnas på flera platser
 6. **Tagg** (`tags` + `piece_tags`) - liturgisk användning, tillfällen,
-   fria etiketter
+   besättning (voicing), ackompanjemang och fria etiketter
 7. **Skanning** (`scan_sessions` + `scan_session_images`) - varje
    uppladdning blir en session; OCR + MB-berikning körs som arq-jobb.
    Avvisade scans markeras `discarded` istället för att raderas.
@@ -36,7 +40,14 @@ Huvudsakliga koncept:
    skanningar gjorda i samma sammanhang, med planerad plats och logg
 9. **Inventeringskontroll** (`inventory_checks`) - en kontroll per
    placering inom en session: ✓ hittad / ⚠ avvikande antal / ✗ saknas
-10. **Inställningar** (`app_settings`) - runtime-värden ändringsbara via
+10. **Utlån** (`loans` + `loan_batches`) - enskilda utlån eller
+    grupperade via batch med livscykel cart/picking/active/returned
+11. **Psalmreferenser** (`psalm_books` + `psalm_entries` +
+    `piece_psalm_refs`) - länkar en not till nummer i 1986/2003 års
+    svenska psalmbok (många-till-många)
+12. **Användaranteckningar** (`piece_user_notes`) - personlig
+    information per användare på en not (tonarter, repetitionsnoter)
+13. **Inställningar** (`app_settings`) - runtime-värden ändringsbara via
     admin-UI (Anthropic-nyckel, Claude-modell, MB User-Agent)
 
 ## Tabeller
@@ -73,34 +84,34 @@ CREATE TABLE pieces (
     id INTEGER PRIMARY KEY,
     title TEXT NOT NULL,
     original_title TEXT,                   -- om titeln är översatt
-    composer TEXT,
-    arranger TEXT,
-    lyricist TEXT,
     language TEXT,                         -- ISO 639-1, t.ex. 'sv', 'la', 'en'
-    voicing TEXT,                          -- SATB, SAB, SSA, unison, solo, etc.
-    accompaniment TEXT,                    -- a_cappella, piano, organ, other
     publisher TEXT,
     edition_number TEXT,                   -- förlagsnummer/edition
-    psalm_number INTEGER,                  -- valfritt, om kopplat till psalmboken
     difficulty INTEGER,                    -- 1-5, valfritt
     duration_seconds INTEGER,              -- valfritt
     copyright_status TEXT,                 -- original, licensed_copy, public_domain, unknown
     musicbrainz_work_id TEXT,              -- MBID om matchat
+    spotify_url TEXT,                      -- manuellt angiven referensinspelning
     notes TEXT,
+    contributors_cache TEXT,               -- denormaliserad sökbar textrad
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by INTEGER REFERENCES users(id)
 );
 
-CREATE INDEX idx_pieces_composer ON pieces(composer);
 CREATE INDEX idx_pieces_title ON pieces(title);
 ```
 
 Notpost har inget eget `cover_image_path`-fält - alla bilder finns i
 `piece_images` med `sort_order` (lägst = primär).
 
+Borttagna kolumner från tidigare iterationer (lever i Tag istället):
+- `composer`/`arranger`/`lyricist` - finns nu som Person via `piece_contributors`
+- `voicing`/`accompaniment` - är nu Tag med `kind=voicing`/`accompaniment`
+- `psalm_number` - är nu `piece_psalm_refs` med flera referenser per not
+
 `contributors_cache` är en denormaliserad sökbar textrad byggd från
-`piece_contributors`-länkarna, t.ex. `"Felix Mendelssohn (composer); Hugo Distler (arranger)"`.
+`piece_contributors`-länkarna, t.ex. `"Felix Mendelssohn; Hugo Distler"`.
 Genereras om vid varje spara av piece eller person. FTS5 indexerar den.
 
 ### `people` - Personer (kompositörer, arrangörer, textförfattare)
@@ -435,6 +446,57 @@ Nycklar som används idag: `anthropic_api_key`, `claude_model`,
 SQLite-filen på OS-nivå. `app/services/app_settings.py` läser via DB med
 env-värden som fallback.
 
+## Tabeller tillkomna efter v1
+
+Källan till sanning är SQLModel-klassen i `app/models/`. Översikt:
+
+### `loans` - Utlån
+
+Per-placering registrering av utlån. Kan vara enskilt (`batch_id` null)
+eller del av en `LoanBatch`. `picked_up_at` är null tills låntagaren
+fysiskt hämtat noten (sätts vid registrering för enskilda lån som
+hoppar över plockflödet). `returned_at` markerar återlämning.
+
+### `loan_batches` - Grupperat utlån
+
+Innehåller flera `loans`-rader. Status driver UX:
+`cart` (kundvagn, en per användare), `picking` (hämta noterna),
+`active` (alla hämtade, lånet pågår), `returned`.
+Namn är obligatoriskt vid checkout (t.ex. "Konsert 14 juni").
+
+### `psalm_books` + `psalm_entries`
+
+Referensdata seedad från `seed_data/psalms/*.yaml`. En `PsalmBook` är
+en utgåva (1986 års svenska psalmbok, Verbums tillägg 2003). Varje
+psalm är en `PsalmEntry` med nummer + titel + sektion. UNIQUE på
+(book_id, edition, number).
+
+### `piece_psalm_refs`
+
+Många-till-många: en not kan finnas i flera psalmböcker. UNIQUE på
+(piece_id, book_id, edition, number). Cascade-delete från piece.
+
+### `piece_user_notes`
+
+Personliga anteckningar per användare på en not (tonarter, repetition).
+Olika från `pieces.notes` som är publik.
+
+### `person_links`
+
+URL-lista per person (Wikipedia, Spotify, YouTube, Instagram, MB).
+`kind` är en enum, `label` är typiskt URL:en själv (sätts av
+`_ensure_link`-helpern).
+
+### `storage_unit_images`
+
+Bilder på lagringsenheter (skanna ryggen på pärmen). Samma mönster
+som `piece_images`. Cascade-delete från unit.
+
+### `scan_session_images`
+
+Extra bilder utöver OCR-målet under en skanning - t.ex. baksidan eller
+försättsbladet som ska bli `PieceImage` när granskningen sparas.
+
 ## Dubblettkoll - logik
 
 Implementerat i `app/services/duplicates.py::find_duplicates`.
@@ -455,30 +517,29 @@ Skala över 10k noter: byt till Postgres `pg_trgm` GIN-index.
 
 ## Migrationsstrategi
 
-**Före prod (nuvarande läge): nuke + seed.** Vid schemaändringar
-raderar vi databasen och kör om seed-skriptet. Inga ALTER-guards
-används. Se `seed-data.md` för seed-strukturen och CLI-kommandona.
-
-```bash
-python -m app.cli db reset --seed
-```
-
-Modellen utvecklas snabbt under utveckling - vi sparar mycket tid på
-att inte hantera migrationer för tillfällig data.
-
-**Efter prod**: `init_db()` blir idempotent med ALTER-guards för
-framtida kolumner:
+`init_db()` är idempotent och kör vid varje uvicorn-start:
 
 ```python
-def init_db(engine):
-    SQLModel.metadata.create_all(engine)  # skapar saknade tabeller
-    _apply_column_guards(engine)           # ALTER för nya kolumner
-    _ensure_fts_objects(engine)            # FTS5-tabell + triggers (SQLite only)
-    _seed_default_tags_if_missing(engine)  # idempotent
+def init_db():
+    settings.ensure_dirs()
+    SQLModel.metadata.create_all(engine)   # skapar saknade tabeller
+    _ensure_fts_objects()                  # FTS5-tabell + triggers (SQLite only)
+    _ensure_column_guards()                # ALTER TABLE för nya kolumner
 ```
 
-Tröskeln för bytet: när användaren registrerar skarp data eller en
-backup tas första gången. Se `seed-data.md` för fullständig checklista.
+Schemaändringar:
+
+- **Helt ny tabell** → ingen åtgärd behövs, `create_all()` skapar den
+- **Ny kolumn** → lägg till i SQLModel + ett par `(namn, "SQL_TYP")`
+  i `_ensure_column_guards()`-additions-dicten
+- **Rename/drop/type change** → manuell SQL eller om-skanning
+
+`db reset --seed` är destruktivt och ska bara köras efter explicit
+godkännande från användaren - även "test"-data kan i praktiken vara
+skarpa skanningar och biografier som inte återskapas.
+
+Vid större ändringar: skriv engångs-script under `scripts/` och
+committa.
 
 När projektet är moget nog att flytta till Postgres kan vi byta till
 Alembic - men inte tidigare. Se `postgres-migration.md`.

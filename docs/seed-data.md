@@ -1,18 +1,18 @@
 # Seed-data och databas-reset
 
-Fram tills projektet går i riktig produktion gäller: **vi gör inga
-migrationer**. Vid schemaändringar nukar vi databasen och kör om
-seed-skriptet med testdata. Detta sparar enormt mycket utvecklingstid
-och är säkert eftersom inga "riktiga" produktionsdata finns ännu.
+Migrationer hanteras via `_ensure_column_guards()` i `app/db.py` -
+en additions-dict per tabell som kör `ALTER TABLE ... ADD COLUMN`
+idempotent vid varje `init_db()`. Nya tabeller skapas automatiskt av
+`SQLModel.metadata.create_all()`.
 
-## Vad räknas som "riktig produktion"
+`db reset` är destruktivt och får bara köras efter explicit
+godkännande från användaren - även en till synes "testdatabas" kan
+innehålla skarpa skanningar, biografier eller manuell metadata som
+inte återskapas av seed.
 
-Tröskeln är när någon faktiskt kör skarp registrering av sina noter
-och förväntar sig att de finns kvar. Tills dess: ingen data är helig.
-
-Operativt beslut: när användaren säger "nu går vi i prod" *eller* när
-en backup av databasen tas första gången - då slutar nuke-strategin
-vara OK och vi börjar bevara data.
+Lokala snapshots i `snapshots/` (gitignored) är räddningsplanken vid
+oavsiktlig nuke - de skapas av `scripts/backup.sh` och innehåller
+sqlite3 .backup + bild-mappen.
 
 ## Verktyg
 
@@ -41,14 +41,18 @@ Seed-data ligger i `seed_data/`:
 seed_data/
   users.yaml              # Användare (admin, et al.) - valfri
   storage_locations.yaml  # Fysiska och digitala lagringsplatser - valfri
-  tags.yaml               # Liturgiska kategorier, tillfällen - inkluderad
-  unit_kinds.yaml         # Typer av förvaringsenheter - inkluderad
+  tags.yaml               # Liturgiska kategorier, voicing, ackompanjemang
+  unit_kinds.yaml         # Typer av förvaringsenheter
+  psalms/                 # Psalmböcker (1986 + 2003 års svenska psalmbok)
+    svps_1986.yaml
+    verbums_tillagg_2003.yaml
   pieces.yaml             # (valfritt) Provnoter för testning
   covers/                 # (valfritt) Bilder kopplade till pieces.yaml
 ```
 
-`tags.yaml` och `unit_kinds.yaml` är pre-fyllda i repot och seedas
-alltid. Övriga skapas av användaren vid behov.
+`tags.yaml`, `unit_kinds.yaml` och `psalms/*.yaml` är pre-fyllda i
+repot och seedas alltid av `seed_all()`. Övriga skapas av användaren
+vid behov.
 
 YAML är förstaval eftersom det är trivialt att redigera för hand och
 stödjer kommentarer. JSON funkar också om det visar sig krångligare.
@@ -130,44 +134,43 @@ först.
 
 ## Hot-reload av seed-data under utveckling
 
-Vid små schema- eller seed-ändringar:
+Vid nya kolumner: lägg in dem i `_ensure_column_guards()` och starta
+om servern. Migrationen körs automatiskt.
+
+Vid nya tabeller: definiera modellen, lägg till i `app/models/__init__.py`
+och `app/db.py`-importen, starta om servern. `create_all()` skapar
+tabellen.
+
+`db reset` används bara när modellen genomgår större ombyggnad och
+användaren explicit godkänner förlust av befintlig data. Ta alltid en
+manuell snapshot till `snapshots/` först:
 
 ```bash
-# 1. Stoppa appen och worker
-# 2. Reset+seed
-python -m app.cli db reset --seed
-# 3. Starta om
-docker-compose up -d
+mkdir -p snapshots
+sqlite3 data/notarkiv.db ".backup snapshots/innan-reset-$(date +%Y%m%d_%H%M).db"
 ```
-
-Med Docker-volym för `data/notarkiv.db`: `--seed` raderar filen,
-`init_db()` skapar nytt schema, seed-skriptet fyller med testdata.
 
 ## Förhållande till migrationsstrategin
 
-I `docs/datamodell.md` beskrivs `init_db()` som idempotent med
-ALTER-guards för nya kolumner. Det gäller **efter** vi gått i prod.
+`init_db()` är idempotent och kör i ordning:
 
-Före prod: vi struntar i ALTER-guards. När en kolumn läggs till,
-ändras typ, eller döps om - skriv om SQLModel-klassen, kör reset+seed.
+1. `SQLModel.metadata.create_all()` - skapar nya tabeller som saknas
+2. `_ensure_fts_objects()` - sätter upp FTS5 + triggers
+3. `_ensure_column_guards()` - läser additions-dict, kollar
+   `PRAGMA table_info(table)`, kör `ALTER TABLE ... ADD COLUMN` för
+   varje kolumn som saknas.
 
-När prod-tröskeln passeras: börja behålla ALTER-guards för nya
-kolumnersättningar. Dokumentera datumet i CHANGELOG.md eller motsv.
+Schemaändring i en SQLModel-klass innebär alltså:
 
-## När prod-tröskeln passeras
+- Helt ny tabell → ingen åtgärd behövs, `create_all()` fixar det
+- Ny kolumn på befintlig tabell → lägg in i `additions`-dicten med
+  kolumnnamn och SQL-typ
+- Rename/drop/type change → manuell SQL eller om-skanning, prata med
+  användaren först
 
-Checklista för övergång från "nuke-OK" till "bevara":
+Vid mer omfattande ändringar (många kolumner samtidigt, datamigration)
+kan det vara värt att skriva ett engångs-script i `scripts/` och
+committa det tillsammans med koden.
 
-- [ ] Skapa en CHANGELOG.md och dokumentera datumet
-- [ ] Stäng av eller fasa ut `db reset`-kommandot (eller lägg
-      bakom `--force-yes-really`-flagga)
-- [ ] Verifiera att backup (`litestream`) är konfigurerad och testad
-- [ ] Sluta lägga schemaändringar i samma commit som koden -
-      separera så de kan reviewas
-- [ ] Börja använda ALTER-guards för nya kolumner istället för att
-      ändra modellklassen rakt av
-- [ ] Vid större ändringar: skriv migrationsscript som engångskörning,
-      committa det, dokumentera
-
-Vid det laget kan det vara värt att införa Alembic. Eller fortsätta
-med handgjorda migrationer om de få ändringar som behövs gör det enkelt.
+Alembic är inte införd och behövs inte heller - additions-dicten är
+tillräcklig för en liten singel-tabell-per-vecka-tröskel.
