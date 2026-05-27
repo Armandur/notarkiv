@@ -20,6 +20,7 @@ from app.routes import scan as scan_routes
 from app.routes import storage as storage_routes
 from app.routes import tags as tags_routes
 from app.routes.admin import jobs as admin_jobs_routes
+from app.routes.admin import kiosks as admin_kiosks_routes
 from app.routes.admin import psalmbooks as admin_psalmbooks_routes
 from app.routes.admin import settings as admin_settings_routes
 from app.routes.admin import unit_kinds as admin_unit_kinds_routes
@@ -68,6 +69,7 @@ app.include_router(tags_routes.router)
 app.include_router(admin_users_routes.router)
 app.include_router(admin_settings_routes.router)
 app.include_router(admin_jobs_routes.router)
+app.include_router(admin_kiosks_routes.router)
 app.include_router(admin_psalmbooks_routes.router)
 app.include_router(admin_unit_kinds_routes.router)
 

@@ -4,7 +4,14 @@ from sqlmodel import Session, select
 
 from datetime import datetime
 
-from app.deps import get_session, require_admin, require_auth, require_editor, verify_csrf
+from app.deps import (
+    get_session,
+    require_admin,
+    require_auth,
+    require_editor,
+    require_kiosk_session,
+    verify_csrf,
+)
 from app.models import (
     ContributorRole,
     Loan,
@@ -84,9 +91,7 @@ async def by_public_id(
 
 
 def _kiosk_borrower(request: Request, session: Session) -> User | None:
-    """Den autentiserade låntagaren för aktuell kiosk-session (via PIN).
-    Skiljt från den inloggade kioskanvändaren - kioskuser håller bara
-    webbsessionen, låntagaren autentiserar sig per skanning."""
+    """Den autentiserade låntagaren för aktuell kiosk-session (via PIN)."""
     bid = request.session.get("kiosk_borrower_id")
     if not bid:
         return None
@@ -94,42 +99,144 @@ def _kiosk_borrower(request: Request, session: Session) -> User | None:
     return user
 
 
-def _kiosk_context(request: Request, session: Session, user: User) -> dict:
+def _kiosk_context(request: Request, session: Session, kiosk) -> dict:
     """Hämta cart-batch + items + auth-state för kiosk-vyn.
 
     Cart är knuten till den autentiserade låntagaren (via PIN), inte till
-    kioskanvändaren. Det gör att kioskdatorn kan delas av många användare
+    kiosken. Det gör att kioskdatorn kan delas av många användare
     utan att korgar blandas."""
-    from app.models import Loan
-    from app.routes.loans import _enrich_loans, _get_or_create_cart
+    from app.models import Loan, LoanBatch, LoanBatchStatus
+    from app.routes.loans import _enrich_loans, _get_or_create_cart, _unit_path
 
     borrower = _kiosk_borrower(request, session)
     cart = None
-    items: list = []
+    cart_items: list = []
+    active_solo: list = []
+    active_batches: list = []
+
+    kiosk_location = (
+        session.get(StorageLocation, kiosk.location_id) if kiosk.location_id else None
+    )
+    allowed_unit_ids = _kiosk_location_unit_ids(session, kiosk.location_id)
+
+    def _annotate(items: list[dict]) -> None:
+        for it in items:
+            it["in_kiosk_location"] = (
+                allowed_unit_ids is None
+                or (it["unit"] and it["unit"].id in allowed_unit_ids)
+            )
+            it["path"] = _unit_path(session, it["unit"]) if it["unit"] else "Okänd plats"
+
     if borrower:
         cart = _get_or_create_cart(session, borrower.id)
-        loans = session.exec(
+        cart_loans = session.exec(
             select(Loan).where(Loan.batch_id == cart.id).order_by(Loan.id)
         ).all()
-        items = _enrich_loans(session, loans)
+        cart_items = _enrich_loans(session, cart_loans)
+
+        from sqlalchemy import or_
+
+        # "Mina lån" = där jag är låntagare ELLER där jag registrerade utlånet.
+        # Senare täcker externa lån som låntagaren själv registrerat via kiosken.
+        solo_loans = session.exec(
+            select(Loan)
+            .where(
+                or_(
+                    Loan.borrower_user_id == borrower.id,
+                    Loan.registered_by == borrower.id,
+                )
+            )
+            .where(Loan.returned_at.is_(None))
+            .where(Loan.batch_id.is_(None))
+        ).all()
+        active_solo = _enrich_loans(session, solo_loans)
+        _annotate(active_solo)
+
+        # Aktiva batches: jag är låntagare eller jag skapade den
+        batches = session.exec(
+            select(LoanBatch)
+            .where(
+                or_(
+                    LoanBatch.borrower_user_id == borrower.id,
+                    LoanBatch.created_by == borrower.id,
+                )
+            )
+            .where(LoanBatch.status == LoanBatchStatus.ACTIVE)
+            .order_by(LoanBatch.borrowed_at.desc())
+        ).all()
+        for batch in batches:
+            batch_loans = session.exec(
+                select(Loan)
+                .where(Loan.batch_id == batch.id)
+                .where(Loan.returned_at.is_(None))
+            ).all()
+            enriched = _enrich_loans(session, batch_loans)
+            _annotate(enriched)
+            here_count = sum(1 for it in enriched if it["in_kiosk_location"])
+            active_batches.append(
+                {
+                    "batch": batch,
+                    "entries": enriched,
+                    "total_remaining": len(enriched),
+                    "here_count": here_count,
+                }
+            )
 
     return {
         "borrower": borrower,
+        "kiosk": kiosk,
+        "kiosk_location": kiosk_location,
         "cart": cart,
-        "cart_items": items,
-        "cart_total": len(items),
+        "cart_items": cart_items,
+        "cart_total": len(cart_items),
+        "active_solo": active_solo,
+        "active_batches": active_batches,
     }
+
+
+@kiosk_router.get("/activate")
+async def kiosk_activate(
+    request: Request,
+    token: str = "",
+    session: Session = Depends(get_session),
+) -> Response:
+    """Aktivera kioskenheten på denna webbläsare. Sätter session-cookie
+    permanent och rensar ev. user-login - kioskdatorn ska inte vara
+    inloggad som en person."""
+    from app.models import Kiosk
+
+    kiosk = session.exec(select(Kiosk).where(Kiosk.access_token == token.strip())).first() if token else None
+    if not kiosk:
+        return render(request, "pieces/kiosk_activate_failed.html", {}, user=None, status_code=403)
+
+    request.session["kiosk_id"] = kiosk.id
+    request.session.pop("kiosk_borrower_id", None)
+    # Rensa INTE user_id - admin behöver kunna fortsätta vara inloggad
+    # för att navigera tillbaka till t.ex. /admin/kiosks. På en delad
+    # produktionskiosk loggar admin ut själv när hen är klar.
+    kiosk.last_activity_at = datetime.utcnow()
+    session.add(kiosk)
+    session.commit()
+    return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
+
+
+@kiosk_router.post("/deactivate", dependencies=[Depends(verify_csrf)])
+async def kiosk_deactivate(request: Request) -> Response:
+    """Avaktivera kiosk-läget. Sessionen återgår till en vanlig (utloggad)."""
+    request.session.pop("kiosk_id", None)
+    request.session.pop("kiosk_borrower_id", None)
+    return RedirectResponse("/login", status.HTTP_302_FOUND)
 
 
 @kiosk_router.get("")
 async def kiosk_input(
     request: Request,
-    user: User = Depends(require_auth),
+    kiosk = Depends(require_kiosk_session),
     session: Session = Depends(get_session),
 ) -> Response:
     """Kioskstartvy: pinkod-input om ej autentiserad, annars scanner+cart."""
-    ctx = _kiosk_context(request, session, user)
-    return render(request, "pieces/kiosk.html", ctx, user=user)
+    ctx = _kiosk_context(request, session, kiosk)
+    return render(request, "pieces/kiosk.html", ctx, user=None)
 
 
 @kiosk_router.post("/auth", dependencies=[Depends(verify_csrf)])
@@ -137,7 +244,7 @@ async def kiosk_auth(
     request: Request,
     username: str = Form(...),
     pin: str = Form(...),
-    user: User = Depends(require_auth),
+    kiosk = Depends(require_kiosk_session),
     session: Session = Depends(get_session),
 ) -> Response:
     """Autentisera en låntagare via användarnamn + PIN. Sätter session-
@@ -168,7 +275,7 @@ async def kiosk_auth(
 async def kiosk_qr_auth(
     request: Request,
     token: str = Form(...),
-    user: User = Depends(require_auth),
+    kiosk = Depends(require_kiosk_session),
     session: Session = Depends(get_session),
 ) -> Response:
     """Autentisera en låntagare via QR-token från deras profil. Token
@@ -200,10 +307,9 @@ async def kiosk_qr_auth(
 @kiosk_router.post("/logout", dependencies=[Depends(verify_csrf)])
 async def kiosk_logout(
     request: Request,
-    user: User = Depends(require_auth),
+    kiosk = Depends(require_kiosk_session),
 ) -> Response:
-    """Avslutar låntagar-sessionen i kiosken. Webbsessionen (kioskanvändaren)
-    påverkas inte."""
+    """Logga ut låntagaren från kiosken (kiosk-sessionen påverkas inte)."""
     request.session.pop("kiosk_borrower_id", None)
     return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
 
@@ -214,7 +320,7 @@ async def kiosk_checkout(
     name: str | None = Form(None),
     expected_return: str | None = Form(None),
     external_name: str | None = Form(None),
-    user: User = Depends(require_auth),
+    kiosk = Depends(require_kiosk_session),
     session: Session = Depends(get_session),
 ) -> Response:
     """Snabb-checkout för kiosken: hoppar pickup-fasen eftersom alla noter
@@ -250,11 +356,37 @@ async def kiosk_checkout(
         b_name = borrower.username
 
     now = datetime.utcnow()
+    expected = _parse_date(expected_return)
+
+    # Endast 1 not i korgen → registrera som fristående lån (utan batch).
+    # En batch är onödig overhead för ett enskilt lån och förorenar
+    # batch-listor med "Kiosk-utlån YYYY-MM-DD HH:MM"-poster.
+    if len(loans) == 1:
+        loan = loans[0]
+        loan.borrower_name = b_name
+        loan.borrower_user_id = b_user_id
+        loan.expected_return_at = expected
+        loan.borrowed_at = now
+        loan.picked_up_at = now
+        loan.batch_id = None  # frigör från cart-batchen
+        session.add(loan)
+        # Behåll cart-batchen som tom CART så nästa checkout återanvänder den
+        session.commit()
+        # Behåll PIN-autentiseringen - användaren kan fortsätta skanna eller
+        # logga ut själv via knappen i headern.
+        flash(
+            request,
+            f"Registrerade enskilt utlån till {b_name}",
+            "success",
+        )
+        return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
+
+    # Annars: vanlig batch
     clean_name = (name or "").strip() or f"Kiosk-utlån {now.strftime('%Y-%m-%d %H:%M')}"
     cart.name = clean_name
     cart.borrower_user_id = b_user_id
     cart.borrower_name = b_name
-    cart.expected_return_at = _parse_date(expected_return)
+    cart.expected_return_at = expected
     cart.status = LoanBatchStatus.ACTIVE
     cart.borrowed_at = now
     cart.registered_at = now
@@ -267,11 +399,11 @@ async def kiosk_checkout(
         loan.expected_return_at = cart.expected_return_at
         loan.borrowed_at = now
         loan.picked_up_at = now
-        # registered_by = borrower (den autentiserade) - sattes redan av cart_add
         session.add(loan)
 
     session.commit()
-    request.session.pop("kiosk_borrower_id", None)
+    # Behåll PIN-autentiseringen - låntagaren kan fortsätta skanna eller
+    # logga ut själv via knappen i headern.
     flash(
         request,
         f'Registrerade "{clean_name}" - {len(loans)} noter utlånade till {b_name}',
@@ -280,16 +412,120 @@ async def kiosk_checkout(
     return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
 
 
+def _kiosk_location_unit_ids(session: Session, location_id: int | None) -> set[int] | None:
+    """Hämta alla unit-IDn för en lagringsplats (inklusive nästlade barn).
+    Returnerar None om location_id är None - det signalerar 'ingen filter'."""
+    if not location_id:
+        return None
+    units = session.exec(
+        select(StorageUnit).where(StorageUnit.location_id == location_id)
+    ).all()
+    return {u.id for u in units}
+
+
+@kiosk_router.get("/search")
+async def kiosk_search(
+    request: Request,
+    q: str = "",
+    kiosk = Depends(require_kiosk_session),
+    session: Session = Depends(get_session),
+) -> Response:
+    """HTMX-sök för noter utan QR-kod. Returnerar HTML-fragment med
+    träffar. Filtrerar till kioskens lagringsplats om satt."""
+    q = q.strip()
+    if len(q) < 2:
+        return Response("", media_type="text/html")
+
+    # SQLite ILIKE är case-insensitive bara på ASCII. För att matcha
+    # ÅÄÖ filtrerar vi Python-side (snabbt för 200-1000 noter).
+    q_lower = q.lower()
+    all_pieces = session.exec(select(Piece).order_by(Piece.title)).all()
+    pieces = [
+        p for p in all_pieces
+        if q_lower in (p.title or "").lower()
+        or q_lower in (p.contributors_cache or "").lower()
+    ][:15]
+
+    allowed_unit_ids = _kiosk_location_unit_ids(session, kiosk.location_id)
+    kiosk_location_obj = (
+        session.get(StorageLocation, kiosk.location_id) if kiosk.location_id else None
+    )
+
+    # Hämta placeringar för filtrering + display
+    placements_by_piece: dict[int, list[PiecePlacement]] = {}
+    if pieces:
+        all_placements = session.exec(
+            select(PiecePlacement).where(
+                PiecePlacement.piece_id.in_([p.id for p in pieces])
+            )
+        ).all()
+        for pl in all_placements:
+            placements_by_piece.setdefault(pl.piece_id, []).append(pl)
+
+    # Ladda alla units och locations en gång så path-byggande är trivialt
+    all_units = {u.id: u for u in session.exec(select(StorageUnit)).all()}
+    locations = {l.id: l for l in session.exec(select(StorageLocation)).all()}
+
+    def _path(unit_id: int) -> str:
+        u = all_units.get(unit_id)
+        if not u:
+            return "Okänd plats"
+        parts = [u.name]
+        cur = u
+        while cur.parent_id:
+            parent = all_units.get(cur.parent_id)
+            if not parent:
+                break
+            parts.append(parent.name)
+            cur = parent
+        loc = locations.get(u.location_id)
+        if loc:
+            parts.append(loc.name)
+        return " › ".join(reversed(parts))
+
+    rows = []
+    for p in pieces:
+        piece_placements = placements_by_piece.get(p.id, [])
+        if allowed_unit_ids is not None:
+            here = [pl for pl in piece_placements if pl.storage_unit_id in allowed_unit_ids]
+            elsewhere = [pl for pl in piece_placements if pl.storage_unit_id not in allowed_unit_ids]
+            on_location = bool(here)
+        else:
+            here = piece_placements
+            elsewhere = []
+            on_location = True
+        rows.append(
+            {
+                "piece": p,
+                "paths_here": [_path(pl.storage_unit_id) for pl in here],
+                "paths_elsewhere": [_path(pl.storage_unit_id) for pl in elsewhere],
+                "on_location": on_location,
+            }
+        )
+    # Sortera: noter på platsen först, andra noter sedan
+    rows.sort(key=lambda r: (not r["on_location"], r["piece"].title))
+
+    return render(
+        request,
+        "pieces/_kiosk_search_results.html",
+        {"rows": rows, "q": q, "kiosk_location": kiosk_location_obj},
+        user=None,
+    )
+
+
 @kiosk_router.get("/{public_id}")
 async def kiosk_piece(
     request: Request,
     public_id: str,
-    user: User = Depends(require_auth),
+    kiosk = Depends(require_kiosk_session),
     session: Session = Depends(get_session),
 ) -> Response:
     """Förenklad piece-vy i kiosk-läge med stora Låna/Återlämna-knappar.
     Kräver att en låntagare är autentiserad via PIN - annars redirect
-    tillbaka till /kiosk för auth."""
+    tillbaka till /kiosk för auth.
+
+    Om kiosken är knuten till en lagringsplats filtreras placeringarna -
+    bara de inom platsen kan lånas härifrån."""
     borrower = _kiosk_borrower(request, session)
     if not borrower:
         flash(request, "Logga in med PIN för att låna", "warning")
@@ -298,6 +534,11 @@ async def kiosk_piece(
     piece = session.exec(select(Piece).where(Piece.public_id == public_id)).first()
     if not piece:
         raise HTTPException(404)
+
+    allowed_unit_ids = _kiosk_location_unit_ids(session, kiosk.location_id)
+    kiosk_location = (
+        session.get(StorageLocation, kiosk.location_id) if kiosk.location_id else None
+    )
 
     placements = session.exec(
         select(PiecePlacement).where(PiecePlacement.piece_id == piece.id)
@@ -321,9 +562,15 @@ async def kiosk_piece(
         loans_by_placement.setdefault(la.placement_id, []).append(la)
 
     rows = []
+    here_count = 0
     for pl in placements:
         unit = units.get(pl.storage_unit_id)
         out = sum(la.copies for la in loans_by_placement.get(pl.id, []))
+        in_kiosk_location = (
+            allowed_unit_ids is None or pl.storage_unit_id in allowed_unit_ids
+        )
+        if in_kiosk_location:
+            here_count += 1
         rows.append(
             {
                 "placement": pl,
@@ -331,14 +578,76 @@ async def kiosk_piece(
                 "home": (pl.copies or 0) - out if pl.copies else None,
                 "out_count": out,
                 "loans": loans_by_placement.get(pl.id, []),
+                "in_kiosk_location": in_kiosk_location,
             }
         )
+
+    # Mer info för kiosk-vyn så användaren slipper en separat detaljvy
+    images = list(
+        session.exec(
+            select(PieceImage)
+            .where(PieceImage.piece_id == piece.id)
+            .order_by(PieceImage.sort_order, PieceImage.id)
+        ).all()
+    )
+    contributors = collect_contributors(session, piece.id)
+    tag_rows = list(
+        session.exec(
+            select(Tag)
+            .join(PieceTag, PieceTag.tag_id == Tag.id)
+            .where(PieceTag.piece_id == piece.id)
+            .order_by(Tag.kind, Tag.name)
+        ).all()
+    )
+    psalm_refs = list(
+        session.exec(
+            select(PiecePsalmRef, PsalmBook)
+            .join(PsalmBook, PsalmBook.id == PiecePsalmRef.book_id)
+            .where(PiecePsalmRef.piece_id == piece.id)
+            .order_by(PsalmBook.sort_order, PsalmBook.name, PiecePsalmRef.number)
+        ).all()
+    )
+
+    # Låntagarens aktiva batches - för "+ Lägg till i pågående lån"-knappen.
+    # Samma regel som i Mina lån: jag är låntagare eller jag skapade utlånet.
+    from sqlalchemy import or_
+
+    from app.models import LoanBatch, LoanBatchStatus
+
+    active_batches = list(
+        session.exec(
+            select(LoanBatch)
+            .where(
+                or_(
+                    LoanBatch.borrower_user_id == borrower.id,
+                    LoanBatch.created_by == borrower.id,
+                )
+            )
+            .where(LoanBatch.status == LoanBatchStatus.ACTIVE)
+            .order_by(LoanBatch.borrowed_at.desc())
+        ).all()
+    )
 
     return render(
         request,
         "pieces/kiosk_piece.html",
-        {"piece": piece, "placements": rows, "borrower": borrower},
-        user=user,
+        {
+            "piece": piece,
+            "placements": rows,
+            "borrower": borrower,
+            "kiosk": kiosk,
+            "kiosk_location": kiosk_location,
+            "not_at_kiosk_location": kiosk_location is not None and here_count == 0,
+            "images": images,
+            "contributors": contributors,
+            "tags": tag_rows,
+            "psalm_refs": psalm_refs,
+            "active_batches": active_batches,
+            "composer_role": ContributorRole.COMPOSER,
+            "arranger_role": ContributorRole.ARRANGER,
+            "lyricist_role": ContributorRole.LYRICIST,
+        },
+        user=None,
     )
 
 

@@ -2,67 +2,187 @@
 {% block title %}{{ piece.title }} - Kiosk{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
-  <h1 class="h2 mb-0">{{ piece.title }}</h1>
-  <div class="d-flex gap-2 align-items-center">
-    <span class="text-muted small">Låntagare: <strong>{{ borrower.username }}</strong></span>
-    <a href="/kiosk" class="btn btn-outline-secondary">← Skanna nästa</a>
-    <a href="/pieces/{{ piece.id }}" class="btn btn-outline-secondary">Full vy</a>
+<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+  <div>
+    <h1 class="h4 mb-0">{{ piece.title }}</h1>
+    {% if piece.original_title %}<div class="text-muted small">{{ piece.original_title }}</div>{% endif %}
+  </div>
+  <div class="d-flex gap-2 align-items-center small">
+    <span class="text-muted">Låntagare: <strong>{{ borrower.username }}</strong></span>
+    <a href="/kiosk" class="btn btn-sm btn-outline-secondary">← Skanna nästa</a>
   </div>
 </div>
-{% if piece.contributors_cache %}
-<p class="text-muted lead">{{ piece.contributors_cache }}</p>
+
+{% if not_at_kiosk_location %}
+<div class="alert alert-warning py-2 small mb-2">
+  <strong>Noten finns inte på {{ kiosk_location.name }}.</strong>
+  Hittas hos andra platser men kan inte lånas från den här kiosken.
+</div>
 {% endif %}
 
-{% if not placements %}
-<div class="alert alert-warning">Inga placeringar registrerade på den här noten.</div>
-{% else %}
-{% for row in placements %}
-<div class="card mb-3">
-  <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-      <div>
-        <h2 class="h5 mb-1">
-          {% if row.unit %}<a href="/storage/units/{{ row.unit.id }}" class="text-reset">{{ row.unit.name }}</a>{% else %}Okänd plats{% endif %}
-        </h2>
-        {% if row.placement.copies %}
-        <div>
-          <span class="badge bg-secondary fs-6">{{ row.home }}/{{ row.placement.copies }} ex hemma</span>
-          {% if row.out_count %}<span class="badge bg-warning text-dark fs-6">{{ row.out_count }} ute</span>{% endif %}
-        </div>
-        {% endif %}
-      </div>
-      {% if user.can_edit %}
-      <form method="post" action="/loans/cart/add" class="mb-0">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="placement_id" value="{{ row.placement.id }}">
-        <input type="hidden" name="return_to" value="/kiosk">
-        <button type="submit" class="btn btn-success btn-lg">+ Lägg till i utlån</button>
-      </form>
-      {% endif %}
-    </div>
-
-    {% if row.loans %}
-    <ul class="list-group list-group-flush mt-3">
-      {% for loan in row.loans %}
-      <li class="list-group-item d-flex justify-content-between align-items-center">
-        <div>
-          <strong>{{ loan.borrower_name }}</strong>
-          · {{ loan.copies }} ex
-          · lånat {{ loan.borrowed_at.strftime('%Y-%m-%d') }}
-        </div>
-        {% if user.can_edit %}
-        <form method="post" action="/loans/{{ loan.id }}/return" class="mb-0">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button type="submit" class="btn btn-outline-success">Återlämna</button>
-        </form>
-        {% endif %}
-      </li>
+<div class="row g-3">
+  {# Vänster: bild + metadata #}
+  <div class="col-md-5">
+    {% if images %}
+    {% set primary = images[0] %}
+    <img src="/images/{{ primary.image_path }}"
+         class="img-fluid rounded shadow-sm lightbox-image"
+         data-lightbox-group="kiosk-piece-{{ piece.id }}"
+         style="max-height: 38vh; width: auto"
+         alt="{{ piece.title }}">
+    {% if images|length > 1 %}
+    <div class="d-flex gap-1 flex-wrap mt-1">
+      {% for img in images[1:] %}
+      <img src="/images/thumbnails/{{ img.image_path.split('/')[-1] }}"
+           class="rounded lightbox-image"
+           data-lightbox-group="kiosk-piece-{{ piece.id }}"
+           data-full-src="/images/{{ img.image_path }}"
+           style="width: 44px; height: 44px; object-fit: cover"
+           alt="{{ img.label or img.kind }}">
       {% endfor %}
-    </ul>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {% macro people_names(people) %}
+      {% for p in people %}{{ p.name }}{% if not loop.last %}; {% endif %}{% endfor %}
+    {% endmacro %}
+    <dl class="row small mt-2 mb-0">
+      {% if contributors.get(composer_role) %}
+      <dt class="col-5">Kompositör</dt><dd class="col-7 mb-1">{{ people_names(contributors[composer_role]) }}</dd>
+      {% endif %}
+      {% if contributors.get(arranger_role) %}
+      <dt class="col-5">Arrangör</dt><dd class="col-7 mb-1">{{ people_names(contributors[arranger_role]) }}</dd>
+      {% endif %}
+      {% if contributors.get(lyricist_role) %}
+      <dt class="col-5">Text</dt><dd class="col-7 mb-1">{{ people_names(contributors[lyricist_role]) }}</dd>
+      {% endif %}
+      {% if piece.language %}<dt class="col-5">Språk</dt><dd class="col-7 mb-1">{{ language_display(piece.language) }}</dd>{% endif %}
+      {% if piece.publisher %}<dt class="col-5">Förlag</dt><dd class="col-7 mb-1">{{ piece.publisher }}{% if piece.edition_number %} / {{ piece.edition_number }}{% endif %}</dd>{% endif %}
+      {% if psalm_refs %}
+      <dt class="col-5">Psalmreferenser</dt>
+      <dd class="col-7 mb-1">
+        {% for ref, book in psalm_refs %}
+        <span class="badge bg-light text-dark border me-1">{{ book.name }}{% if book.edition %} ({{ book.edition }}){% endif %} · <strong>{{ ref.number }}</strong></span>
+        {% endfor %}
+      </dd>
+      {% endif %}
+    </dl>
+
+    {% set voicing_tags = tags | selectattr('kind', 'equalto', 'voicing') | list %}
+    {% set accomp_tags = tags | selectattr('kind', 'equalto', 'accompaniment') | list %}
+    {% set display_tags = tags | rejectattr('kind', 'in', ['voicing', 'accompaniment']) | list %}
+    {% if voicing_tags or accomp_tags or display_tags %}
+    <div class="mt-2 small">
+      {% for t in voicing_tags %}<span class="badge bg-secondary me-1">{{ t.name }}</span>{% endfor %}
+      {% for t in accomp_tags %}<span class="badge bg-info text-dark me-1">{{ t.name }}</span>{% endfor %}
+      {% for t in display_tags %}<span class="badge bg-success me-1">{{ t.name }}</span>{% endfor %}
+    </div>
+    {% endif %}
+
+    {% if piece.notes %}
+    <div class="border-start ps-2 mt-2 small text-muted">
+      {{ piece.notes | markdown | safe }}
+    </div>
+    {% endif %}
+  </div>
+
+  {# Höger: placeringar + utlåningsknappar #}
+  <div class="col-md-7">
+    <h2 class="h6 mb-2">Placeringar</h2>
+    {% if not placements %}
+    <div class="alert alert-warning py-2 small mb-0">Inga placeringar registrerade.</div>
+    {% else %}
+    <div class="vstack gap-2">
+      {% for row in placements %}
+      <div class="card {% if not row.in_kiosk_location %}opacity-50{% endif %}">
+        <div class="card-body py-2 px-3">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+              <strong>{% if row.unit %}{{ row.unit.name }}{% else %}Okänd plats{% endif %}</strong>
+              {% if not row.in_kiosk_location and kiosk_location %}
+              <span class="badge bg-light text-muted border ms-1">utanför kiosken</span>
+              {% endif %}
+              {% if row.placement.copies %}
+              <span class="badge bg-secondary ms-1">{{ row.home }}/{{ row.placement.copies }} ex hemma</span>
+              {% if row.out_count %}<span class="badge bg-warning text-dark ms-1">{{ row.out_count }} ute</span>{% endif %}
+              {% endif %}
+            </div>
+            {% if borrower and row.in_kiosk_location %}
+            <div class="d-flex gap-1 flex-wrap justify-content-end">
+              <form method="post" action="/loans/cart/add" class="mb-0">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="placement_id" value="{{ row.placement.id }}">
+                <input type="hidden" name="return_to" value="/kiosk">
+                <button type="submit" class="btn btn-success">+ Nytt utlån</button>
+              </form>
+              {% if active_batches %}
+              <button type="button" class="btn btn-outline-success"
+                      data-bs-toggle="modal"
+                      data-bs-target="#addToBatchModal-{{ row.placement.id }}">
+                + Lägg till i pågående lån
+              </button>
+              {% endif %}
+            </div>
+            {% endif %}
+          </div>
+          {% if row.loans %}
+          <ul class="list-group list-group-flush mt-1 small">
+            {% for loan in row.loans %}
+            <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
+              <span><strong>{{ loan.borrower_name }}</strong> · {{ loan.copies }} ex · lånat {{ loan.borrowed_at.strftime('%Y-%m-%d %H:%M') }}</span>
+              {% if borrower and row.in_kiosk_location %}
+              <form method="post" action="/loans/{{ loan.id }}/return" class="mb-0">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-outline-success py-0">Återlämna</button>
+              </form>
+              {% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
     {% endif %}
   </div>
 </div>
+
+{# Modaler för "lägg till i pågående lån" - en per placering på platsen #}
+{% if borrower and active_batches %}
+{% for row in placements %}
+{% if row.in_kiosk_location %}
+<div class="modal fade" id="addToBatchModal-{{ row.placement.id }}" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Lägg till "{{ piece.title }}" i pågående lån</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Välj vilket lån noten ska läggas till i:</p>
+        <div class="vstack gap-2">
+          {% for b in active_batches %}
+          <form method="post" action="/loans/batch/{{ b.id }}/add-more" class="mb-0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="placement_id" value="{{ row.placement.id }}">
+            <input type="hidden" name="return_to" value="/kiosk">
+            <button type="submit" class="btn btn-outline-success w-100 text-start">
+              <strong>{{ b.name }}</strong>
+              <span class="text-muted small">· lånat {{ b.borrowed_at.strftime('%Y-%m-%d') }}</span>
+            </button>
+          </form>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endfor %}
 {% endif %}
 {% endblock %}

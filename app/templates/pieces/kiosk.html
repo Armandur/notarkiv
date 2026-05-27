@@ -2,6 +2,18 @@
 {% block title %}Kiosk - Notarkiv{% endblock %}
 
 {% block content %}
+{# Header: vilken kiosk är aktiv + ev. lagringsplats + deaktivera #}
+<div class="bg-light border-bottom py-1 px-2 mb-3 small d-flex justify-content-between align-items-center">
+  <span>
+    <strong>{{ kiosk.name }}</strong>
+    {% if kiosk_location %} · {{ kiosk_location.name }}{% endif %}
+  </span>
+  <form method="post" action="/kiosk/deactivate" class="mb-0">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="btn btn-sm btn-link text-muted py-0">Avaktivera kiosk</button>
+  </form>
+</div>
+
 {% if not borrower %}
 {# Auth-läget: ingen låntagare inloggad #}
 <div class="row justify-content-center py-5">
@@ -87,14 +99,25 @@
     </div>
 
     <div class="text-center py-4">
-      <h1 class="display-6 mb-3">Skanna en not</h1>
-      <form id="kiosk-form" class="d-inline-block" autocomplete="off">
+      <h1 class="display-6 mb-2">Skanna eller sök</h1>
+      {% if kiosk.location_id %}
+      <p class="text-muted small mb-3">Den här kiosken är knuten till en specifik lagringsplats - bara noter som finns där kan lånas härifrån.</p>
+      {% endif %}
+      <form id="kiosk-form" autocomplete="off" class="mx-auto" style="max-width: 32em">
         <input type="text" id="kiosk-code" class="form-control form-control-lg text-center"
-               placeholder="Skanna QR-kod"
-               style="max-width: 30em; font-family: monospace; letter-spacing: 0.1em"
-               autofocus>
+               placeholder="Skanna QR-kod eller skriv för att söka..."
+               autofocus
+               hx-get="/kiosk/search"
+               hx-trigger="input changed delay:300ms"
+               hx-target="#kiosk-search-results"
+               hx-swap="innerHTML"
+               name="q">
+        <p class="text-muted small mt-2 mb-0">
+          QR-skanner: trycker Enter automatiskt och navigerar.
+          Fritext: söker bland alla noter under tiden du skriver.
+        </p>
       </form>
-      <p class="text-muted small mt-2">Handskannern skickar Enter automatiskt.</p>
+      <div id="kiosk-search-results" class="text-start mx-auto mt-3" style="max-width: 36em"></div>
     </div>
   </div>
 
@@ -134,6 +157,86 @@
       </div>
       {% endif %}
     </div>
+
+    {# Mina aktiva lån - en grupp per typ (enskilda + batches) #}
+    {% if active_solo or active_batches %}
+    <div class="mt-3">
+      <h2 class="h6 text-muted text-uppercase small mb-2">Mina lån</h2>
+      <div style="max-height: 60vh; overflow-y: auto">
+
+      {% if active_solo %}
+      <div class="card mb-2">
+        <div class="card-header py-1 px-2 small text-muted">Enskilda lån</div>
+        <ul class="list-group list-group-flush small">
+          {% for item in active_solo %}
+          <li class="list-group-item d-flex justify-content-between align-items-center {% if not item.in_kiosk_location %}opacity-50{% endif %}">
+            <div>
+              <strong>{{ item.piece.title }}</strong>
+              <span class="text-muted">· {{ item.loan.copies }} ex</span>
+              {% if item.loan.borrower_user_id != borrower.id %}
+              <div class="small">Till: <strong>{{ item.loan.borrower_name }}</strong>{% if not item.loan.borrower_user_id %} <span class="badge bg-secondary">extern</span>{% endif %}</div>
+              {% endif %}
+              <div class="text-muted small">{{ item.path }}</div>
+              <div class="text-muted small">Lånat {{ item.loan.borrowed_at.strftime('%Y-%m-%d %H:%M') }}</div>
+            </div>
+            {% if item.in_kiosk_location %}
+            <form method="post" action="/loans/{{ item.loan.id }}/return" class="mb-0">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn btn-sm btn-outline-success">Återlämna</button>
+            </form>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% for bg in active_batches %}
+      {# Mina lån-block-fortsättning - batch-korten #}
+      <div class="card mb-2 border-primary border-1">
+        <div class="card-header py-1 px-2 d-flex justify-content-between align-items-center bg-light">
+          <div>
+            <span class="badge bg-primary me-1">batch</span>
+            <strong>{{ bg.batch.name }}</strong>
+            {% if bg.batch.borrower_user_id != borrower.id %}
+            <div class="small">Till: <strong>{{ bg.batch.borrower_name }}</strong>{% if not bg.batch.borrower_user_id %} <span class="badge bg-secondary">extern</span>{% endif %}</div>
+            {% endif %}
+          </div>
+          <span class="text-muted small">{{ bg.here_count }}/{{ bg.total_remaining }} här</span>
+        </div>
+        <ul class="list-group list-group-flush small">
+          {% for item in bg.entries %}
+          <li class="list-group-item d-flex justify-content-between align-items-center {% if not item.in_kiosk_location %}opacity-50{% endif %}">
+            <div>
+              <strong>{{ item.piece.title }}</strong>
+              <span class="text-muted">· {{ item.loan.copies }} ex</span>
+              <div class="text-muted small">{{ item.path }}</div>
+              <div class="text-muted small">Lånat {{ item.loan.borrowed_at.strftime('%Y-%m-%d %H:%M') }}</div>
+            </div>
+            {% if item.in_kiosk_location %}
+            <form method="post" action="/loans/{{ item.loan.id }}/return" class="mb-0">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn btn-sm btn-outline-success">Återlämna</button>
+            </form>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% if bg.here_count > 0 %}
+        <div class="card-footer py-2 px-2">
+          <form method="post" action="/loans/batch/{{ bg.batch.id }}/return-at-kiosk" class="mb-0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-sm btn-success w-100">
+              Återlämna alla på den här platsen ({{ bg.here_count }} st)
+            </button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>
 
@@ -196,13 +299,23 @@
   document.addEventListener('click', refocusIfIdle);
   setInterval(refocusIfIdle, 2000);
 
+  // Enter: om input är ett 32-hex (handskanner-mönster) navigera direkt.
+  // Annars låt HTMX-söket sköta det - vi förhindrar bara form-submit.
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const code = input.value.trim();
-    if (!code) return;
-    const match = code.match(/[a-f0-9]{32}/i);
-    const id = match ? match[0] : code;
-    window.location.href = '/kiosk/' + encodeURIComponent(id);
+    const match = code.match(/^[a-f0-9]{32}$/i) || code.match(/\/p\/([a-f0-9]{32})/i);
+    if (match) {
+      window.location.href = '/kiosk/' + encodeURIComponent(match[1] || match[0]);
+    }
+  });
+
+  // När input rensas (Esc) -> dölj sökresultat
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      input.value = '';
+      document.getElementById('kiosk-search-results').innerHTML = '';
+    }
   });
 
   // Borrower-toggle i checkout-modalen

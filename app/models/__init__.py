@@ -1,6 +1,7 @@
 from app.models.app_setting import AppSetting
 from app.models.inventory import InventorySession
 from app.models.inventory_check import InventoryCheck
+from app.models.kiosk import Kiosk
 from app.models.loan import Loan
 from app.models.loan_batch import LoanBatch, LoanBatchStatus
 from app.models.person import ContributorRole, Person, PersonLink, PersonLinkKind, PieceContributor
@@ -20,6 +21,7 @@ __all__ = [
     "ContributorRole",
     "InventoryCheck",
     "InventorySession",
+    "Kiosk",
     "Loan",
     "LoanBatch",
     "LoanBatchStatus",

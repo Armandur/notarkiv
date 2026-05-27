@@ -1,0 +1,34 @@
+{% if not rows %}
+<p class="text-muted small fst-italic mb-0">Inga träffar.</p>
+{% else %}
+<ul class="list-group list-group-flush">
+  {% for row in rows %}
+  <li class="list-group-item {% if not row.on_location %}bg-light{% endif %}">
+    <a href="/kiosk/{{ row.piece.public_id }}" class="text-reset text-decoration-none d-flex justify-content-between align-items-center">
+      <div>
+        <strong>{{ row.piece.title }}</strong>
+        {% if row.piece.contributors_cache %}
+        <div class="text-muted small">{{ row.piece.contributors_cache }}</div>
+        {% endif %}
+        {% if row.paths_here %}
+        <div class="text-muted small mt-1">
+          {% for path in row.paths_here %}
+          <span class="badge bg-light text-muted border">{{ path }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if not row.on_location and row.paths_elsewhere %}
+        <div class="text-warning small mt-1">
+          ⚠ Finns inte på {{ kiosk_location.name }} - hittas hos:
+          {% for path in row.paths_elsewhere %}<em>{{ path }}</em>{% if not loop.last %}; {% endif %}{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      <span class="btn btn-sm btn-outline-{% if row.on_location %}primary{% else %}secondary{% endif %}">
+        {% if row.on_location %}Öppna{% else %}Visa info{% endif %}
+      </span>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}

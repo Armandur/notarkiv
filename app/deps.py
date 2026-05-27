@@ -59,3 +59,62 @@ def require_admin(user: User = Depends(require_auth)) -> User:
     if user.role != Role.ADMIN:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Endast admin har åtkomst")
     return user
+
+
+def current_kiosk(
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    """Kiosken som har aktiverat denna webbsession (eller None)."""
+    from app.models import Kiosk
+
+    kid = request.session.get("kiosk_id")
+    if not kid:
+        return None
+    return session.get(Kiosk, kid)
+
+
+def require_cart_actor(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> User:
+    """Hämta User som agerar på en cart-action. I kiosk-only-session (ingen
+    user_id men kiosk_borrower_id satt) returneras den PIN-autenticerade
+    låntagaren. Annars den inloggade användaren. Båda kräver editor-roll."""
+    user_id = request.session.get("user_id") or request.session.get("kiosk_borrower_id")
+    if not user_id:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "Inloggning eller PIN-autentisering krävs",
+            headers={"Location": "/login"},
+        )
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Ogiltig session")
+    if not user.can_edit:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Saknar redigeringsbehörighet"
+        )
+    return user
+
+
+def require_kiosk_session(
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    """Kräv att webbläsaren är aktiverad som kiosk (via /kiosk/activate)."""
+    from app.models import Kiosk
+
+    kid = request.session.get("kiosk_id")
+    if not kid:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Den här enheten är inte aktiverad som kiosk - admin måste aktivera först",
+        )
+    kiosk = session.get(Kiosk, kid)
+    if not kiosk:
+        request.session.pop("kiosk_id", None)
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Ogiltig kiosk-session - aktivera om"
+        )
+    return kiosk

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Kiosk - Aktiveringsfel{% endblock %}
+
+{% block content %}
+<div class="text-center py-5">
+  <h1 class="display-6 mb-3">Aktivering misslyckades</h1>
+  <p class="text-muted">
+    Ogiltig eller utgången aktiveringstoken. Be admin generera en ny token
+    via <code>/admin/kiosks</code> och försök igen med den nya URL:en.
+  </p>
+  <a href="/login" class="btn btn-outline-secondary mt-3">← Tillbaka till inloggning</a>
+</div>
+{% endblock %}

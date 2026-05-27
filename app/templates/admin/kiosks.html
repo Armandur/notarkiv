@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Kiosker - Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3">
+  <h1 class="h3 mb-0">Kiosker</h1>
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newKioskModal">Ny kiosk</button>
+</div>
+
+<p class="text-muted small">
+  En kiosk är en fysisk dator i notförrådet som låntagare använder för att låna ut/återlämna.
+  Skapa en post per fysisk enhet, knyt eventuellt till en lagringsplats.
+  Besök sedan <code>/kiosk/activate?token=...</code> i enhetens webbläsare för att aktivera den - det binder webbsessionen permanent till den kiosken.
+</p>
+
+{% if not kiosks %}
+<p class="text-muted fst-italic">Inga kiosker registrerade än.</p>
+{% else %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        <th>Namn</th>
+        <th>Plats</th>
+        <th>Senaste aktivitet</th>
+        <th>Aktiverings-URL</th>
+        <th class="text-end">Åtgärder</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for k in kiosks %}
+      <tr>
+        <td>
+          <strong>{{ k.name }}</strong>
+          {% if k.description %}<div class="text-muted small">{{ k.description }}</div>{% endif %}
+        </td>
+        <td>
+          {% if k.location_id %}
+            {% for loc in locations %}{% if loc.id == k.location_id %}{{ loc.name }}{% endif %}{% endfor %}
+          {% else %}
+            <span class="text-muted small fst-italic">(generisk - alla platser)</span>
+          {% endif %}
+        </td>
+        <td class="small text-muted">
+          {{ k.last_activity_at.strftime('%Y-%m-%d %H:%M') if k.last_activity_at else 'aldrig aktiverad' }}
+        </td>
+        <td>
+          <input type="text" class="form-control form-control-sm font-monospace"
+                 readonly value="{{ request.base_url|string|trim('/') }}/kiosk/activate?token={{ k.access_token }}"
+                 onclick="this.select()">
+        </td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-secondary"
+                  data-bs-toggle="modal" data-bs-target="#editKioskModal-{{ k.id }}">Redigera</button>
+          <button class="btn btn-sm btn-outline-warning"
+                  onclick="confirmAction('/admin/kiosks/{{ k.id }}/regenerate-token', 'Generera ny token för {{ k.name }}? Den gamla slutar funka direkt.', {submitLabel: 'Generera ny', submitClass: 'btn-warning'})">↻</button>
+          <button class="btn btn-sm btn-outline-danger"
+                  onclick="confirmAction('/admin/kiosks/{{ k.id }}/delete', 'Radera kiosken {{ k.name }}?')">×</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="modal fade" id="newKioskModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="/admin/kiosks">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="modal-header"><h2 class="modal-title h5">Ny kiosk</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Namn</label>
+          <input type="text" name="name" class="form-control" required
+                 placeholder="t.ex. Notarkivet - huvudkiosk">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Plats (valfri)</label>
+          <select name="location_id" class="form-select tomselect">
+            <option value="">(generisk - alla platser)</option>
+            {% for loc in locations %}
+            <option value="{{ loc.id }}">{{ loc.name }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text">Om satt kan bara noter med placering inom platsen lånas härifrån.</div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Beskrivning (valfri)</label>
+          <textarea name="description" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+        <button type="submit" class="btn btn-primary">Skapa</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% for k in kiosks %}
+<div class="modal fade" id="editKioskModal-{{ k.id }}" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="/admin/kiosks/{{ k.id }}/update">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="modal-header"><h2 class="modal-title h5">Redigera kiosk</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Namn</label>
+          <input type="text" name="name" class="form-control" required value="{{ k.name }}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Plats</label>
+          <select name="location_id" class="form-select tomselect">
+            <option value="">(generisk - alla platser)</option>
+            {% for loc in locations %}
+            <option value="{{ loc.id }}" {% if k.location_id == loc.id %}selected{% endif %}>{{ loc.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Beskrivning</label>
+          <textarea name="description" class="form-control" rows="2">{{ k.description or '' }}</textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+        <button type="submit" class="btn btn-primary">Spara</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}
