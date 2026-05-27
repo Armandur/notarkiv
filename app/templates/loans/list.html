@@ -4,16 +4,78 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
   <h1 class="h3 mb-0">Utlån</h1>
-  <a href="?show_returned={% if show_returned %}0{% else %}1{% endif %}" class="small">
-    {% if show_returned %}Bara aktiva{% else %}Inkludera återlämnade{% endif %}
-  </a>
+  <div class="d-flex gap-3 align-items-center">
+    <a href="/loans/cart" class="btn btn-sm btn-outline-primary">Öppna kundvagn</a>
+    <a href="?show_returned={% if show_returned %}0{% else %}1{% endif %}" class="small">
+      {% if show_returned %}Bara aktiva{% else %}Inkludera återlämnade{% endif %}
+    </a>
+  </div>
 </div>
 
-{% if not items %}
+{% if not batch_items and not solo_items %}
 <p class="text-muted fst-italic">
   {% if show_returned %}Inga utlån alls.{% else %}Inga aktiva utlån just nu.{% endif %}
 </p>
-{% else %}
+{% endif %}
+
+{% if batch_items %}
+<h2 class="h5 mb-2">Grupperade utlån</h2>
+<div class="vstack gap-3 mb-4">
+  {% for bi in batch_items %}
+  {% set b = bi.batch %}
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <a href="/loans/batch/{{ b.id }}" class="text-reset text-decoration-none">
+          <strong>{{ b.name }}</strong>
+        </a>
+        <span class="text-muted small">· {{ b.borrower_name }}</span>
+        {% if b.borrowed_at %}
+        <span class="text-muted small">· {{ b.borrowed_at.strftime('%Y-%m-%d') }}</span>
+        {% endif %}
+      </div>
+      <div class="d-flex gap-2 align-items-center small">
+        {% if b.status == 'picking' %}
+          <span class="badge bg-info text-dark">plockning ({{ bi.picked }}/{{ bi.total }})</span>
+          <a href="/loans/batch/{{ b.id }}/pickup" class="btn btn-sm btn-primary">Fortsätt plocka</a>
+        {% elif b.status == 'active' %}
+          <span class="badge bg-warning text-dark">aktivt</span>
+          <span class="text-muted">{{ bi.total - bi.returned }} av {{ bi.total }} kvar</span>
+        {% elif b.status == 'returned' %}
+          <span class="badge bg-success">återlämnat</span>
+        {% endif %}
+        <a href="/loans/batch/{{ b.id }}" class="btn btn-sm btn-outline-secondary">Detaljer</a>
+      </div>
+    </div>
+    {% if bi.entries %}
+    <ul class="list-group list-group-flush small">
+      {% for item in bi.entries[:5] %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          {% if item.loan.returned_at %}<span class="text-success me-1">✓</span>
+          {% elif item.loan.picked_up_at %}<span class="text-info me-1">●</span>
+          {% else %}<span class="text-muted me-1">○</span>{% endif %}
+          {% if item.piece %}<a href="/pieces/{{ item.piece.id }}" class="text-reset">{{ item.piece.title }}</a>{% endif %}
+          <span class="text-muted">· {{ item.loan.copies }} ex</span>
+        </div>
+        <div class="text-muted">{% if item.unit %}{{ item.unit.name }}{% endif %}</div>
+      </li>
+      {% endfor %}
+      {% if bi.entries|length > 5 %}
+      <li class="list-group-item small text-muted text-center">
+        + {{ bi.entries|length - 5 }} fler -
+        <a href="/loans/batch/{{ b.id }}">visa alla</a>
+      </li>
+      {% endif %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if solo_items %}
+<h2 class="h5 mb-2">Enskilda utlån</h2>
 <div class="table-responsive">
   <table class="table table-hover align-middle">
     <thead>
@@ -29,7 +91,7 @@
       </tr>
     </thead>
     <tbody>
-      {% for item in items %}
+      {% for item in solo_items %}
       <tr>
         <td><strong>{{ item.loan.borrower_name }}</strong></td>
         <td>
@@ -41,9 +103,7 @@
         <td>{{ item.loan.copies }}</td>
         <td class="small">{{ item.loan.borrowed_at.strftime('%Y-%m-%d') }}</td>
         <td class="small">
-          {% if item.loan.expected_return_at %}
-          {{ item.loan.expected_return_at.strftime('%Y-%m-%d') }}
-          {% endif %}
+          {% if item.loan.expected_return_at %}{{ item.loan.expected_return_at.strftime('%Y-%m-%d') }}{% endif %}
         </td>
         <td>
           {% if item.loan.returned_at %}

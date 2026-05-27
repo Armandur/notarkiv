@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}{{ batch.name }} - Utlån{% endblock %}
+
+{% block content %}
+{% set total = items|length %}
+{% set returned = items|selectattr('loan.returned_at')|list|length %}
+
+<div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="h3 mb-0">{{ batch.name }}</h1>
+    <p class="text-muted small mb-0">Låntagare: <strong>{{ batch.borrower_name }}</strong></p>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    {% if batch.status == 'picking' %}
+      <span class="badge bg-info text-dark">plockning pågår</span>
+      <a href="/loans/batch/{{ batch.id }}/pickup" class="btn btn-sm btn-primary">Öppna plocklista</a>
+    {% elif batch.status == 'active' %}
+      <span class="badge bg-warning text-dark">aktivt utlån</span>
+    {% elif batch.status == 'returned' %}
+      <span class="badge bg-success">återlämnat</span>
+    {% endif %}
+    <a href="/loans/batch/{{ batch.id }}/pickup.pdf" target="_blank" class="btn btn-sm btn-outline-secondary">PDF</a>
+  </div>
+</div>
+
+<dl class="row small mb-4">
+  {% if batch.borrowed_at %}
+  <dt class="col-sm-3">Utlånat</dt><dd class="col-sm-9">{{ batch.borrowed_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+  {% endif %}
+  {% if batch.expected_return_at %}
+  <dt class="col-sm-3">Förv. återlämning</dt><dd class="col-sm-9">{{ batch.expected_return_at.strftime('%Y-%m-%d') }}</dd>
+  {% endif %}
+  {% if batch.returned_at %}
+  <dt class="col-sm-3">Återlämnat</dt><dd class="col-sm-9">{{ batch.returned_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+  {% endif %}
+  {% if batch.notes %}
+  <dt class="col-sm-3">Anteckning</dt><dd class="col-sm-9">{{ batch.notes }}</dd>
+  {% endif %}
+</dl>
+
+<h2 class="h5 mb-2">Noter ({{ total - returned }} av {{ total }} kvar)</h2>
+
+{% for group in groups %}
+<div class="card mb-3">
+  <div class="card-header bg-light">
+    <strong>{% if group.location and group.location.kind == 'digital' %}☁{% else %}■{% endif %} {{ group.path }}</strong>
+  </div>
+  <ul class="list-group list-group-flush small">
+    {% for item in group.entries %}
+    <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <a href="/pieces/{{ item.piece.id }}" class="text-reset"><strong>{{ item.piece.title }}</strong></a>
+        · {{ item.loan.copies }} ex
+        {% if item.piece.contributors_cache %}
+        <div class="text-muted">{{ item.piece.contributors_cache }}</div>
+        {% endif %}
+      </div>
+      <div>
+        {% if item.loan.returned_at %}
+          <span class="badge bg-success">återlämnad {{ item.loan.returned_at.strftime('%Y-%m-%d') }}</span>
+        {% elif batch.status == 'active' and user.can_edit %}
+          <form method="post" action="/loans/{{ item.loan.id }}/return" class="mb-0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-sm btn-outline-success">Återlämna</button>
+          </form>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endfor %}
+
+{% if batch.status == 'active' and user.can_edit %}
+<div class="d-flex justify-content-end mt-4">
+  <button type="button" class="btn btn-success"
+          onclick="confirmAction('/loans/batch/{{ batch.id }}/return-all',
+                                 'Markera alla återstående noter som återlämnade?',
+                                 {submitLabel: 'Återlämna alla', submitClass: 'btn-success', title: 'Återlämna'})">
+    Återlämna alla
+  </button>
+</div>
+{% endif %}
+{% endblock %}

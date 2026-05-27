@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<title>Plocklista - {{ batch.name }}</title>
+<style>
+@page {
+  size: A4;
+  margin: 1.8cm 1.5cm 1.5cm 1.5cm;
+  @bottom-right {
+    content: "Sida " counter(page) " av " counter(pages);
+    font-size: 9pt;
+    color: #666;
+  }
+  @bottom-left {
+    content: "{{ generated_at }}";
+    font-size: 9pt;
+    color: #666;
+  }
+}
+body { font-family: "Helvetica", "Arial", sans-serif; font-size: 10pt; color: #222; }
+h1 { font-size: 18pt; margin: 0 0 0.2em 0; }
+.meta { color: #555; font-size: 9.5pt; margin-bottom: 1.4em; }
+.group { margin-bottom: 1em; page-break-inside: avoid; }
+.group-header {
+  background: #eaeaea;
+  padding: 5px 8px;
+  font-weight: bold;
+  font-size: 10.5pt;
+  border-bottom: 1px solid #ccc;
+}
+.row {
+  display: flex;
+  align-items: flex-start;
+  padding: 5px 8px;
+  border-bottom: 1px solid #eee;
+}
+.checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid #555;
+  margin-right: 10px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.title { font-weight: bold; }
+.contributors { color: #666; font-size: 9pt; }
+.copies { color: #444; font-size: 9pt; margin-left: auto; padding-left: 1em; white-space: nowrap; }
+</style>
+</head>
+<body>
+<h1>Plocklista: {{ batch.name }}</h1>
+<div class="meta">
+  Låntagare: <strong>{{ batch.borrower_name }}</strong>
+  {% if batch.expected_return_at %} · Förv. återlämning: {{ batch.expected_return_at.strftime('%Y-%m-%d') }}{% endif %}
+  · Utskriven {{ generated_at }}
+</div>
+
+{% for group in groups %}
+<div class="group">
+  <div class="group-header">{{ group.path }}</div>
+  {% for item in group.entries %}
+  <div class="row">
+    <div class="checkbox"></div>
+    <div>
+      <div class="title">{{ item.piece.title }}</div>
+      {% if item.piece.contributors_cache %}
+      <div class="contributors">{{ item.piece.contributors_cache }}</div>
+      {% endif %}
+    </div>
+    <div class="copies">{{ item.loan.copies }} ex</div>
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+
+</body>
+</html>

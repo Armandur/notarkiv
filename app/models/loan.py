@@ -24,3 +24,12 @@ class Loan(SQLModel, table=True):
     expected_return_at: datetime | None = None
     returned_at: datetime | None = None
     registered_by: int | None = Field(default=None, foreign_key="users.id")
+
+    # Bulk-utlån via LoanBatch. Null = enskilt lån (gamla flödet).
+    batch_id: int | None = Field(default=None, foreign_key="loan_batches.id", index=True)
+
+    # Plockflöde: null tills noten fysiskt hämtats av låntagaren.
+    # I cart-batchen är denna alltid null. I picking-batchen sätts den när
+    # användaren markerar raden som hämtad. För enskilda lån utan batch
+    # sätts den vid registrering (eftersom de inte går via pick-flödet).
+    picked_up_at: datetime | None = None

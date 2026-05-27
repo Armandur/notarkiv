@@ -76,6 +76,7 @@ def render(
         "pending_review_count": _pending_review_count() if user and user.can_edit else 0,
         "active_inventory_global": _active_inventory() if user and user.can_edit else None,
         "active_loans_count": _active_loans_count() if user else 0,
+        "cart_count": _cart_count(user.id) if user and user.can_edit else 0,
     }
     if context:
         ctx.update(context)
@@ -107,6 +108,30 @@ def _active_loans_count() -> int:
         with Session(engine) as session:
             return session.exec(
                 select(sqlf.count(Loan.id)).where(Loan.returned_at.is_(None))
+            ).one()
+    except Exception:
+        return 0
+
+
+def _cart_count(user_id: int) -> int:
+    """Antal Loan-rader i användarens cart-batch."""
+    from sqlalchemy import func as sqlf
+    from sqlmodel import Session, select
+
+    from app.db import engine
+    from app.models import Loan, LoanBatch, LoanBatchStatus
+
+    try:
+        with Session(engine) as session:
+            cart = session.exec(
+                select(LoanBatch)
+                .where(LoanBatch.created_by == user_id)
+                .where(LoanBatch.status == LoanBatchStatus.CART)
+            ).first()
+            if not cart:
+                return 0
+            return session.exec(
+                select(sqlf.count(Loan.id)).where(Loan.batch_id == cart.id)
             ).one()
     except Exception:
         return 0

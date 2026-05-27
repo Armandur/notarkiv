@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Utlåningskorg - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
+  <h1 class="h3 mb-0">Utlåningskorg</h1>
+  <a href="/loans" class="small">Tillbaka till utlån</a>
+</div>
+
+{% if total == 0 %}
+<div class="alert alert-info">
+  <p class="mb-1"><strong>Korgen är tom.</strong></p>
+  <p class="mb-0 small">Gå till en not eller en lagringsplats och klicka <em>Lägg i utlåningskorg</em>.</p>
+</div>
+{% else %}
+
+<p class="text-muted small mb-3">
+  {{ total }} {% if total == 1 %}not{% else %}noter{% endif %} i korgen,
+  grupperade per plats där de ska hämtas.
+</p>
+
+{% for group in groups %}
+<div class="card mb-3">
+  <div class="card-header bg-light">
+    <strong>{% if group.location and group.location.kind == 'digital' %}☁{% else %}■{% endif %} {{ group.path }}</strong>
+    {% if group.unit %}<a href="/storage/units/{{ group.unit.id }}" class="small ms-2 text-decoration-none">öppna plats →</a>{% endif %}
+  </div>
+  <ul class="list-group list-group-flush">
+    {% for item in group.entries %}
+    <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <a href="/pieces/{{ item.piece.id }}" class="text-reset"><strong>{{ item.piece.title }}</strong></a>
+        {% if item.piece.contributors_cache %}
+        <span class="text-muted small">· {{ item.piece.contributors_cache }}</span>
+        {% endif %}
+      </div>
+      <div class="d-flex gap-2 align-items-center">
+        <form method="post" action="/loans/cart/{{ item.loan.id }}/update" class="d-flex gap-1 align-items-center mb-0">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="number" name="copies" value="{{ item.loan.copies }}" min="1"
+                 {% if item.max_copies %}max="{{ item.max_copies }}"{% endif %}
+                 class="form-control form-control-sm" style="width: 5em">
+          {% if item.max_copies %}<span class="text-muted small">av {{ item.max_copies }}</span>{% endif %}
+          <button type="submit" class="btn btn-sm btn-outline-secondary" title="Uppdatera antal">↻</button>
+        </form>
+        <form method="post" action="/loans/cart/{{ item.loan.id }}/remove" class="mb-0">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn btn-sm btn-outline-danger" title="Ta bort ur korg">×</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endfor %}
+
+<div class="card mt-4">
+  <div class="card-header"><strong>Registrera utlån</strong></div>
+  <form method="post" action="/loans/cart/checkout" class="card-body">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <div class="mb-3">
+      <label class="form-label">Syfte / namn på utlånet *</label>
+      <input type="text" name="name" class="form-control" required
+             placeholder='t.ex. "Konsert 14 juni" eller "Adventsgudstjänst"'>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Låntagare *</label>
+      <div class="loan-borrower-picker">
+        <select name="borrower_user_id" class="form-select user-picker">
+          {% for u in loan_users %}
+          <option value="{{ u.id }}" {% if u.id == user.id %}selected{% endif %}>{{ u.username }}</option>
+          {% endfor %}
+        </select>
+        <input type="text" name="borrower_name" class="form-control mt-1 external-name d-none" placeholder="Namn på extern person">
+        <div class="form-check mt-1">
+          <input class="form-check-input external-toggle" type="checkbox" id="cart-extern">
+          <label class="form-check-label small" for="cart-extern">
+            Extern person (skriv namn manuellt)
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label small mb-1">Förväntad återlämning (valfritt)</label>
+      <input type="date" name="expected_return" class="form-control" style="max-width: 14em">
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Anteckning (valfri)</label>
+      <textarea name="notes" class="form-control" rows="2"></textarea>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center">
+      <span class="text-muted small">Efter registrering öppnas plocklistan.</span>
+      <button type="submit" class="btn btn-primary">Registrera och börja plocka</button>
+    </div>
+  </form>
+</div>
+
+{% endif %}
+
+<script>
+document.querySelectorAll('.loan-borrower-picker').forEach((box) => {
+  const select = box.querySelector('.user-picker');
+  const free = box.querySelector('.external-name');
+  const toggle = box.querySelector('.external-toggle');
+  toggle.addEventListener('change', () => {
+    if (toggle.checked) {
+      select.classList.add('d-none');
+      select.disabled = true;
+      free.classList.remove('d-none');
+      free.required = true;
+      free.focus();
+    } else {
+      select.classList.remove('d-none');
+      select.disabled = false;
+      free.classList.add('d-none');
+      free.required = false;
+      free.value = '';
+    }
+  });
+});
+</script>
+{% endblock %}

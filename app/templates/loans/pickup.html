@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Plocklista - {{ batch.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="h3 mb-0">Plocklista</h1>
+    <p class="text-muted small mb-0">{{ batch.name }} · {{ batch.borrower_name }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/loans/batch/{{ batch.id }}/pickup.pdf" target="_blank" class="btn btn-sm btn-outline-secondary">Skriv ut (PDF)</a>
+    <a href="/loans/batch/{{ batch.id }}" class="btn btn-sm btn-outline-secondary">Detaljvy</a>
+  </div>
+</div>
+
+{% if batch.status == 'active' %}
+<div class="alert alert-success">
+  Utlånet är aktivt - alla noter är hämtade. Gå till
+  <a href="/loans/batch/{{ batch.id }}">detaljvyn</a> för återlämning.
+</div>
+{% else %}
+<div class="alert alert-info small">
+  Bocka av varje not när du har hämtat den fysiskt. Noter som inte hittas raderas från utlånet.
+  När du är klar med plockningen klickar du <em>Slutregistrera utlån</em>.
+</div>
+{% endif %}
+
+{% set total = items|length %}
+{% set picked = items|selectattr('loan.picked_up_at')|list|length %}
+<p class="small text-muted">{{ picked }} av {{ total }} hämtade</p>
+
+{% if not items %}
+<p class="text-muted fst-italic">Inga noter kvar i lånet.</p>
+{% endif %}
+
+{% for group in groups %}
+<div class="card mb-3">
+  <div class="card-header bg-light d-flex justify-content-between align-items-center">
+    <div>
+      <strong>{% if group.location and group.location.kind == 'digital' %}☁{% else %}■{% endif %} {{ group.path }}</strong>
+    </div>
+    {% if group.unit %}<a href="/storage/units/{{ group.unit.id }}" class="small text-decoration-none">öppna plats →</a>{% endif %}
+  </div>
+  <ul class="list-group list-group-flush">
+    {% for item in group.entries %}
+    <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2 {% if item.loan.picked_up_at %}bg-light{% endif %}">
+      <div>
+        {% if item.loan.picked_up_at %}<span class="badge bg-success me-1">✓</span>{% endif %}
+        <a href="/pieces/{{ item.piece.id }}" class="text-reset"><strong>{{ item.piece.title }}</strong></a>
+        <span class="text-muted small">· {{ item.loan.copies }} ex</span>
+        {% if item.piece.contributors_cache %}
+        <div class="text-muted small">{{ item.piece.contributors_cache }}</div>
+        {% endif %}
+      </div>
+      {% if batch.status == 'picking' %}
+      <div class="d-flex gap-1">
+        {% if not item.loan.picked_up_at %}
+        <form method="post" action="/loans/{{ item.loan.id }}/pickup" class="mb-0">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn btn-sm btn-success">✓ Hämtad</button>
+        </form>
+        <button type="button" class="btn btn-sm btn-outline-danger"
+                onclick="confirmAction('/loans/{{ item.loan.id }}/not-found',
+                                       'Ta bort &quot;{{ item.piece.title|e }}&quot; från utlånet (hittades ej)?',
+                                       {submitLabel: 'Ta bort', title: 'Hittade ej'})">
+          ✗ Hittade ej
+        </button>
+        {% else %}
+        <span class="text-muted small">hämtad {{ item.loan.picked_up_at.strftime('%H:%M') }}</span>
+        {% endif %}
+      </div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endfor %}
+
+{% if batch.status == 'picking' %}
+<div class="card mb-3">
+  <div class="card-header bg-light">
+    <strong>Lägg till fler noter</strong>
+  </div>
+  <div class="card-body">
+    <p class="small text-muted mb-2">Hittade du fler noter på vägen? Sök på titel eller kompositör.</p>
+    <input type="search" name="q" class="form-control form-control-sm"
+           placeholder="Sök titel eller kompositör (minst 2 tecken)..."
+           hx-get="/loans/batch/{{ batch.id }}/search-placements"
+           hx-trigger="input changed delay:200ms"
+           hx-target="#placement-search-results"
+           hx-swap="innerHTML">
+    <div id="placement-search-results" class="mt-2"></div>
+  </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mt-4">
+  <a href="/loans" class="btn btn-link">Spara och fortsätt senare</a>
+  <form method="post" action="/loans/batch/{{ batch.id }}/activate" class="mb-0">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="btn btn-primary" {% if picked == 0 %}disabled{% endif %}>
+      Slutregistrera utlån ({{ picked }} av {{ total }} hämtade)
+    </button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

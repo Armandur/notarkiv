@@ -1,0 +1,21 @@
+{% if not rows %}
+<p class="text-muted small fst-italic mb-0">Inga träffar.</p>
+{% else %}
+<ul class="list-group list-group-flush">
+  {% for row in rows %}
+  <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+    <div>
+      <strong>{{ row.piece.title }}</strong>
+      {% if row.piece.contributors_cache %}<span class="text-muted small">· {{ row.piece.contributors_cache }}</span>{% endif %}
+      {% if row.unit %}<div class="text-muted small">{{ row.unit.name }}</div>{% endif %}
+    </div>
+    <form method="post" action="/loans/batch/{{ batch_id }}/add-more" class="mb-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="placement_id" value="{{ row.placement.id }}">
+      <input type="hidden" name="copies" value="1">
+      <button type="submit" class="btn btn-sm btn-outline-primary">+ Lägg till</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
