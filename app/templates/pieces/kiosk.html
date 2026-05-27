@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}Kiosk - Notarkiv{% endblock %}
+
+{% block content %}
+{% if not borrower %}
+{# Auth-läget: ingen låntagare inloggad #}
+<div class="row justify-content-center py-5">
+  <div class="col-md-6">
+    <h1 class="h2 text-center mb-4">Notarkivets kiosk</h1>
+    <div class="card mb-3">
+      <div class="card-body p-3 text-center">
+        <h2 class="h6">Skanna din profil-QR</h2>
+        <form id="kiosk-qr-form" autocomplete="off">
+          <input type="text" id="kiosk-qr-code" class="form-control form-control-lg text-center"
+                 placeholder="Skanna QR-kod" autofocus
+                 style="max-width: 25em; margin: 0 auto; font-family: monospace; letter-spacing: 0.05em">
+        </form>
+        <p class="text-muted small mt-2 mb-0">QR-koden finns på din profilsida.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-4">
+        <h2 class="h6 mb-3">Eller logga in med PIN</h2>
+        <form method="post" action="/kiosk/auth" autocomplete="off">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="mb-3">
+            <label class="form-label">Användarnamn</label>
+            <input type="text" name="username" class="form-control form-control-lg" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">PIN</label>
+            <input type="password" name="pin" class="form-control form-control-lg text-center"
+                   inputmode="numeric" pattern="[0-9]*" required
+                   style="letter-spacing: 0.3em">
+          </div>
+          <button type="submit" class="btn btn-primary btn-lg w-100">Logga in</button>
+        </form>
+        <p class="text-muted small mt-3 mb-0 text-center">
+          PIN-kod sätts via <a href="/profile">din profil</a> när du är inloggad i systemet.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Form för QR-auth som JS submitar via fetch #}
+<form id="qr-auth-form" method="post" action="/kiosk/qr-auth" class="d-none">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="token" id="qr-auth-token">
+</form>
+
+<script>
+(function() {
+  const input = document.getElementById('kiosk-qr-code');
+  const form = document.getElementById('kiosk-qr-form');
+  if (!input || !form) return;
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const code = input.value.trim();
+    if (!code) return;
+    // QR-innehåll = "u:<token>" - strippa prefixet
+    const m = code.match(/^u:([a-f0-9]+)$/i) || code.match(/([a-f0-9]{32})/i);
+    if (!m) return;
+    document.getElementById('qr-auth-token').value = m[1];
+    document.getElementById('qr-auth-form').submit();
+  });
+})();
+</script>
+
+{% else %}
+{# Autentiserad: skanna + cart-status #}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card mb-3">
+      <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+        <div>
+          <span class="text-muted small">Låntagare:</span>
+          <strong>{{ borrower.username }}</strong>
+        </div>
+        <form method="post" action="/kiosk/logout" class="mb-0">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Logga ut</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="text-center py-4">
+      <h1 class="display-6 mb-3">Skanna en not</h1>
+      <form id="kiosk-form" class="d-inline-block" autocomplete="off">
+        <input type="text" id="kiosk-code" class="form-control form-control-lg text-center"
+               placeholder="Skanna QR-kod"
+               style="max-width: 30em; font-family: monospace; letter-spacing: 0.1em"
+               autofocus>
+      </form>
+      <p class="text-muted small mt-2">Handskannern skickar Enter automatiskt.</p>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card sticky-top" style="top: 1em">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>Aktuellt utlån</strong>
+        <span class="badge bg-secondary">{{ cart_total }}</span>
+      </div>
+      <div class="card-body p-0" style="max-height: 50vh; overflow-y: auto;">
+        {% if not cart_items %}
+        <p class="text-muted fst-italic small p-3 mb-0">Inga noter än. Skanna första noten.</p>
+        {% else %}
+        <ul class="list-group list-group-flush small">
+          {% for item in cart_items %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ item.piece.title }}</strong>
+              <span class="text-muted">· {{ item.loan.copies }} ex</span>
+              {% if item.unit %}<div class="text-muted small">{{ item.unit.name }}</div>{% endif %}
+            </div>
+            <form method="post" action="/loans/cart/{{ item.loan.id }}/remove" class="mb-0">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger" title="Ta bort">×</button>
+            </form>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+      {% if cart_items %}
+      <div class="card-footer">
+        <button type="button" class="btn btn-success w-100"
+                data-bs-toggle="modal" data-bs-target="#checkoutModal">
+          Registrera utlån ({{ cart_total }} noter)
+        </button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="checkoutModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="/kiosk/checkout">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Registrera utlån</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small mb-2">
+          <strong>{{ cart_total }} noter</strong> registreras med <strong>{{ borrower.username }}</strong> som ansvarig.
+        </p>
+        <div class="mb-3">
+          <label class="form-label">Låntagare</label>
+          <div class="kiosk-borrower-picker">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="borrower_mode" value="self"
+                     id="kbm-self" checked>
+              <label class="form-check-label" for="kbm-self">{{ borrower.username }} (mig själv)</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="borrower_mode" value="external"
+                     id="kbm-ext">
+              <label class="form-check-label" for="kbm-ext">Extern person</label>
+            </div>
+            <input type="text" name="external_name" class="form-control mt-2 external-input d-none"
+                   placeholder="Namn på extern låntagare">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Syfte (valfritt)</label>
+          <input type="text" name="name" class="form-control"
+                 placeholder='t.ex. "Konsert 14 juni" - lämna tomt för auto-namn'>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small">Förväntad återlämning (valfritt)</label>
+          <input type="date" name="expected_return" class="form-control" style="max-width: 14em">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+        <button type="submit" class="btn btn-success">Registrera och logga ut</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function() {
+  const input = document.getElementById('kiosk-code');
+  const form = document.getElementById('kiosk-form');
+
+  function refocusIfIdle() {
+    if (document.querySelector('.modal.show')) return;
+    if (document.activeElement !== input) input.focus();
+  }
+  document.addEventListener('click', refocusIfIdle);
+  setInterval(refocusIfIdle, 2000);
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const code = input.value.trim();
+    if (!code) return;
+    const match = code.match(/[a-f0-9]{32}/i);
+    const id = match ? match[0] : code;
+    window.location.href = '/kiosk/' + encodeURIComponent(id);
+  });
+
+  // Borrower-toggle i checkout-modalen
+  document.querySelectorAll('.kiosk-borrower-picker').forEach((box) => {
+    const radios = box.querySelectorAll('input[name="borrower_mode"]');
+    const ext = box.querySelector('.external-input');
+    radios.forEach((r) => {
+      r.addEventListener('change', () => {
+        if (box.querySelector('input[value="external"]').checked) {
+          ext.classList.remove('d-none');
+          ext.required = true;
+          ext.focus();
+        } else {
+          ext.classList.add('d-none');
+          ext.required = false;
+          ext.value = '';
+        }
+      });
+    });
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

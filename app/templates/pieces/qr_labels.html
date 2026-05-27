@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}QR-etiketter - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3 d-print-none">
+  <h1 class="h3 mb-0">QR-etiketter ({{ pieces|length }} noter)</h1>
+  <div class="d-flex gap-2">
+    <a href="/pieces" class="btn btn-outline-secondary">← Tillbaka</a>
+    <a href="{{ request.url.replace(path='/pieces/qr-labels.pdf') }}" target="_blank" class="btn btn-outline-secondary">Ladda ner PDF</a>
+    <button onclick="window.print()" class="btn btn-primary">Skriv ut</button>
+  </div>
+</div>
+
+<p class="text-muted small d-print-none">
+  Klipp ut och fäst på pärm/note. Skanna med kameramobil eller handskanner -
+  landar på piece-detaljvyn.
+</p>
+
+<div class="qr-grid">
+  {% for p in pieces %}
+  <div class="qr-card">
+    <img src="/pieces/{{ p.id }}/qr.png" alt="QR för {{ p.title }}">
+    <div class="qr-title">{{ p.title }}</div>
+    {% if p.contributors_cache %}
+    <div class="qr-meta">{{ p.contributors_cache }}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<style>
+.qr-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8mm;
+}
+.qr-card {
+  border: 1px dashed #ccc;
+  padding: 4mm;
+  text-align: center;
+  page-break-inside: avoid;
+}
+.qr-card img {
+  width: 100%;
+  max-width: 35mm;
+  height: auto;
+}
+.qr-title {
+  font-size: 9pt;
+  font-weight: bold;
+  margin-top: 2mm;
+  line-height: 1.2;
+}
+.qr-meta {
+  font-size: 7.5pt;
+  color: #666;
+  margin-top: 1mm;
+}
+@media print {
+  body { background: white; }
+  .navbar, .d-print-none { display: none !important; }
+  .qr-card { border-color: #ddd; }
+}
+</style>
+{% endblock %}

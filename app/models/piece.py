@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from enum import StrEnum
 
@@ -12,10 +13,19 @@ class CopyrightStatus(StrEnum):
     UNKNOWN = "unknown"
 
 
+def _new_public_id() -> str:
+    return uuid.uuid4().hex
+
+
 class Piece(SQLModel, table=True):
     __tablename__ = "pieces"
 
     id: int | None = Field(default=None, primary_key=True)
+    # Stabilt ID för QR-koder och etiketter. Slumpat UUID4 utan bindestreck
+    # (32 tecken) så det blir kortare i URLs och scannerinput.
+    public_id: str | None = Field(
+        default_factory=_new_public_id, unique=True, index=True
+    )
 
     title: str
     original_title: str | None = None

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ piece.title }} - Kiosk{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
+  <h1 class="h2 mb-0">{{ piece.title }}</h1>
+  <div class="d-flex gap-2 align-items-center">
+    <span class="text-muted small">Låntagare: <strong>{{ borrower.username }}</strong></span>
+    <a href="/kiosk" class="btn btn-outline-secondary">← Skanna nästa</a>
+    <a href="/pieces/{{ piece.id }}" class="btn btn-outline-secondary">Full vy</a>
+  </div>
+</div>
+{% if piece.contributors_cache %}
+<p class="text-muted lead">{{ piece.contributors_cache }}</p>
+{% endif %}
+
+{% if not placements %}
+<div class="alert alert-warning">Inga placeringar registrerade på den här noten.</div>
+{% else %}
+{% for row in placements %}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div>
+        <h2 class="h5 mb-1">
+          {% if row.unit %}<a href="/storage/units/{{ row.unit.id }}" class="text-reset">{{ row.unit.name }}</a>{% else %}Okänd plats{% endif %}
+        </h2>
+        {% if row.placement.copies %}
+        <div>
+          <span class="badge bg-secondary fs-6">{{ row.home }}/{{ row.placement.copies }} ex hemma</span>
+          {% if row.out_count %}<span class="badge bg-warning text-dark fs-6">{{ row.out_count }} ute</span>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+      {% if user.can_edit %}
+      <form method="post" action="/loans/cart/add" class="mb-0">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="placement_id" value="{{ row.placement.id }}">
+        <input type="hidden" name="return_to" value="/kiosk">
+        <button type="submit" class="btn btn-success btn-lg">+ Lägg till i utlån</button>
+      </form>
+      {% endif %}
+    </div>
+
+    {% if row.loans %}
+    <ul class="list-group list-group-flush mt-3">
+      {% for loan in row.loans %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <strong>{{ loan.borrower_name }}</strong>
+          · {{ loan.copies }} ex
+          · lånat {{ loan.borrowed_at.strftime('%Y-%m-%d') }}
+        </div>
+        {% if user.can_edit %}
+        <form method="post" action="/loans/{{ loan.id }}/return" class="mb-0">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn btn-outline-success">Återlämna</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

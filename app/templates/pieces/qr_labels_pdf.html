@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<title>QR-etiketter</title>
+<style>
+@page {
+  size: A4;
+  margin: 12mm 10mm 12mm 10mm;
+}
+body { font-family: "Helvetica", "Arial", sans-serif; color: #222; }
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5mm;
+}
+.cell {
+  width: calc(25% - 4mm);
+  height: 55mm;
+  border: 1px dashed #aaa;
+  padding: 3mm;
+  text-align: center;
+  page-break-inside: avoid;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.qr {
+  width: 32mm;
+  height: 32mm;
+  margin-bottom: 1mm;
+}
+.title {
+  font-size: 8.5pt;
+  font-weight: bold;
+  line-height: 1.15;
+  margin-bottom: 1mm;
+  word-wrap: break-word;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.meta {
+  font-size: 7pt;
+  color: #666;
+  line-height: 1.15;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.empty {
+  font-style: italic;
+  color: #888;
+  text-align: center;
+  margin: 4em 0;
+}
+</style>
+</head>
+<body>
+
+{% if not items %}
+<p class="empty">Inga noter med valda filter.</p>
+{% else %}
+<div class="grid">
+  {% for item in items %}
+  <div class="cell">
+    <img src="{{ item.qr_data_uri }}" class="qr" alt="">
+    <div class="title">{{ item.piece.title }}</div>
+    {% if item.piece.contributors_cache %}
+    <div class="meta">{{ item.piece.contributors_cache }}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+</body>
+</html>
