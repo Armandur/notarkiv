@@ -12,6 +12,7 @@ KEY_ANTHROPIC_API_KEY = "anthropic_api_key"
 KEY_CLAUDE_MODEL = "claude_model"
 KEY_MUSICBRAINZ_USER_AGENT = "musicbrainz_user_agent"
 KEY_OCR_PROVIDER = "ocr_provider"
+KEY_KIOSK_IDLE_TIMEOUT_MINUTES = "kiosk_idle_timeout_minutes"
 
 SENSITIVE_KEYS = {KEY_ANTHROPIC_API_KEY}
 
@@ -73,3 +74,14 @@ def get_musicbrainz_user_agent() -> str:
 
 def get_ocr_provider() -> str:
     return get_setting(KEY_OCR_PROVIDER, env_settings.ocr_provider) or env_settings.ocr_provider
+
+
+def get_kiosk_idle_timeout_minutes() -> int:
+    """Antal minuter inaktivitet innan PIN-autentiserade låntagaren auto-
+    loggas ut från kiosken. Default 60 - lång eftersom körledare kan
+    vandra runt och leta noter. 0 = aldrig auto-logga-ut."""
+    val = get_setting(KEY_KIOSK_IDLE_TIMEOUT_MINUTES, "60")
+    try:
+        return max(0, int(val))
+    except (TypeError, ValueError):
+        return 60

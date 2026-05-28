@@ -83,6 +83,22 @@
     </div>
   </div>
 
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">Kiosk</div>
+      <div class="card-body">
+        <label class="form-label">Auto-logga ut låntagare efter (minuter)</label>
+        <input type="number" name="kiosk_idle_timeout_minutes" class="form-control"
+               value="{{ settings.kiosk_idle_timeout_minutes }}" min="0" max="1440" style="max-width: 10em">
+        <div class="form-text">
+          PIN-autentiserade låntagare loggas ut automatiskt efter inaktivitet.
+          Default 60 min - lång eftersom körledare kan vandra runt och leta
+          noter mellan skanningar. <strong>0 = aldrig logga ut.</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="col-12">
     <button type="submit" class="btn btn-primary">Spara inställningar</button>
   </div>

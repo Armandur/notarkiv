@@ -91,10 +91,30 @@ async def by_public_id(
 
 
 def _kiosk_borrower(request: Request, session: Session) -> User | None:
-    """Den autentiserade låntagaren för aktuell kiosk-session (via PIN)."""
+    """Den autentiserade låntagaren för aktuell kiosk-session (via PIN).
+    Rensar sessionen om inaktivitet > timeout (admin-konfigurerbart)."""
     bid = request.session.get("kiosk_borrower_id")
     if not bid:
         return None
+
+    # Timeout-check: jämför last_activity-timestamp mot konfigurerad gräns
+    from app.services.app_settings import get_kiosk_idle_timeout_minutes
+
+    timeout_min = get_kiosk_idle_timeout_minutes()
+    if timeout_min > 0:
+        last_active_raw = request.session.get("kiosk_borrower_last_active")
+        if last_active_raw:
+            try:
+                last_active = datetime.fromisoformat(last_active_raw)
+                if (datetime.utcnow() - last_active).total_seconds() > timeout_min * 60:
+                    request.session.pop("kiosk_borrower_id", None)
+                    request.session.pop("kiosk_borrower_last_active", None)
+                    return None
+            except (TypeError, ValueError):
+                pass
+    # Touch timestamp för nästa request
+    request.session["kiosk_borrower_last_active"] = datetime.utcnow().isoformat()
+
     user = session.get(User, bid)
     return user
 
@@ -267,6 +287,7 @@ async def kiosk_auth(
 
     reset_kiosk_attempts(ip)
     request.session["kiosk_borrower_id"] = target.id
+    request.session["kiosk_borrower_last_active"] = datetime.utcnow().isoformat()
     flash(request, f"Inloggad som {target.username}", "success")
     return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
 
@@ -300,6 +321,7 @@ async def kiosk_qr_auth(
 
     reset_kiosk_attempts(ip)
     request.session["kiosk_borrower_id"] = target.id
+    request.session["kiosk_borrower_last_active"] = datetime.utcnow().isoformat()
     flash(request, f"Inloggad som {target.username}", "success")
     return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
 
