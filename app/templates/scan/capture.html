@@ -82,9 +82,11 @@
   let currentFile = null;       // den fil som skickas vid submit
   let originalFile = null;      // originalbilden för re-cropping
   let originalBlobUrl = null;
+  let croppedBlobUrl = null;    // post-crop, pre-filter
   let rotation = 0;
   let blobUrl = null;
   let corners = null;           // valda hörn från senaste crop
+  let filter = 'none';
 
   function showRotation() {
     previewImg.style.transform = `rotate(${rotation}deg)`;
@@ -96,17 +98,25 @@
     }
   }
 
+  function revokeAllUrls() {
+    const seen = new Set();
+    [blobUrl, croppedBlobUrl, originalBlobUrl].forEach(u => {
+      if (u && !seen.has(u)) { URL.revokeObjectURL(u); seen.add(u); }
+    });
+  }
+
   input.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) { previewBlock.classList.add('d-none'); currentFile = null; return; }
-    if (blobUrl && blobUrl !== originalBlobUrl) URL.revokeObjectURL(blobUrl);
-    if (originalBlobUrl) URL.revokeObjectURL(originalBlobUrl);
+    revokeAllUrls();
     originalFile = file;
     currentFile = file;
     rotation = 0;
     corners = null;
+    filter = 'none';
     originalBlobUrl = URL.createObjectURL(file);
     blobUrl = originalBlobUrl;
+    croppedBlobUrl = null;
     previewImg.src = blobUrl;
     previewBlock.classList.remove('d-none');
     croppedBadge.classList.add('d-none');
@@ -114,13 +124,26 @@
 
     // Försök auto-cropa direkt
     const result = await notarkivCrop.autoCrop(originalBlobUrl);
-    if (!result) return;
+    let sourceUrl = originalBlobUrl;
+    if (result) {
+      croppedBlobUrl = URL.createObjectURL(result.blob);
+      corners = result.corners;
+      sourceUrl = croppedBlobUrl;
+      croppedBadge.classList.remove('d-none');
+    }
+    // Applicera Dokument-filtret som default
+    const filteredBlob = await notarkivCrop.applyFilter(sourceUrl, 'document');
     if (blobUrl !== originalBlobUrl) URL.revokeObjectURL(blobUrl);
-    currentFile = new File([result.blob], 'crop-foto.jpg', { type: 'image/jpeg' });
-    blobUrl = URL.createObjectURL(result.blob);
-    corners = result.corners;
+    if (filteredBlob) {
+      currentFile = new File([filteredBlob], 'scan.jpg', { type: 'image/jpeg' });
+      blobUrl = URL.createObjectURL(filteredBlob);
+      filter = 'document';
+    } else if (result) {
+      currentFile = new File([result.blob], 'crop-foto.jpg', { type: 'image/jpeg' });
+      blobUrl = croppedBlobUrl;
+      filter = 'none';
+    }
     previewImg.src = blobUrl;
-    croppedBadge.classList.remove('d-none');
   });
 
   document.getElementById('rotateCwBtn').addEventListener('click', () => {
@@ -132,15 +155,30 @@
   function applyCrop() {
     if (!originalFile || !originalBlobUrl) return;
     notarkivCrop.open(originalBlobUrl, (blob, finalCorners) => {
-      if (blobUrl && blobUrl !== originalBlobUrl) URL.revokeObjectURL(blobUrl);
+      if (croppedBlobUrl && croppedBlobUrl !== originalBlobUrl) URL.revokeObjectURL(croppedBlobUrl);
+      if (blobUrl && blobUrl !== croppedBlobUrl && blobUrl !== originalBlobUrl) URL.revokeObjectURL(blobUrl);
       currentFile = new File([blob], 'crop-foto.jpg', { type: 'image/jpeg' });
       blobUrl = URL.createObjectURL(blob);
+      croppedBlobUrl = blobUrl;
       corners = finalCorners;
+      filter = 'none';
       previewImg.src = blobUrl;
       croppedBadge.classList.remove('d-none');
     }, corners);
   }
   document.getElementById('cropBtn').addEventListener('click', applyCrop);
+
+  async function applyFilterTo(filterName) {
+    const source = croppedBlobUrl || originalBlobUrl;
+    const blob = await notarkivCrop.applyFilter(source, filterName);
+    if (!blob) return;
+    if (blobUrl !== croppedBlobUrl && blobUrl !== originalBlobUrl) URL.revokeObjectURL(blobUrl);
+    currentFile = new File([blob], 'scan.jpg', { type: 'image/jpeg' });
+    blobUrl = URL.createObjectURL(blob);
+    filter = filterName;
+    previewImg.src = blobUrl;
+    notarkivScanPreview.update(previewItem());
+  }
 
   function previewItem() {
     return [{
@@ -148,6 +186,7 @@
       label: 'Förhandsgranskning',
       cropped: !croppedBadge.classList.contains('d-none'),
       rotated: rotation,
+      filter: filter,
     }];
   }
 
@@ -165,6 +204,7 @@
         showRotation();
         notarkivScanPreview.update(previewItem());
       },
+      onFilter: (_i, f) => applyFilterTo(f),
     });
   });
 

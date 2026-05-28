@@ -391,6 +391,98 @@ window.notarkivCrop = (function() {
     });
   }
 
-  return { open, autoCrop };
+  // Applicera ett dokumentfilter på en bild. filterName ∈ {
+  //   "none"      → oförändrad
+  //   "document"  → OneDrive-Lens-liknande pipeline: gråskala +
+  //                 illumination correction (skuggborttagning via
+  //                 background division) + CLAHE för lokal kontrast +
+  //                 mild unsharp mask. Bra default för notfotos.
+  //   "bw"        → adaptiv binarisering, max kontrast för OCR
+  //   "grayscale" → bara desat
+  // }. Returnerar en JPEG-blob eller null vid fel.
+  async function applyFilter(blobUrl, filterName) {
+    if (!filterName || filterName === 'none') {
+      const resp = await fetch(blobUrl);
+      return await resp.blob();
+    }
+    try {
+      await loadCv();
+    } catch (e) {
+      return null;
+    }
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const garbage = [];
+        const track = (m) => { garbage.push(m); return m; };
+        try {
+          const src = track(cv.imread(img));
+          let result;
+          if (filterName === 'grayscale') {
+            const gray = track(new cv.Mat());
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+            result = track(new cv.Mat());
+            cv.cvtColor(gray, result, cv.COLOR_GRAY2RGBA);
+          } else if (filterName === 'bw') {
+            const gray = track(new cv.Mat());
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+            const bw = track(new cv.Mat());
+            cv.adaptiveThreshold(gray, bw, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 10);
+            result = track(new cv.Mat());
+            cv.cvtColor(bw, result, cv.COLOR_GRAY2RGBA);
+          } else if (filterName === 'document') {
+            // Pipeline för dokumentläsning:
+            // 1) Gråskala
+            const gray = track(new cv.Mat());
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+            // 2) Illumination correction - dela med blurred background
+            //    Kärnstorlek ~ 8% av bildens minsta sida, måste vara udda
+            const k = Math.max(31, Math.floor(Math.min(gray.cols, gray.rows) * 0.08)) | 1;
+            const bg = track(new cv.Mat());
+            cv.GaussianBlur(gray, bg, new cv.Size(k, k), 0);
+            // ratio = gray / bg * 255 (i float, undvik div by zero via +1)
+            const grayF = track(new cv.Mat());
+            gray.convertTo(grayF, cv.CV_32F);
+            const bgF = track(new cv.Mat());
+            bg.convertTo(bgF, cv.CV_32F);
+            const one = track(new cv.Mat(bgF.rows, bgF.cols, cv.CV_32F, new cv.Scalar(1)));
+            const bgSafe = track(new cv.Mat());
+            cv.add(bgF, one, bgSafe);
+            const ratio = track(new cv.Mat());
+            cv.divide(grayF, bgSafe, ratio, 255);
+            const trunc = track(new cv.Mat());
+            cv.threshold(ratio, trunc, 255, 255, cv.THRESH_TRUNC);
+            const norm = track(new cv.Mat());
+            trunc.convertTo(norm, cv.CV_8U);
+            // 3) CLAHE för lokal kontrast (clipLimit 2.0, 8x8-tiles)
+            const clahe = new cv.CLAHE(2.0, new cv.Size(8, 8));
+            const enhanced = track(new cv.Mat());
+            clahe.apply(norm, enhanced);
+            clahe.delete();
+            // 4) Mild unsharp mask för läsbar text
+            const blurred = track(new cv.Mat());
+            cv.GaussianBlur(enhanced, blurred, new cv.Size(3, 3), 0);
+            const sharp = track(new cv.Mat());
+            cv.addWeighted(enhanced, 1.4, blurred, -0.4, 0, sharp);
+            result = track(new cv.Mat());
+            cv.cvtColor(sharp, result, cv.COLOR_GRAY2RGBA);
+          } else {
+            throw new Error('Okänt filter: ' + filterName);
+          }
+          const outCanvas = document.createElement('canvas');
+          cv.imshow(outCanvas, result);
+          outCanvas.toBlob(b => resolve(b), 'image/jpeg', 0.92);
+        } catch (e) {
+          resolve(null);
+        } finally {
+          garbage.forEach(m => { try { m.delete(); } catch (e) {} });
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = blobUrl;
+    });
+  }
+
+  return { open, autoCrop, applyFilter };
 })();
 </script>

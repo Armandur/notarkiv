@@ -119,11 +119,24 @@
 
   async function autoCropCapture(cap) {
     const result = await notarkivCrop.autoCrop(cap.original_blobUrl);
-    if (!result) return;
-    cap.file = new File([result.blob], 'crop-foto.jpg', { type: 'image/jpeg' });
-    cap.blobUrl = URL.createObjectURL(result.blob);
-    cap.cropped = true;
-    cap.corners = result.corners;
+    let sourceUrl = cap.original_blobUrl;
+    if (result) {
+      cap.cropped_blobUrl = URL.createObjectURL(result.blob);
+      cap.cropped = true;
+      cap.corners = result.corners;
+      sourceUrl = cap.cropped_blobUrl;
+    }
+    // Applicera Dokument-filtret som default (skuggborttagning + kontrast)
+    const filteredBlob = await notarkivCrop.applyFilter(sourceUrl, 'document');
+    if (filteredBlob) {
+      cap.file = new File([filteredBlob], 'scan.jpg', { type: 'image/jpeg' });
+      cap.blobUrl = URL.createObjectURL(filteredBlob);
+      cap.filter = 'document';
+    } else if (result) {
+      cap.file = new File([result.blob], 'crop-foto.jpg', { type: 'image/jpeg' });
+      cap.blobUrl = cap.cropped_blobUrl;
+      cap.filter = 'none';
+    }
     render();
   }
 
@@ -146,6 +159,7 @@
             <div class="d-flex gap-1 flex-wrap mt-1">
               ${cap.cropped ? '<span class="badge bg-info text-dark">cropad</span>' : ''}
               ${cap.rotation !== 0 ? `<span class="badge bg-warning text-dark">roterad ${cap.rotation}°</span>` : ''}
+              ${cap.filter && cap.filter !== 'none' ? `<span class="badge bg-secondary">${cap.filter}</span>` : ''}
             </div>
           </div>
           <div class="btn-group btn-group-sm flex-shrink-0" style="height: fit-content">
@@ -166,7 +180,23 @@
       label: 'Bild ' + (i + 1),
       cropped: cap.cropped,
       rotated: cap.rotation || 0,
+      filter: cap.filter || 'none',
     }));
+  }
+
+  async function applyFilterTo(i, filterName) {
+    const cap = captures[i];
+    const source = cap.cropped_blobUrl || cap.original_blobUrl;
+    const blob = await notarkivCrop.applyFilter(source, filterName);
+    if (!blob) return;
+    if (cap.blobUrl !== cap.cropped_blobUrl && cap.blobUrl !== cap.original_blobUrl) {
+      URL.revokeObjectURL(cap.blobUrl);
+    }
+    cap.file = new File([blob], 'scan.jpg', { type: 'image/jpeg' });
+    cap.blobUrl = URL.createObjectURL(blob);
+    cap.filter = filterName;
+    render();
+    notarkivScanPreview.update(previewItems(), i);
   }
 
   function openPreview(idx) {
@@ -182,17 +212,26 @@
         render();
         notarkivScanPreview.update(previewItems(), i);
       },
+      onFilter: (i, f) => applyFilterTo(i, f),
     });
   }
 
   function triggerCrop(idx) {
     const cap = captures[idx];
     notarkivCrop.open(cap.original_blobUrl, (blob, finalCorners) => {
-      if (cap.blobUrl !== cap.original_blobUrl) URL.revokeObjectURL(cap.blobUrl);
+      // Frigör ev gammal cropped och filter-blob - båda byts ut
+      if (cap.cropped_blobUrl && cap.cropped_blobUrl !== cap.original_blobUrl) {
+        URL.revokeObjectURL(cap.cropped_blobUrl);
+      }
+      if (cap.blobUrl !== cap.cropped_blobUrl && cap.blobUrl !== cap.original_blobUrl) {
+        URL.revokeObjectURL(cap.blobUrl);
+      }
       cap.file = new File([blob], 'crop-foto.jpg', { type: 'image/jpeg' });
       cap.blobUrl = URL.createObjectURL(blob);
+      cap.cropped_blobUrl = cap.blobUrl;
       cap.cropped = true;
       cap.corners = finalCorners;
+      cap.filter = 'none';
       render();
     }, cap.corners);
   }
@@ -212,10 +251,10 @@
       captures[idx].rotation = (captures[idx].rotation + 270) % 360;
     } else if (btn.dataset.action === 'remove') {
       const cap = captures[idx];
-      URL.revokeObjectURL(cap.blobUrl);
-      if (cap.original_blobUrl && cap.original_blobUrl !== cap.blobUrl) {
-        URL.revokeObjectURL(cap.original_blobUrl);
-      }
+      const seen = new Set();
+      [cap.blobUrl, cap.cropped_blobUrl, cap.original_blobUrl].forEach(u => {
+        if (u && !seen.has(u)) { URL.revokeObjectURL(u); seen.add(u); }
+      });
       captures.splice(idx, 1);
     } else if (btn.dataset.action === 'crop') {
       triggerCrop(idx);

@@ -23,10 +23,18 @@
                 style="z-index: 1056">›</button>
         <img id="scan-preview-img" alt="" style="max-width: 100%; max-height: 100%; object-fit: contain">
       </div>
-      <div class="modal-footer py-2 border-0 justify-content-center gap-1">
-        <button type="button" id="scan-preview-crop" class="btn btn-outline-light">⊡ Justera kanter</button>
-        <button type="button" id="scan-preview-rotate-ccw" class="btn btn-outline-light">⟲ Rotera vänster</button>
-        <button type="button" id="scan-preview-rotate-cw" class="btn btn-outline-light">⟳ Rotera höger</button>
+      <div class="modal-footer py-2 border-0 flex-column gap-2">
+        <div class="d-flex justify-content-center gap-1 flex-wrap" id="scan-preview-filters">
+          <button type="button" class="btn btn-sm btn-outline-light" data-filter="none">Original</button>
+          <button type="button" class="btn btn-sm btn-outline-light" data-filter="document">Dokument</button>
+          <button type="button" class="btn btn-sm btn-outline-light" data-filter="bw">Svartvit</button>
+          <button type="button" class="btn btn-sm btn-outline-light" data-filter="grayscale">Gråskala</button>
+        </div>
+        <div class="d-flex justify-content-center gap-1 flex-wrap">
+          <button type="button" id="scan-preview-crop" class="btn btn-outline-light">⊡ Justera kanter</button>
+          <button type="button" id="scan-preview-rotate-ccw" class="btn btn-outline-light">⟲ Rotera vänster</button>
+          <button type="button" id="scan-preview-rotate-cw" class="btn btn-outline-light">⟳ Rotera höger</button>
+        </div>
       </div>
     </div>
   </div>
@@ -35,6 +43,14 @@
 <script>
 window.notarkivScanPreview = (function() {
   const state = { items: [], idx: 0, callbacks: null };
+
+  function filterLabel(f) {
+    return {
+      document: 'dokument',
+      grayscale: 'gråskala',
+      bw: 'svartvit',
+    }[f] || f;
+  }
 
   function render() {
     const it = state.items[state.idx];
@@ -57,6 +73,16 @@ window.notarkivScanPreview = (function() {
       b.textContent = 'roterad ' + it.rotated + '°';
       badges.appendChild(b);
     }
+    if (it.filter && it.filter !== 'none') {
+      const b = document.createElement('span');
+      b.className = 'badge bg-secondary';
+      b.textContent = filterLabel(it.filter);
+      badges.appendChild(b);
+    }
+    // Markera aktivt filter i knapparna
+    document.querySelectorAll('#scan-preview-filters button').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.filter === (it.filter || 'none'));
+    });
     const multi = state.items.length > 1;
     document.getElementById('scan-preview-prev').classList.toggle('d-none', !multi);
     document.getElementById('scan-preview-next').classList.toggle('d-none', !multi);
@@ -86,6 +112,11 @@ window.notarkivScanPreview = (function() {
     if (state.callbacks && state.callbacks.onRotateCw) {
       state.callbacks.onRotateCw(state.idx);
     }
+  });
+  document.getElementById('scan-preview-filters').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-filter]');
+    if (!btn || !state.callbacks || !state.callbacks.onFilter) return;
+    state.callbacks.onFilter(state.idx, btn.dataset.filter);
   });
 
   // Tangentbordsnavigation
