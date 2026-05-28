@@ -393,10 +393,11 @@ window.notarkivCrop = (function() {
 
   // Applicera ett dokumentfilter på en bild. filterName ∈ {
   //   "none"      → oförändrad
-  //   "document"  → OneDrive-Lens-liknande pipeline: gråskala +
-  //                 illumination correction (skuggborttagning via
-  //                 background division) + CLAHE för lokal kontrast +
-  //                 mild unsharp mask. Bra default för notfotos.
+  //   "document"  → Per-RGB-kanal auto-levels (sträck 0.5/99.5-
+  //                 percentilen till 0/255). Tar bort färgcast (gulnade
+  //                 papper blir vita) utan att förstöra färgglada bilder.
+  //                 Bevarar all färginformation; ingen skuggborttagning
+  //                 som kan urvattna färger.
   //   "bw"        → adaptiv binarisering, max kontrast för OCR
   //   "grayscale" → bara desat
   // }. Returnerar en JPEG-blob eller null vid fel.
@@ -431,41 +432,61 @@ window.notarkivCrop = (function() {
             result = track(new cv.Mat());
             cv.cvtColor(bw, result, cv.COLOR_GRAY2RGBA);
           } else if (filterName === 'document') {
-            // Pipeline för dokumentläsning:
-            // 1) Gråskala
-            const gray = track(new cv.Mat());
-            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-            // 2) Illumination correction - dela med blurred background
-            //    Kärnstorlek ~ 8% av bildens minsta sida, måste vara udda
-            const k = Math.max(31, Math.floor(Math.min(gray.cols, gray.rows) * 0.08)) | 1;
-            const bg = track(new cv.Mat());
-            cv.GaussianBlur(gray, bg, new cv.Size(k, k), 0);
-            // ratio = gray / bg * 255 (i float, undvik div by zero via +1)
-            const grayF = track(new cv.Mat());
-            gray.convertTo(grayF, cv.CV_32F);
-            const bgF = track(new cv.Mat());
-            bg.convertTo(bgF, cv.CV_32F);
-            const one = track(new cv.Mat(bgF.rows, bgF.cols, cv.CV_32F, new cv.Scalar(1)));
-            const bgSafe = track(new cv.Mat());
-            cv.add(bgF, one, bgSafe);
-            const ratio = track(new cv.Mat());
-            cv.divide(grayF, bgSafe, ratio, 255);
-            const trunc = track(new cv.Mat());
-            cv.threshold(ratio, trunc, 255, 255, cv.THRESH_TRUNC);
-            const norm = track(new cv.Mat());
-            trunc.convertTo(norm, cv.CV_8U);
-            // 3) CLAHE för lokal kontrast (clipLimit 2.0, 8x8-tiles)
-            const clahe = new cv.CLAHE(2.0, new cv.Size(8, 8));
-            const enhanced = track(new cv.Mat());
-            clahe.apply(norm, enhanced);
-            clahe.delete();
-            // 4) Mild unsharp mask för läsbar text
-            const blurred = track(new cv.Mat());
-            cv.GaussianBlur(enhanced, blurred, new cv.Size(3, 3), 0);
-            const sharp = track(new cv.Mat());
-            cv.addWeighted(enhanced, 1.4, blurred, -0.4, 0, sharp);
+            // Per-RGB-kanal auto-levels: stretcha 0.5/99.5-percentilen
+            // till 0/255. Gulnade papper → vita (R-kanalen sträcks upp
+            // när den är "stuck" en bit från max). Färgglada omslag
+            // behåller sin karaktär eftersom varje kanal stretchas på
+            // sitt eget histogram.
+            const autoLevels = (channel) => {
+              const hist = track(new cv.Mat());
+              const srcVec = new cv.MatVector();
+              srcVec.push_back(channel);
+              const mask = track(new cv.Mat());
+              cv.calcHist(srcVec, [0], mask, hist, [256], [0, 256]);
+              srcVec.delete();
+
+              const total = channel.rows * channel.cols;
+              const clip = total * 0.005; // 0.5% av pixlarna
+              let low = 0, high = 255;
+              let cum = 0;
+              for (let i = 0; i < 256; i++) {
+                cum += hist.floatPtr(i)[0];
+                if (cum > clip) { low = i; break; }
+              }
+              cum = 0;
+              for (let i = 255; i >= 0; i--) {
+                cum += hist.floatPtr(i)[0];
+                if (cum > clip) { high = i; break; }
+              }
+              if (high <= low) {
+                const same = track(new cv.Mat());
+                channel.copyTo(same);
+                return same;
+              }
+              const scale = 255.0 / (high - low);
+              const offset = -low * scale;
+              const out = track(new cv.Mat());
+              channel.convertTo(out, -1, scale, offset);
+              return out;
+            };
+
+            const rgb = track(new cv.Mat());
+            cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
+            const channels = new cv.MatVector();
+            cv.split(rgb, channels);
+            const R = autoLevels(channels.get(0));
+            const G = autoLevels(channels.get(1));
+            const B = autoLevels(channels.get(2));
+            channels.delete();
+            const newChannels = new cv.MatVector();
+            newChannels.push_back(R);
+            newChannels.push_back(G);
+            newChannels.push_back(B);
+            const merged = track(new cv.Mat());
+            cv.merge(newChannels, merged);
+            newChannels.delete();
             result = track(new cv.Mat());
-            cv.cvtColor(sharp, result, cv.COLOR_GRAY2RGBA);
+            cv.cvtColor(merged, result, cv.COLOR_RGB2RGBA);
           } else {
             throw new Error('Okänt filter: ' + filterName);
           }

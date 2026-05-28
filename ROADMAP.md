@@ -148,13 +148,23 @@ granska -> spara -> hitta igen.
       med hårkors vid dragning. Bukhari/Shafait-formel för korrekt
       aspekt-beräkning från perspektivprojicerade hörn. Förhandsgranskning
       i fullskärm med kontroller (cropa, rotera, filter).
-- [x] **Dokumentfilter** (commit ea17a2e, c4a4005): klientside-pipeline
-      via OpenCV.js. "Dokument"-filtret som default kombinerar gråskala +
-      illumination correction (GaussianBlur som bakgrund, divide för
-      skuggborttagning) + CLAHE för lokal kontrast + mild unsharp mask.
-      Användaren kan växla till Original / Svartvit (adaptiv tröskel) /
-      Gråskala i preview-modalen. Cache per (source, filter) → blob så
-      växling mellan filter blir omedelbar efter första filtreringen.
+- [x] **Dokumentfilter** (commit ea17a2e, c4a4005, senare iterationer):
+      klientside via OpenCV.js. Default = Original (filter appliceras
+      inte automatiskt eftersom flera testpipelines visat sig vara
+      försämringar i olika fall). "Dokument"-knappen kör nu per-RGB-
+      kanal auto-levels (stretch 0.5/99.5-percentilen till 0/255) som
+      tar bort färgcast (gulnade papper blir vita) utan att förstöra
+      färgglada omslag. Övriga knappar: Original / Svartvit (adaptiv
+      tröskel) / Gråskala. Cache per (source, filter) → blob så växling
+      mellan filter blir omedelbar.
+- [ ] **Klick-på-vit kalibrering**: lägg en "Vitbalans"-knapp i preview-
+      modalen som låter användaren klicka på en punkt i bilden som ska
+      vara vit. Beräkna offset per RGB-kanal (255 - clicked_value) och
+      applicera på hela bilden. Bra för noter med starkt färgcast som
+      auto-levels inte fångar. Kräver canvas-click-handler ovanpå
+      preview-bilden, översättning mellan canvas-koordinater och bild-
+      koordinater. UX-tungt på mobil men kan ändå vara värdefullt för
+      svåra fall.
 - [x] **Dubblettkoll**: vid skanning, jämför mot befintliga poster på
       `(titel, kompositör, arrangör)`. Föreslå "lägg till placering"
       istället för "skapa ny post" om träff finns

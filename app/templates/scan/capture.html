@@ -137,29 +137,18 @@
     showSpinner(true);
 
     try {
-      // Försök auto-cropa direkt
+      // Försök auto-cropa direkt - inget filter appliceras automatiskt
       const result = await notarkivCrop.autoCrop(originalBlobUrl);
-      let sourceUrl = originalBlobUrl;
       if (result) {
         croppedBlobUrl = URL.createObjectURL(result.blob);
         corners = result.corners;
-        sourceUrl = croppedBlobUrl;
         croppedBadge.classList.remove('d-none');
-      }
-      // Applicera Dokument-filtret som default
-      const filteredBlob = await notarkivCrop.applyFilter(sourceUrl, 'document');
-      if (blobUrl !== originalBlobUrl) URL.revokeObjectURL(blobUrl);
-      if (filteredBlob) {
-        currentFile = new File([filteredBlob], 'scan.jpg', { type: 'image/jpeg' });
-        blobUrl = URL.createObjectURL(filteredBlob);
-        filter = 'document';
-        filterCache[sourceUrl + '|document'] = filteredBlob;
-      } else if (result) {
+        if (blobUrl !== originalBlobUrl) URL.revokeObjectURL(blobUrl);
         currentFile = new File([result.blob], 'crop-foto.jpg', { type: 'image/jpeg' });
         blobUrl = croppedBlobUrl;
         filter = 'none';
+        previewImg.src = blobUrl;
       }
-      previewImg.src = blobUrl;
     } finally {
       showSpinner(false);
     }

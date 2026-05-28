@@ -121,26 +121,17 @@
   async function autoCropCapture(cap) {
     try {
       const result = await notarkivCrop.autoCrop(cap.original_blobUrl);
-      let sourceUrl = cap.original_blobUrl;
       if (result) {
         cap.cropped_blobUrl = URL.createObjectURL(result.blob);
         cap.cropped = true;
         cap.corners = result.corners;
-        sourceUrl = cap.cropped_blobUrl;
-      }
-      // Applicera Dokument-filtret som default (skuggborttagning + kontrast)
-      const filteredBlob = await notarkivCrop.applyFilter(sourceUrl, 'document');
-      cap.filterCache = {};
-      if (filteredBlob) {
-        cap.file = new File([filteredBlob], 'scan.jpg', { type: 'image/jpeg' });
-        cap.blobUrl = URL.createObjectURL(filteredBlob);
-        cap.filter = 'document';
-        cap.filterCache[sourceUrl + '|document'] = filteredBlob;
-      } else if (result) {
         cap.file = new File([result.blob], 'crop-foto.jpg', { type: 'image/jpeg' });
         cap.blobUrl = cap.cropped_blobUrl;
-        cap.filter = 'none';
       }
+      // Filter appliceras inte automatiskt - användaren väljer själv via
+      // preview-modalen. Default är Original (bara crop).
+      cap.filter = 'none';
+      cap.filterCache = {};
     } finally {
       cap.processing = false;
       render();
