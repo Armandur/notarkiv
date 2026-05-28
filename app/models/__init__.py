@@ -7,6 +7,7 @@ from app.models.loan_batch import LoanBatch, LoanBatchStatus
 from app.models.person import ContributorRole, Person, PersonLink, PersonLinkKind, PieceContributor
 from app.models.piece import Piece
 from app.models.piece_image import PieceImage
+from app.models.piece_list import PieceList, PieceListItem
 from app.models.piece_user_note import PieceUserNote
 from app.models.psalm import PiecePsalmRef, PsalmBook, PsalmEntry
 from app.models.scan_session import ScanSession
@@ -31,6 +32,8 @@ __all__ = [
     "PieceContributor",
     "Piece",
     "PieceImage",
+    "PieceList",
+    "PieceListItem",
     "PieceUserNote",
     "PiecePsalmRef",
     "PsalmBook",

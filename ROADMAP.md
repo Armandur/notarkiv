@@ -209,19 +209,13 @@ granska -> spara -> hitta igen.
       bryta för externa kamera-appar som öppnar URL:en direkt.
 - [x] **Anteckningsfält per användare på not** (körledarens egna
       tonarter, repetitionsnoter etc.)
-- [ ] **Användarspecifika listor av noter**: en `PieceList`-tabell per
-      användare (id, user_id, name, description, created_at,
-      is_favorites bool). Default-listan `Favoriter` skapas
-      automatiskt vid first-login. Användaren kan skapa fler listor,
-      t.ex. "Konsert 14 juni", "Bröllop-favoriter", "Min repertoar".
-      Listor kan ha en kort anteckning utöver titeln. UI: stjärn-/
-      hjärt-ikon på piece-detalj och i listor som lägger till/tar bort
-      från Favoriter. "Lägg till i lista..."-dropdown för andra listor.
-      `/lists`-vy där man hanterar sina listor, `/lists/{id}` visar
-      noterna i listan med möjlighet att ordna om (drag-sortera) och
-      ta bort. `PieceListItem` (list_id, piece_id, sort_order, added_at)
-      för många-till-många. Egna listor är **privata per användare** -
-      ingen synlighet mellan användare i v1.
+- [x] **Användarspecifika listor av noter**: `PieceList` + `PieceListItem`-
+      modeller, en Favoriter-lista skapas auto per användare. Routes
+      under `/lists` (CRUD + favorit-toggle + items add/remove). UI:
+      stjärn-knapp ★/☆ + "+ Lista"-dropdown på piece-detalj. Listor
+      visar piece-titlar med ta-bort-knapp och redigera-modal för
+      namn+anteckning. Navbar-länk "Mina listor" för alla auth:ade.
+      Privata per användare. Drag-sortera lämnas till framtida iteration.
 - [x] **Utlåningshantering**: registrera utlån per placering med
       låntagare, antal, ev. förv. retur. Återlämning markeras med
       knapp. Global /loans-sida visar aktiva utlån. Navbar-badge.

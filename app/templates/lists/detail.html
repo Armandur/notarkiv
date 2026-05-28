@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{{ piece_list.name }} - Mina listor{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="h3 mb-0">
+      {% if piece_list.is_favorites %}<span class="text-warning">★</span> {% endif %}{{ piece_list.name }}
+    </h1>
+    {% if piece_list.description %}
+    <p class="text-muted mb-0">{{ piece_list.description }}</p>
+    {% endif %}
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="/lists" class="btn btn-sm btn-outline-secondary">← Mina listor</a>
+    <button class="btn btn-sm btn-outline-secondary"
+            data-bs-toggle="modal" data-bs-target="#editListModal">Redigera</button>
+    {% if not piece_list.is_favorites %}
+    <button class="btn btn-sm btn-outline-danger"
+            onclick="confirmAction('/lists/{{ piece_list.id }}/delete', 'Radera listan {{ piece_list.name|e }}? Noterna i den raderas inte - bara själva listan.')">
+      Radera lista
+    </button>
+    {% endif %}
+  </div>
+</div>
+
+{% if not items %}
+<p class="text-muted fst-italic">
+  {% if piece_list.is_favorites %}
+  Inga favoriter ännu. Klicka på <span class="text-warning">★</span>-stjärnan på en not för att lägga till.
+  {% else %}
+  Listan är tom. Lägg till noter via "Lägg till i lista..."-knappen på piece-detaljsidan.
+  {% endif %}
+</p>
+{% else %}
+<div class="list-group">
+  {% for item, piece in items %}
+  <div class="list-group-item d-flex justify-content-between align-items-center gap-2 flex-wrap">
+    <div class="flex-grow-1" style="min-width: 0">
+      <a href="/pieces/{{ piece.id }}" class="text-reset text-decoration-none">
+        <strong>{{ piece.title }}</strong>
+      </a>
+      {% if piece.contributors_cache %}
+      <div class="text-muted small">{{ piece.contributors_cache }}</div>
+      {% endif %}
+    </div>
+    <form method="post" action="/lists/{{ piece_list.id }}/items/{{ piece.id }}/remove"
+          class="mb-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="return_to" value="/lists/{{ piece_list.id }}">
+      <button type="submit" class="btn btn-sm btn-outline-danger" title="Ta bort ur listan">×</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="modal fade" id="editListModal" tabindex="-1">
+  <div class="modal-dialog modal-fullscreen-sm-down">
+    <form class="modal-content" method="post" action="/lists/{{ piece_list.id }}/update">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Redigera lista</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Namn</label>
+          <input type="text" name="name" class="form-control"
+                 value="{{ piece_list.name }}" required
+                 {% if piece_list.is_favorites %}readonly{% endif %}>
+          {% if piece_list.is_favorites %}
+          <div class="form-text">Favoriter-listans namn kan inte ändras.</div>
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Kort anteckning</label>
+          <textarea name="description" class="form-control" rows="2">{{ piece_list.description or '' }}</textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+        <button type="submit" class="btn btn-primary">Spara</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

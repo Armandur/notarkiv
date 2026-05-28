@@ -39,9 +39,49 @@
         <h1 class="h3 mb-0">{{ piece.title }}</h1>
         {% if piece.original_title %}<div class="text-muted">{{ piece.original_title }}</div>{% endif %}
       </div>
-      {% if user.can_edit %}
-      <a href="/pieces/{{ piece.id }}/edit" class="btn btn-sm btn-outline-secondary">Redigera</a>
-      {% endif %}
+      <div class="d-flex gap-1 flex-wrap">
+        {% if user %}
+        <form method="post" action="/lists/favorite/{{ piece.id }}" class="mb-0">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="return_to" value="/pieces/{{ piece.id }}">
+          <button type="submit" class="btn btn-sm {% if is_favorite %}btn-warning{% else %}btn-outline-warning{% endif %}"
+                  title="{% if is_favorite %}Ta bort från favoriter{% else %}Lägg till i favoriter{% endif %}">
+            {% if is_favorite %}★{% else %}☆{% endif %}
+          </button>
+        </form>
+        {% if user_lists %}
+        <div class="dropdown">
+          <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            + Lista
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            {% for ul in user_lists %}
+            {% if not ul.is_favorites %}
+            <li>
+              <form method="post" action="/lists/{{ ul.id }}/items/add" class="mb-0">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="piece_id" value="{{ piece.id }}">
+                <input type="hidden" name="return_to" value="/pieces/{{ piece.id }}">
+                <button type="submit" class="dropdown-item">
+                  {{ ul.name }}
+                </button>
+              </form>
+            </li>
+            {% endif %}
+            {% endfor %}
+            {% if user_lists|selectattr('is_favorites', 'equalto', false)|list|length == 0 %}
+            <li><span class="dropdown-item text-muted small">Inga egna listor ännu</span></li>
+            {% endif %}
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item small" href="/lists">Hantera mina listor →</a></li>
+          </ul>
+        </div>
+        {% endif %}
+        {% endif %}
+        {% if user.can_edit %}
+        <a href="/pieces/{{ piece.id }}/edit" class="btn btn-sm btn-outline-secondary">Redigera</a>
+        {% endif %}
+      </div>
     </div>
 
     <dl class="row mt-3">

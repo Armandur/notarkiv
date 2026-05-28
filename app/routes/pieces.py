@@ -1560,6 +1560,27 @@ async def piece_detail(
         .order_by(PsalmBook.sort_order, PsalmBook.name, PiecePsalmRef.number)
     ).all()
 
+    # Användarens egna listor för "Lägg i lista"-dropdown + favorit-status
+    from app.models import PieceList, PieceListItem
+    from app.routes.lists import _ensure_favorites
+
+    _ensure_favorites(session, user.id)
+    user_lists = list(
+        session.exec(
+            select(PieceList)
+            .where(PieceList.user_id == user.id)
+            .order_by(PieceList.is_favorites.desc(), PieceList.name)
+        ).all()
+    )
+    fav_list = next((ll for ll in user_lists if ll.is_favorites), None)
+    is_favorite = False
+    if fav_list:
+        is_favorite = session.exec(
+            select(PieceListItem)
+            .where(PieceListItem.list_id == fav_list.id)
+            .where(PieceListItem.piece_id == piece_id)
+        ).first() is not None
+
     return render(
         request,
         "pieces/detail.html",
@@ -1579,6 +1600,8 @@ async def piece_detail(
             "loan_users": loan_users,
             "psalm_refs": psalm_refs,
             "batch_by_id": batch_by_id,
+            "user_lists": user_lists,
+            "is_favorite": is_favorite,
         },
         user=user,
     )
