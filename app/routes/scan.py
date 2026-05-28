@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 
 from sqlalchemy import func
 
-from app.deps import get_session, require_editor, verify_csrf
+from app.deps import get_session, require_admin, require_editor, verify_csrf
 from app.services.app_settings import get_ocr_provider
 from app.services.duplicates import find_duplicates
 from app.routes.loans import _unit_path
@@ -57,7 +57,7 @@ from app.models.scan_session import ScanStatus
 from app.models.tag import TagKind
 from app.tasks import get_pool
 from app.templates_setup import flash, render
-from app.utils.images import save_uploaded_cover
+from app.utils.images import delete_saved_image, save_uploaded_cover
 
 router = APIRouter(prefix="/scan", tags=["scan"])
 
@@ -301,6 +301,58 @@ async def restore_scan(
     session.add(scan)
     session.commit()
     flash(request, f"Skanning #{scan.id} återställd", "success")
+    return RedirectResponse("/scan/queue?show_discarded=1", status.HTTP_302_FOUND)
+
+
+@router.post("/{scan_id}/delete", dependencies=[Depends(verify_csrf)])
+async def delete_scan(
+    request: Request,
+    scan_id: int,
+    user: User = Depends(require_admin),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Hård radering av en skanning - tar bort DB-raden + bildfiler från
+    disk. Skydda mot att radera skanningar som blivit en piece (måste
+    radera piecen istället). Admin-bara."""
+    scan = session.get(ScanSession, scan_id)
+    if not scan:
+        raise HTTPException(404)
+    if scan.resulting_piece_id:
+        flash(
+            request,
+            f"Skanning #{scan.id} är sparad som not - radera noten istället",
+            "warning",
+        )
+        return RedirectResponse("/scan/queue", status.HTTP_302_FOUND)
+
+    # Samla bildvägar att radera (primärbild + extra bilder)
+    paths_to_delete = []
+    if scan.image_path:
+        paths_to_delete.append(scan.image_path)
+    extras = session.exec(
+        select(ScanSessionImage).where(ScanSessionImage.scan_session_id == scan.id)
+    ).all()
+    for extra in extras:
+        if extra.image_path:
+            paths_to_delete.append(extra.image_path)
+        session.delete(extra)
+
+    # Logga i ev. aktiv inventeringssession
+    if scan.inventory_session_id:
+        inv = session.get(InventorySession, scan.inventory_session_id)
+        if inv and not inv.ended_at:
+            append_log(inv, f"Skanning #{scan.id} permanent raderad", user.username)
+            session.add(inv)
+
+    scan_id_int = scan.id
+    session.delete(scan)
+    session.commit()
+
+    # Radera bildfiler från disk efter commit
+    for path in paths_to_delete:
+        delete_saved_image(path)
+
+    flash(request, f"Skanning #{scan_id_int} permanent raderad", "info")
     return RedirectResponse("/scan/queue?show_discarded=1", status.HTTP_302_FOUND)
 
 

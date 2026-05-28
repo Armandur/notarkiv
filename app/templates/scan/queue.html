@@ -63,6 +63,12 @@
                   onclick="confirmAction('/scan/{{ s.id }}/restore', 'Återställ skanning #{{ s.id }} till kön?', {submitLabel: 'Återställ', submitClass: 'btn-success'})">
             Återställ
           </button>
+          {% if user.is_admin %}
+          <button class="btn btn-sm btn-outline-danger"
+                  onclick="confirmAction('/scan/{{ s.id }}/delete', 'Radera skanning #{{ s.id }} permanent? Bildfilen tas bort från disk - kan inte ångras.', {submitLabel: 'Radera permanent'})">
+            Ta bort
+          </button>
+          {% endif %}
           {% else %}
           {% if s.status == 'done' %}
           <a href="/scan/{{ s.id }}/review" class="btn btn-sm btn-primary">Granska</a>
@@ -111,6 +117,12 @@
                   onclick="confirmAction('/scan/{{ s.id }}/restore', 'Återställ skanning #{{ s.id }} till kön?', {submitLabel: 'Återställ', submitClass: 'btn-success'})">
             Återställ
           </button>
+          {% if user.is_admin %}
+          <button class="btn btn-sm btn-outline-danger" title="Ta bort permanent"
+                  onclick="confirmAction('/scan/{{ s.id }}/delete', 'Radera skanning #{{ s.id }} permanent? Bildfilen tas bort från disk - kan inte ångras.', {submitLabel: 'Radera permanent'})">
+            ×
+          </button>
+          {% endif %}
           {% else %}
           {% if s.status == 'done' %}
           <a href="/scan/{{ s.id }}/review" class="btn btn-sm btn-primary flex-grow-1">Granska</a>

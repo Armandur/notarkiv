@@ -157,12 +157,12 @@ granska -> spara -> hitta igen.
       färgglada omslag. Övriga knappar: Original / Svartvit (adaptiv
       tröskel) / Gråskala. Cache per (source, filter) → blob så växling
       mellan filter blir omedelbar.
-- [ ] **Permanent radering av skanningar**: idag finns bara "Avvisa"
-      (mjuk-radering via `discarded`-flag) i granskningskön - de blir
-      kvar i DB:n och syns när "Visa avvisade" är på. För att städa
-      ordentligt behövs en "Ta bort permanent"-åtgärd som även raderar
-      bildfiler från `data/images/`. Lägg som admin-bara-knapp i scan-
-      detalj-vyn för avvisade skanningar.
+- [x] **Permanent radering av skanningar**: ny `POST /scan/{id}/delete`-
+      route (admin-bara) som raderar `ScanSession` + `ScanSessionImage`-
+      rader och bildfiler från disk (både original och thumbnail) via
+      `delete_saved_image()`. Skydd mot att radera skanningar som blivit
+      en piece. "Ta bort"-knappar visas för avvisade rader i både
+      tabell- och kort-vyn (admin-bara) - bredvid "Återställ".
 - [ ] **Klick-på-vit kalibrering**: lägg en "Vitbalans"-knapp i preview-
       modalen som låter användaren klicka på en punkt i bilden som ska
       vara vit. Beräkna offset per RGB-kanal (255 - clicked_value) och
