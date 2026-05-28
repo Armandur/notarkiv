@@ -8,12 +8,48 @@ from app.models import InventorySession
 
 
 def get_active_session(session: Session) -> InventorySession | None:
-    """Returnera nuvarande aktiva inventeringstillfälle, eller None."""
+    """Senast startade aktiva inventering (oavsett user). Behållen för
+    bakåtkompabilitet med kod som inte tar hänsyn till user-koppling."""
     return session.exec(
         select(InventorySession)
         .where(InventorySession.ended_at.is_(None))
         .order_by(InventorySession.started_at.desc())
     ).first()
+
+
+def get_active_sessions(session: Session) -> list[InventorySession]:
+    """Alla aktiva inventeringar (icke-avslutade). Flera kan vara igång
+    samtidigt - en per user är typisk användning."""
+    return list(
+        session.exec(
+            select(InventorySession)
+            .where(InventorySession.ended_at.is_(None))
+            .order_by(InventorySession.started_at.desc())
+        ).all()
+    )
+
+
+def get_user_active_sessions(
+    session: Session, user_id: int
+) -> list[InventorySession]:
+    """Användarens egna aktiva inventeringar."""
+    return list(
+        session.exec(
+            select(InventorySession)
+            .where(InventorySession.ended_at.is_(None))
+            .where(InventorySession.started_by == user_id)
+            .order_by(InventorySession.started_at.desc())
+        ).all()
+    )
+
+
+def get_user_default_active_session(
+    session: Session, user_id: int
+) -> InventorySession | None:
+    """Användarens senaste aktiva - default för scan-koppling när inget
+    annat val gjorts."""
+    sessions = get_user_active_sessions(session, user_id)
+    return sessions[0] if sessions else None
 
 
 def append_log(inv: InventorySession, text: str, user_label: str | None = None) -> None:

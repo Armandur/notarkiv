@@ -10,7 +10,12 @@ from sqlalchemy import func
 from app.deps import get_session, require_editor, verify_csrf
 from app.services.app_settings import get_ocr_provider
 from app.services.duplicates import find_duplicates
-from app.services.inventory import append_log, get_active_session
+from app.services.inventory import (
+    append_log,
+    get_active_session,
+    get_user_active_sessions,
+    get_user_default_active_session,
+)
 from app.services.musicbrainz import (
     commons_file_to_thumb_url,
     download_image_bytes,
@@ -94,7 +99,7 @@ async def quick_scan_page(
     ).one()
     unit_options = _load_unit_options(session)
     pending_count = _count_pending(session)
-    active_inv = get_active_session(session)
+    my_inventories = get_user_active_sessions(session, user.id)
     return render(
         request,
         "scan/quick.html",
@@ -103,7 +108,7 @@ async def quick_scan_page(
             "unit_options": unit_options,
             "ocr_provider": get_ocr_provider(),
             "pending_count": pending_count,
-            "active_inventory": active_inv,
+            "my_inventories": my_inventories,
         },
         user=user,
     )
@@ -115,6 +120,7 @@ async def quick_scan_upload(
     images: list[UploadFile] = File(...),
     placement_unit_id: str | None = Form(None),
     placement_copies: str | None = Form(None),
+    inventory_session_id: str | None = Form(None),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -146,7 +152,13 @@ async def quick_scan_upload(
         int(placement_copies) if placement_copies and placement_copies.isdigit() else None
     )
 
-    active_inv = get_active_session(session)
+    # Inventering: explicit val från form, annars användarens default
+    inv_id: int | None = None
+    if inventory_session_id and inventory_session_id.strip().isdigit():
+        inv_id = int(inventory_session_id)
+    else:
+        default_inv = get_user_default_active_session(session, user.id)
+        inv_id = default_inv.id if default_inv else None
     scan = ScanSession(
         user_id=user.id,
         image_path=primary_path,
@@ -154,7 +166,7 @@ async def quick_scan_upload(
         status=ScanStatus.PENDING,
         pre_placement_unit_id=unit_id,
         pre_placement_copies=copies,
-        inventory_session_id=active_inv.id if active_inv else None,
+        inventory_session_id=inv_id,
     )
     session.add(scan)
     session.commit()
@@ -299,13 +311,13 @@ async def upload_scan(
         flash(request, "Kunde inte läsa bilden - är det en giltig bildfil?", "danger")
         return RedirectResponse("/scan", status.HTTP_302_FOUND)
 
-    active_inv = get_active_session(session)
+    default_inv = get_user_default_active_session(session, user.id)
     scan = ScanSession(
         user_id=user.id,
         image_path=relative_path,
         ocr_provider=provider,
         status=ScanStatus.PENDING,
-        inventory_session_id=active_inv.id if active_inv else None,
+        inventory_session_id=default_inv.id if default_inv else None,
     )
     session.add(scan)
     session.commit()

@@ -7,19 +7,34 @@
   <a href="/scan/queue" class="small">Granskningskö ({{ pending_count }}) →</a>
 </div>
 
-{% if active_inventory %}
+{% if my_inventories %}
 <div class="alert alert-success py-2 small">
-  Pågående: <strong><a href="/inventory/{{ active_inventory.id }}" class="alert-link">{{ active_inventory.name }}</a></strong>
-  - skanningar knyts automatiskt hit
+  <strong>Skanningar knyts till:</strong>
+  {% if my_inventories|length == 1 %}
+  <a href="/inventory/{{ my_inventories[0].id }}" class="alert-link">{{ my_inventories[0].name }}</a>
+  {% else %}
+  vald inventering nedan (default: senaste)
+  {% endif %}
 </div>
 {% else %}
 <div class="alert alert-light py-2 small">
-  Ingen aktiv inventering - <a href="/inventory">starta en session</a> för att gruppera skanningarna.
+  Ingen egen aktiv inventering - <a href="/inventory">starta en session</a> för att gruppera skanningarna.
 </div>
 {% endif %}
 
 <form id="quickForm" method="post" action="/scan/quick" enctype="multipart/form-data" class="vstack gap-3">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+  {% if my_inventories|length > 1 %}
+  <div>
+    <label class="form-label small mb-1">Inventering att knyta till</label>
+    <select name="inventory_session_id" class="form-select">
+      {% for inv in my_inventories %}
+      <option value="{{ inv.id }}" {% if loop.first %}selected{% endif %}>{{ inv.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
 
   <div id="capture-list" class="vstack gap-2"></div>
 
@@ -161,6 +176,8 @@
     if (placement) fd.append('placement_unit_id', placement);
     const copies = form.querySelector('[name="placement_copies"]').value;
     if (copies) fd.append('placement_copies', copies);
+    const invSel = form.querySelector('[name="inventory_session_id"]');
+    if (invSel && invSel.value) fd.append('inventory_session_id', invSel.value);
 
     for (const cap of captures) {
       const file = await rotateFile(cap.file, cap.rotation);

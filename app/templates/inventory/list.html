@@ -9,14 +9,23 @@
   </button>
 </div>
 
-{% if active %}
-<div class="alert alert-success d-flex justify-content-between align-items-center">
-  <div>
-    <strong>Aktiv session:</strong>
-    <a href="/inventory/{{ active.id }}">{{ active.name }}</a>
-    {% if active.description %}<span class="text-muted small ms-2">{{ active.description }}</span>{% endif %}
-  </div>
-  <small class="text-muted">startad {{ active.started_at.strftime('%Y-%m-%d %H:%M') }}</small>
+{% if actives %}
+<div class="card mb-3">
+  <div class="card-header bg-success-subtle"><strong>Aktiva inventeringar ({{ actives|length }})</strong></div>
+  <ul class="list-group list-group-flush">
+    {% for a in actives %}
+    <li class="list-group-item d-flex justify-content-between align-items-center {% if own_active and own_active.id == a.id %}bg-light{% endif %}">
+      <div>
+        <a href="/inventory/{{ a.id }}"><strong>{{ a.name }}</strong></a>
+        {% if own_active and own_active.id == a.id %}<span class="badge bg-success ms-1">din</span>{% endif %}
+        {% if a.description %}<span class="text-muted small ms-2">{{ a.description }}</span>{% endif %}
+        <div class="text-muted small">
+          Startad av <strong>{{ starters.get(a.started_by, '–') }}</strong> · {{ a.started_at.strftime('%Y-%m-%d %H:%M') }}
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
 </div>
 {% endif %}
 
@@ -75,10 +84,11 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        {% if active %}
+        {% if own_active %}
         <div class="alert alert-warning">
-          <strong>Obs:</strong> Det finns redan en aktiv session "{{ active.name }}".
-          Den kommer avslutas automatiskt när du skapar en ny.
+          <strong>Obs:</strong> Du har redan en aktiv session "{{ own_active.name }}".
+          Den kommer avslutas automatiskt när du skapar en ny - andra användares
+          aktiva sessioner påverkas inte.
         </div>
         {% endif %}
 

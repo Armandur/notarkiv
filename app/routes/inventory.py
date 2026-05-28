@@ -17,7 +17,11 @@ from app.models import (
     User,
 )
 from app.models.inventory_check import CheckStatus
-from app.services.inventory import append_log, get_active_session
+from app.services.inventory import (
+    append_log,
+    get_active_sessions,
+    get_user_default_active_session,
+)
 from app.templates_setup import flash, render
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
@@ -32,17 +36,29 @@ async def list_sessions(
     sessions = session.exec(
         select(InventorySession).order_by(InventorySession.started_at.desc())
     ).all()
-    active = get_active_session(session)
+    actives = get_active_sessions(session)
+    own_active = get_user_default_active_session(session, user.id)
     locations = session.exec(select(StorageLocation)).all()
     units = session.exec(
         select(StorageUnit).where(StorageUnit.archived == False)  # noqa: E712
     ).all()
+    # Username-lookup för att visa "startad av" på varje aktiv
+    starter_ids = {s.started_by for s in actives if s.started_by}
+    starters = {}
+    if starter_ids:
+        starters = {
+            u.id: u.username for u in session.exec(
+                select(User).where(User.id.in_(list(starter_ids)))
+            ).all()
+        }
     return render(
         request,
         "inventory/list.html",
         {
             "sessions": sessions,
-            "active": active,
+            "actives": actives,
+            "own_active": own_active,
+            "starters": starters,
             "locations": locations,
             "units": units,
         },
@@ -60,12 +76,13 @@ async def create_session(
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
-    # Avsluta ev. tidigare aktiv session - bara en åt gången
-    active = get_active_session(session)
-    if active:
-        active.ended_at = datetime.utcnow()
-        append_log(active, "Avslutad automatiskt - ny session startad", user.username)
-        session.add(active)
+    # Flera kan vara aktiva samtidigt (knutna till olika users). Avsluta
+    # bara ev. tidigare av denna user för att inte spräcka "en per user"-regeln.
+    own_active = get_user_default_active_session(session, user.id)
+    if own_active:
+        own_active.ended_at = datetime.utcnow()
+        append_log(own_active, "Avslutad automatiskt - ny session startad", user.username)
+        session.add(own_active)
 
     inv = InventorySession(
         name=name.strip(),
