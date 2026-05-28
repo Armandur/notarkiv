@@ -891,20 +891,17 @@ async def batch_search_placements(
     if len(q) < 2:
         return Response("", media_type="text/html")
 
-    from sqlalchemy import or_
-
-    # Pieces vars titel eller contributors_cache matchar (case-insensitive)
-    like = f"%{q}%"
-    pieces = session.exec(
-        select(Piece)
-        .where(or_(Piece.title.ilike(like), Piece.contributors_cache.ilike(like)))
-        .order_by(Piece.title)
-        .limit(20)
-    ).all()
+    # Python-side filtrering (Unicode-säker, hanterar ÅÄÖ)
+    q_lower = q.lower()
+    all_pieces = session.exec(select(Piece).order_by(Piece.title)).all()
+    pieces = [
+        p for p in all_pieces
+        if q_lower in (p.title or "").lower()
+        or q_lower in (p.contributors_cache or "").lower()
+    ][:20]
     if not pieces:
         return Response("", media_type="text/html")
 
-    # Hämta placeringar för dessa pieces
     placements = session.exec(
         select(PiecePlacement).where(PiecePlacement.piece_id.in_([p.id for p in pieces]))
     ).all()
@@ -923,7 +920,14 @@ async def batch_search_placements(
         unit = units.get(pl.storage_unit_id)
         if not piece:
             continue
-        rows.append({"placement": pl, "piece": piece, "unit": unit})
+        rows.append(
+            {
+                "placement": pl,
+                "piece": piece,
+                "unit": unit,
+                "path": _unit_path(session, unit) if unit else "Okänd plats",
+            }
+        )
 
     from app.templates_setup import templates
     return templates.TemplateResponse(
@@ -1030,7 +1034,7 @@ async def batch_add_more(
 async def batch_pickup_pdf(
     request: Request,
     batch_id: int,
-    user: User = Depends(require_editor),
+    user: User = Depends(require_cart_actor),
     session: Session = Depends(get_session),
 ) -> Response:
     batch, items = _load_batch_with_loans(session, batch_id)

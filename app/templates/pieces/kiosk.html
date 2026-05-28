@@ -202,7 +202,11 @@
             <div class="small">Till: <strong>{{ bg.batch.borrower_name }}</strong>{% if not bg.batch.borrower_user_id %} <span class="badge bg-secondary">extern</span>{% endif %}</div>
             {% endif %}
           </div>
-          <span class="text-muted small">{{ bg.here_count }}/{{ bg.total_remaining }} här</span>
+          <div class="d-flex gap-2 align-items-center">
+            <a href="/loans/batch/{{ bg.batch.id }}/pickup.pdf" target="_blank"
+               class="text-muted small text-decoration-none" title="Skriv ut plocklista">📄 PDF</a>
+            <span class="text-muted small">{{ bg.here_count }}/{{ bg.total_remaining }} här</span>
+          </div>
         </div>
         <ul class="list-group list-group-flush small">
           {% for item in bg.entries %}

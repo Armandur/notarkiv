@@ -561,6 +561,16 @@ async def kiosk_piece(
     for la in active_loans:
         loans_by_placement.setdefault(la.placement_id, []).append(la)
 
+    # Sammanställning: totalt antal aktiva utlån för noten (alla placeringar)
+    total_active_out = sum(la.copies for la in active_loans)
+    distinct_borrowers = []
+    seen_borrowers: set[str] = set()
+    for la in active_loans:
+        key = la.borrower_name or ""
+        if key and key not in seen_borrowers:
+            distinct_borrowers.append({"name": la.borrower_name, "since": la.borrowed_at})
+            seen_borrowers.add(key)
+
     rows = []
     here_count = 0
     for pl in placements:
@@ -628,6 +638,42 @@ async def kiosk_piece(
         ).all()
     )
 
+    # Kolla om låntagaren redan har den här noten i något av sina aktiva
+    # utlån (oavsett batch eller solo). Banner hjälper undvika oavsiktlig
+    # dubbel-låning. Grupperar per batch (eller "Enskilt lån" om solo).
+    already_in_loans: list[dict] = []
+    if placements:
+        my_loans = session.exec(
+            select(Loan)
+            .where(Loan.placement_id.in_([pl.id for pl in placements]))
+            .where(Loan.returned_at.is_(None))
+            .where(
+                or_(
+                    Loan.borrower_user_id == borrower.id,
+                    Loan.registered_by == borrower.id,
+                )
+            )
+        ).all()
+        batch_ids_in_loans = {la.batch_id for la in my_loans if la.batch_id}
+        batches_by_id = {
+            b.id: b for b in session.exec(
+                select(LoanBatch).where(LoanBatch.id.in_(list(batch_ids_in_loans)))
+            ).all()
+        } if batch_ids_in_loans else {}
+        # Gruppera per batch (None = solo)
+        grouped: dict[int | None, int] = {}
+        for la in my_loans:
+            grouped[la.batch_id] = grouped.get(la.batch_id, 0) + la.copies
+        for batch_id, copies in grouped.items():
+            if batch_id and batch_id in batches_by_id:
+                already_in_loans.append(
+                    {"label": batches_by_id[batch_id].name, "copies": copies, "batch_id": batch_id}
+                )
+            elif batch_id is None:
+                already_in_loans.append(
+                    {"label": "Enskilt lån", "copies": copies, "batch_id": None}
+                )
+
     return render(
         request,
         "pieces/kiosk_piece.html",
@@ -643,6 +689,9 @@ async def kiosk_piece(
             "tags": tag_rows,
             "psalm_refs": psalm_refs,
             "active_batches": active_batches,
+            "already_in_loans": already_in_loans,
+            "total_active_out": total_active_out,
+            "distinct_borrowers": distinct_borrowers,
             "composer_role": ContributorRole.COMPOSER,
             "arranger_role": ContributorRole.ARRANGER,
             "lyricist_role": ContributorRole.LYRICIST,
