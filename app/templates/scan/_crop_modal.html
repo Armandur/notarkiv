@@ -231,11 +231,62 @@ window.notarkivCrop = (function() {
     if (state.img) drawCrop();
   });
 
-  function dim(corners) {
+  // Bukhari/Shafait-formeln för att räkna ut den verkliga aspektkvoten
+  // av en rektangel från dess perspektivprojektion. Givet 4 hörn (TL,
+  // TR, BR, BL) i bild-koordinater + bildens dimensioner, returnerar
+  // w/h-kvoten eller null om matematiken degenerar (= rektangeln är
+  // ungefär parallell med bildplanet, och approximationen håller redan).
+  function estimateAspect(corners, imgW, imgH) {
+    const u0 = imgW / 2, v0 = imgH / 2;
+    const p = corners.map(c => [c.x, c.y, 1]);
+    const cross = (a, b) => [
+      a[1] * b[2] - a[2] * b[1],
+      a[2] * b[0] - a[0] * b[2],
+      a[0] * b[1] - a[1] * b[0],
+    ];
+    const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    const c14 = cross(p[0], p[3]);
+    const c24 = cross(p[1], p[3]);
+    const c34 = cross(p[2], p[3]);
+    const k2den = dot(c24, p[2]);
+    const k3den = dot(c34, p[1]);
+    if (Math.abs(k2den) < 1e-10 || Math.abs(k3den) < 1e-10) return null;
+    const k2 = dot(c14, p[2]) / k2den;
+    const k3 = dot(c14, p[1]) / k3den;
+    const n2 = [k2 * p[1][0] - p[0][0], k2 * p[1][1] - p[0][1], k2 - 1];
+    const n3 = [k3 * p[2][0] - p[0][0], k3 * p[2][1] - p[0][1], k3 - 1];
+    const f2den = n2[2] * n3[2];
+    if (Math.abs(f2den) < 1e-10) return null;
+    const f2 = -(
+      n2[0] * n3[0] - (n2[0] * n3[2] + n2[2] * n3[0]) * u0 + n2[2] * n3[2] * u0 * u0 +
+      n2[1] * n3[1] - (n2[1] * n3[2] + n2[2] * n3[1]) * v0 + n2[2] * n3[2] * v0 * v0
+    ) / f2den;
+    if (f2 <= 0) return null;
+    const f = Math.sqrt(f2);
+    const norm = (n) => [(n[0] - n[2] * u0) / f, (n[1] - n[2] * v0) / f, n[2]];
+    const n2n = norm(n2), n3n = norm(n3);
+    const num = n2n[0] * n2n[0] + n2n[1] * n2n[1] + n2n[2] * n2n[2];
+    const den = n3n[0] * n3n[0] + n3n[1] * n3n[1] + n3n[2] * n3n[2];
+    if (den < 1e-10) return null;
+    return Math.sqrt(num / den);
+  }
+
+  function dim(corners, img) {
     const dist = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
-    const w = Math.round(Math.max(dist(corners[0], corners[1]), dist(corners[3], corners[2])));
-    const h = Math.round(Math.max(dist(corners[0], corners[3]), dist(corners[1], corners[2])));
-    return { w: Math.max(50, w), h: Math.max(50, h) };
+    const avgW = (dist(corners[0], corners[1]) + dist(corners[3], corners[2])) / 2;
+    const avgH = (dist(corners[0], corners[3]) + dist(corners[1], corners[2])) / 2;
+    const source = img || state.img;
+    if (source) {
+      const aspect = estimateAspect(corners, source.width, source.height);
+      if (aspect && isFinite(aspect) && aspect > 0.1 && aspect < 10) {
+        // Behåll genomsnittlig area, korrigera formen via beräknad aspekt
+        const area = avgW * avgH;
+        const w = Math.round(Math.sqrt(area * aspect));
+        const h = Math.round(Math.sqrt(area / aspect));
+        return { w: Math.max(50, w), h: Math.max(50, h) };
+      }
+    }
+    return { w: Math.max(50, Math.round(avgW)), h: Math.max(50, Math.round(avgH)) };
   }
 
   function cornersObj(arr) {
@@ -257,8 +308,9 @@ window.notarkivCrop = (function() {
       const blob = await new Promise(r => outCanvas.toBlob(r, 'image/jpeg', 0.92));
       if (!blob) throw new Error('Toblob misslyckades');
       const cb = state.onApply;
+      const finalCorners = state.corners.map(p => ({ x: p.x, y: p.y }));
       bootstrap.Modal.getInstance(document.getElementById('cropModal')).hide();
-      if (cb) cb(blob);
+      if (cb) cb(blob, finalCorners);
     } catch (e) {
       errEl.textContent = 'Kunde inte cropa: ' + e.message;
       errEl.classList.remove('d-none');
@@ -324,7 +376,7 @@ window.notarkivCrop = (function() {
           const c = scanner.getCornerPoints(contour, cvImg);
           const corners = [c.topLeftCorner, c.topRightCorner, c.bottomRightCorner, c.bottomLeftCorner];
           cvImg.delete();
-          const { w, h } = dim(corners);
+          const { w, h } = dim(corners, img);
           const outCanvas = scanner.extractPaper(img, w, h, cornersObj(corners));
           outCanvas.toBlob(blob => {
             if (!blob) { resolve(null); return; }

@@ -1,0 +1,116 @@
+{# Förhandsgranskning av skanningsbilder i fullskärm med kontroller.
+   Använd via window.notarkivScanPreview.open(items, idx, callbacks).
+   items: array av { src, label, cropped, rotated } för rendering.
+   callbacks: { onCrop(idx), onRotateCw(idx), onRotateCcw(idx) } - efter
+   varje callback uppdateras items via en omräkning från caller.
+#}
+<div class="modal fade" id="scanPreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen modal-dialog-centered">
+    <div class="modal-content bg-dark text-white">
+      <div class="modal-header py-2 border-0">
+        <div class="d-flex align-items-center gap-2">
+          <span id="scan-preview-label" class="small text-white-50">Bild 1 av 1</span>
+          <span id="scan-preview-badges" class="d-flex gap-1"></span>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Stäng"></button>
+      </div>
+      <div class="modal-body p-0 d-flex align-items-center justify-content-center position-relative" style="overflow: hidden">
+        <button type="button" id="scan-preview-prev"
+                class="btn btn-dark position-absolute top-50 start-0 translate-middle-y ms-2 d-none"
+                style="z-index: 1056">‹</button>
+        <button type="button" id="scan-preview-next"
+                class="btn btn-dark position-absolute top-50 end-0 translate-middle-y me-2 d-none"
+                style="z-index: 1056">›</button>
+        <img id="scan-preview-img" alt="" style="max-width: 100%; max-height: 100%; object-fit: contain">
+      </div>
+      <div class="modal-footer py-2 border-0 justify-content-center gap-1">
+        <button type="button" id="scan-preview-crop" class="btn btn-outline-light">⊡ Justera kanter</button>
+        <button type="button" id="scan-preview-rotate-ccw" class="btn btn-outline-light">⟲ Rotera vänster</button>
+        <button type="button" id="scan-preview-rotate-cw" class="btn btn-outline-light">⟳ Rotera höger</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+window.notarkivScanPreview = (function() {
+  const state = { items: [], idx: 0, callbacks: null };
+
+  function render() {
+    const it = state.items[state.idx];
+    if (!it) return;
+    document.getElementById('scan-preview-img').src = it.src;
+    document.getElementById('scan-preview-img').alt = it.label || '';
+    document.getElementById('scan-preview-label').textContent =
+      'Bild ' + (state.idx + 1) + ' av ' + state.items.length;
+    const badges = document.getElementById('scan-preview-badges');
+    badges.innerHTML = '';
+    if (it.cropped) {
+      const b = document.createElement('span');
+      b.className = 'badge bg-info text-dark';
+      b.textContent = 'cropad';
+      badges.appendChild(b);
+    }
+    if (it.rotated) {
+      const b = document.createElement('span');
+      b.className = 'badge bg-warning text-dark';
+      b.textContent = 'roterad ' + it.rotated + '°';
+      badges.appendChild(b);
+    }
+    const multi = state.items.length > 1;
+    document.getElementById('scan-preview-prev').classList.toggle('d-none', !multi);
+    document.getElementById('scan-preview-next').classList.toggle('d-none', !multi);
+  }
+
+  document.getElementById('scan-preview-prev').addEventListener('click', () => {
+    state.idx = (state.idx - 1 + state.items.length) % state.items.length;
+    render();
+  });
+  document.getElementById('scan-preview-next').addEventListener('click', () => {
+    state.idx = (state.idx + 1) % state.items.length;
+    render();
+  });
+  document.getElementById('scan-preview-crop').addEventListener('click', () => {
+    if (state.callbacks && state.callbacks.onCrop) {
+      // Stäng modalen så crop-modalen kan visas utan stacking
+      bootstrap.Modal.getInstance(document.getElementById('scanPreviewModal')).hide();
+      state.callbacks.onCrop(state.idx);
+    }
+  });
+  document.getElementById('scan-preview-rotate-ccw').addEventListener('click', () => {
+    if (state.callbacks && state.callbacks.onRotateCcw) {
+      state.callbacks.onRotateCcw(state.idx);
+    }
+  });
+  document.getElementById('scan-preview-rotate-cw').addEventListener('click', () => {
+    if (state.callbacks && state.callbacks.onRotateCw) {
+      state.callbacks.onRotateCw(state.idx);
+    }
+  });
+
+  // Tangentbordsnavigation
+  document.getElementById('scanPreviewModal').addEventListener('keydown', e => {
+    if (state.items.length <= 1) return;
+    if (e.key === 'ArrowLeft') document.getElementById('scan-preview-prev').click();
+    else if (e.key === 'ArrowRight') document.getElementById('scan-preview-next').click();
+  });
+
+  function open(items, idx, callbacks) {
+    state.items = items;
+    state.idx = idx || 0;
+    state.callbacks = callbacks || {};
+    render();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('scanPreviewModal')).show();
+  }
+
+  // Caller kan ringa update() efter callback (rotation/crop) för att
+  // visa den uppdaterade bilden utan att stänga modalen.
+  function update(items, idx) {
+    state.items = items;
+    if (typeof idx === 'number') state.idx = idx;
+    render();
+  }
+
+  return { open, update };
+})();
+</script>

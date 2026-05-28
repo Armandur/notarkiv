@@ -30,7 +30,8 @@
               <div class="card-body p-2 d-flex align-items-center gap-2">
                 <div style="width: 120px; height: 120px; overflow: hidden; flex-shrink: 0">
                   <img id="previewImg" alt="Förhandsgranskning"
-                       style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.2s">
+                       title="Klicka för att förhandsgranska"
+                       style="width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; transition: transform 0.2s">
                 </div>
                 <div class="flex-grow-1">
                   <div class="small text-muted">Rotera eller justera kanter innan du skannar.</div>
@@ -67,6 +68,7 @@
         </form>
 
 {% include "scan/_crop_modal.html" %}
+{% include "scan/_preview_modal.html" %}
 
 <script>
 (function() {
@@ -127,15 +129,43 @@
   document.getElementById('rotateCcwBtn').addEventListener('click', () => {
     rotation = (rotation + 270) % 360; showRotation();
   });
-  document.getElementById('cropBtn').addEventListener('click', () => {
+  function applyCrop() {
     if (!originalFile || !originalBlobUrl) return;
-    notarkivCrop.open(originalBlobUrl, blob => {
+    notarkivCrop.open(originalBlobUrl, (blob, finalCorners) => {
       if (blobUrl && blobUrl !== originalBlobUrl) URL.revokeObjectURL(blobUrl);
       currentFile = new File([blob], 'crop-foto.jpg', { type: 'image/jpeg' });
       blobUrl = URL.createObjectURL(blob);
+      corners = finalCorners;
       previewImg.src = blobUrl;
       croppedBadge.classList.remove('d-none');
     }, corners);
+  }
+  document.getElementById('cropBtn').addEventListener('click', applyCrop);
+
+  function previewItem() {
+    return [{
+      src: blobUrl,
+      label: 'Förhandsgranskning',
+      cropped: !croppedBadge.classList.contains('d-none'),
+      rotated: rotation,
+    }];
+  }
+
+  previewImg.addEventListener('click', () => {
+    if (!currentFile) return;
+    notarkivScanPreview.open(previewItem(), 0, {
+      onCrop: () => applyCrop(),
+      onRotateCw: () => {
+        rotation = (rotation + 90) % 360;
+        showRotation();
+        notarkivScanPreview.update(previewItem());
+      },
+      onRotateCcw: () => {
+        rotation = (rotation + 270) % 360;
+        showRotation();
+        notarkivScanPreview.update(previewItem());
+      },
+    });
   });
 
   async function rotateFile(file, angle) {
