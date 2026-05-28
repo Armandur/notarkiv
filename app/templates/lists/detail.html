@@ -29,19 +29,11 @@
 {% set total_pieces = items|length %}
 {% set total_home = items|sum(attribute='home_count') %}
 {% set total_out = items|sum(attribute='out_count') %}
-{% set lendable_pieces = items|selectattr('has_lendable')|list|length %}
 <div class="card mb-3">
   <div class="card-body py-2 d-flex flex-wrap gap-3 align-items-center small">
     <span><strong>{{ total_pieces }}</strong> not{% if total_pieces != 1 %}er{% endif %} i listan</span>
     <span class="text-success">✓ <strong>{{ total_home }}</strong> ex hemma</span>
     {% if total_out %}<span class="text-warning">⚠ <strong>{{ total_out }}</strong> ex utlånade</span>{% endif %}
-    <form method="post" action="/lists/{{ piece_list.id }}/add-to-cart" class="ms-auto mb-0">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <button type="submit" class="btn btn-sm btn-success"
-              {% if lendable_pieces == 0 %}disabled title="Inga noter med fysiska exemplar"{% endif %}>
-        Lägg {{ lendable_pieces }} not{% if lendable_pieces != 1 %}er{% endif %} i utlåningskorg
-      </button>
-    </form>
   </div>
 </div>
 {% endif %}
@@ -68,14 +60,12 @@
       {% endif %}
       <div class="d-flex gap-1 flex-wrap mt-1 small">
         {% if entry.copies_total %}
+          {# Y-X = utlånade så en badge räcker - hemma/total med färg-hint #}
           {% if entry.home_count > 0 %}
-          <span class="badge bg-success">{{ entry.home_count }}/{{ entry.copies_total }} ex hemma</span>
+          <span class="badge bg-secondary">{{ entry.home_count }}/{{ entry.copies_total }} ex hemma</span>
           {% else %}
           <span class="badge bg-warning text-dark">alla {{ entry.copies_total }} ex utlånade</span>
           {% endif %}
-        {% endif %}
-        {% if entry.out_count %}
-        <span class="badge bg-warning text-dark">{{ entry.out_count }} utlånade</span>
         {% endif %}
         {% if entry.digital_count %}
         <span class="badge bg-info text-dark">☁ {{ entry.digital_count }} digital{% if entry.digital_count != 1 %}a{% endif %}</span>
@@ -84,7 +74,7 @@
         <span class="badge bg-light text-muted border">ingen placering</span>
         {% endif %}
         {% if entry.placement_count > 1 %}
-        <span class="badge bg-secondary">{{ entry.placement_count }} platser</span>
+        <span class="badge bg-light text-muted border">{{ entry.placement_count }} platser</span>
         {% endif %}
       </div>
     </div>

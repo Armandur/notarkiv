@@ -4,7 +4,15 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
   <h1 class="h3 mb-0">Utlåningskorg</h1>
-  <a href="/loans" class="small">Tillbaka till utlån</a>
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    {% if total %}
+    <button type="button" class="btn btn-sm btn-outline-danger"
+            onclick="confirmAction('/loans/cart/clear', 'Töm hela utlåningskorgen? Alla {{ total }} noter tas bort - kan inte ångras.', {submitLabel: 'Töm korgen'})">
+      Töm korgen
+    </button>
+    {% endif %}
+    <a href="/loans" class="small">Tillbaka till utlån</a>
+  </div>
 </div>
 
 {% if total == 0 %}

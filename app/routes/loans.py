@@ -574,6 +574,26 @@ async def cart_remove(
     return RedirectResponse("/loans/cart", status.HTTP_302_FOUND)
 
 
+@router.post("/loans/cart/clear", dependencies=[Depends(verify_csrf)])
+async def cart_clear(
+    request: Request,
+    user: User = Depends(require_cart_actor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Töm hela kundvagnen - radera alla cart-items för aktuell user."""
+    cart = _get_or_create_cart(session, user.id)
+    loans = session.exec(select(Loan).where(Loan.batch_id == cart.id)).all()
+    if not loans:
+        flash(request, "Korgen var redan tom", "info")
+        return RedirectResponse("/loans/cart", status.HTTP_302_FOUND)
+    n = len(loans)
+    for loan in loans:
+        session.delete(loan)
+    session.commit()
+    flash(request, f"Tog bort {n} not{'er' if n != 1 else ''} ur korgen", "info")
+    return RedirectResponse("/loans/cart", status.HTTP_302_FOUND)
+
+
 @router.post("/loans/cart/checkout", dependencies=[Depends(verify_csrf)])
 async def cart_checkout(
     request: Request,
