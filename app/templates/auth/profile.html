@@ -53,11 +53,10 @@
        style="width: 160px; height: 160px; cursor: zoom-in">
   <div>
     <p class="small mb-2"><strong>Klicka på QR:n för att visa stor</strong> - perfekt för att hålla upp mot kioskens skanner från mobilen.</p>
-    <form method="post" action="/profile/kiosk-token/regenerate"
-          onsubmit="return confirm('Generera ny QR? Den gamla slutar funka.')">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <button type="submit" class="btn btn-sm btn-outline-secondary">Generera ny QR</button>
-    </form>
+    <button type="button" class="btn btn-sm btn-outline-secondary"
+            onclick="confirmAction('/profile/kiosk-token/regenerate', 'Generera ny QR? Den gamla slutar funka.', {submitLabel: 'Generera ny', submitClass: 'btn-warning'})">
+      Generera ny QR
+    </button>
   </div>
 </div>
 {% else %}
