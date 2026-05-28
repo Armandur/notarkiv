@@ -10,6 +10,7 @@ from app.db import init_db
 from app.logging_setup import setup_logging
 from app.middleware import EnsureCSRFTokenMiddleware
 from app.routes import auth as auth_routes
+from app.routes import help as help_routes
 from app.routes import inventory as inventory_routes
 from app.routes import lists as lists_routes
 from app.routes import loans as loans_routes
@@ -67,6 +68,7 @@ app.include_router(people_routes.router)
 app.include_router(inventory_routes.router)
 app.include_router(loans_routes.router)
 app.include_router(lists_routes.router)
+app.include_router(help_routes.router)
 app.include_router(tags_routes.router)
 app.include_router(admin_users_routes.router)
 app.include_router(admin_settings_routes.router)

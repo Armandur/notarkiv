@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-md-3">
+    <div class="list-group small sticky-md-top" style="top: 1em">
+      <a href="/help"
+         class="list-group-item list-group-item-action {% if slug == 'index' %}active{% endif %}">
+        Översikt
+      </a>
+      <a href="/help/reader"
+         class="list-group-item list-group-item-action {% if slug == 'reader' %}active{% endif %}">
+        <span class="badge bg-secondary me-1">reader</span> Musiker/körledare
+      </a>
+      <a href="/help/editor"
+         class="list-group-item list-group-item-action {% if slug == 'editor' %}active{% endif %}">
+        <span class="badge bg-success me-1">editor</span> Redigerare
+      </a>
+      <a href="/help/admin"
+         class="list-group-item list-group-item-action {% if slug == 'admin' %}active{% endif %}">
+        <span class="badge bg-danger me-1">admin</span> Bibliotekarie
+      </a>
+    </div>
+  </div>
+  <div class="col-md-9">
+    <article class="help-content">
+      {{ content | markdown | safe }}
+    </article>
+  </div>
+</div>
+{% endblock %}
