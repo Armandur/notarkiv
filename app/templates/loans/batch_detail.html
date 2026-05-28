@@ -10,7 +10,7 @@
     <h1 class="h3 mb-0">{{ batch.name }}</h1>
     <p class="text-muted small mb-0">Låntagare: <strong>{{ batch.borrower_name }}</strong></p>
   </div>
-  <div class="d-flex gap-2 align-items-center">
+  <div class="d-flex gap-2 align-items-center flex-wrap">
     {% if batch.status == 'picking' %}
       <span class="badge bg-info text-dark">plockning pågår</span>
       <a href="/loans/batch/{{ batch.id }}/pickup" class="btn btn-sm btn-primary">Öppna plocklista</a>

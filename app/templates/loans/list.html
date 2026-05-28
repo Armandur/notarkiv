@@ -5,7 +5,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
   <h1 class="h3 mb-0">Utlån</h1>
-  <div class="d-flex gap-3 align-items-center">
+  <div class="d-flex gap-3 align-items-center flex-wrap">
     <a href="/loans/cart" class="btn btn-sm btn-outline-primary">Öppna kundvagn</a>
     <a href="?show_returned={% if show_returned %}0{% else %}1{% endif %}" class="small">
       {% if show_returned %}Bara aktiva{% else %}Inkludera återlämnade{% endif %}

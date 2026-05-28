@@ -4,7 +4,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h1 class="h3 mb-0">Noter</h1>
-  <div class="d-flex gap-2 align-items-center">
+  <div class="d-flex gap-2 align-items-center flex-wrap">
     <div class="btn-group btn-group-sm">
       <a href="{{ request.url.include_query_params(view='grid') }}"
          class="btn btn-outline-secondary {% if view == 'grid' %}active{% endif %}">Kort</a>
@@ -12,11 +12,17 @@
          class="btn btn-outline-secondary {% if view == 'list' %}active{% endif %}">Lista</a>
       <a href="/pieces?view=tree" class="btn btn-outline-secondary {% if view == 'tree' %}active{% endif %}">Träd</a>
     </div>
-    <a href="{{ request.url.replace(path='/pieces/print') }}" class="btn btn-sm btn-outline-secondary">Skriv ut</a>
-    <a href="{{ request.url.replace(path='/pieces/print.pdf') }}" target="_blank" class="btn btn-sm btn-outline-secondary">PDF</a>
-    <div class="btn-group btn-group-sm">
-      <a href="{{ request.url.replace(path='/pieces/qr-labels') }}" target="_blank" class="btn btn-outline-secondary">QR-etiketter</a>
-      <a href="{{ request.url.replace(path='/pieces/qr-labels.pdf') }}" target="_blank" class="btn btn-outline-secondary">PDF</a>
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        Utskrifter
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item" href="{{ request.url.replace(path='/pieces/print') }}">Skriv ut</a></li>
+        <li><a class="dropdown-item" href="{{ request.url.replace(path='/pieces/print.pdf') }}" target="_blank">PDF av notlista</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="{{ request.url.replace(path='/pieces/qr-labels') }}" target="_blank">QR-etiketter (HTML)</a></li>
+        <li><a class="dropdown-item" href="{{ request.url.replace(path='/pieces/qr-labels.pdf') }}" target="_blank">QR-etiketter (PDF)</a></li>
+      </ul>
     </div>
     {% if user.can_edit %}
     <div class="btn-group btn-group-sm">

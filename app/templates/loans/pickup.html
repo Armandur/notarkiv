@@ -7,7 +7,7 @@
     <h1 class="h3 mb-0">Plocklista</h1>
     <p class="text-muted small mb-0">{{ batch.name }} · {{ batch.borrower_name }}</p>
   </div>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 flex-wrap">
     <a href="/loans/batch/{{ batch.id }}/pickup.pdf" target="_blank" class="btn btn-sm btn-outline-secondary">Skriv ut (PDF)</a>
     <a href="/loans/batch/{{ batch.id }}" class="btn btn-sm btn-outline-secondary">Detaljvy</a>
   </div>
@@ -93,7 +93,7 @@
   </div>
 </div>
 
-<div class="d-flex justify-content-between align-items-center mt-4">
+<div class="d-flex justify-content-between align-items-center mt-4 flex-wrap gap-2">
   <a href="/loans" class="btn btn-link">Spara och fortsätt senare</a>
   <form method="post" action="/loans/batch/{{ batch.id }}/activate" class="mb-0">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
