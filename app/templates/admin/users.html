@@ -9,6 +9,64 @@
   </button>
 </div>
 
+{# Rollöversikt så admin lätt kan se vad varje roll får göra. Fullständig
+   matris finns i docs/permissions.md - här bara det viktigaste. #}
+<div class="row g-2 mb-4">
+  <div class="col-md-4">
+    <div class="card h-100 border-secondary">
+      <div class="card-body py-2 px-3">
+        <h2 class="h6 mb-1">
+          <span class="badge bg-secondary">reader</span>
+          Vanlig körmedlem
+        </h2>
+        <ul class="small mb-0 ps-3">
+          <li>Läsa hela katalogen (noter, personer, lagring, taggar)</li>
+          <li>Söka och filtrera</li>
+          <li>Låna noter: lägga i kundvagn, checka ut, återlämna</li>
+          <li>Skanna QR-koder för att öppna noter</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100 border-success">
+      <div class="card-body py-2 px-3">
+        <h2 class="h6 mb-1">
+          <span class="badge bg-success">editor</span>
+          Betrodd redigerare
+        </h2>
+        <p class="small text-muted mb-1">Allt en reader kan, plus:</p>
+        <ul class="small mb-0 ps-3">
+          <li>Skanna nya noter (OCR-flödet, granskningskö)</li>
+          <li>Redigera metadata och bilder på noter</li>
+          <li>Hantera taggar, alias och beskrivningar</li>
+          <li>Skapa lagringsenheter, hantera placeringar</li>
+          <li>Genomföra inventeringar</li>
+          <li>Aktivera kiosk + registrera lån åt andra</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100 border-danger">
+      <div class="card-body py-2 px-3">
+        <h2 class="h6 mb-1">
+          <span class="badge bg-danger">admin</span>
+          Bibliotekarie
+        </h2>
+        <p class="small text-muted mb-1">Allt en editor kan, plus:</p>
+        <ul class="small mb-0 ps-3">
+          <li>Radera noter, personer, skanningar, lån permanent</li>
+          <li>Hantera lagringsplatser (toppnivå)</li>
+          <li>Användare, roller, lösenord, kiosker</li>
+          <li>Psalmböcker, enhetstyper, API-nycklar</li>
+          <li>Jobb-administration, system-inställningar</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="card">
   <div class="table-responsive">
   <table class="table table-hover mb-0">
