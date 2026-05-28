@@ -8,7 +8,7 @@ from fastapi.responses import RedirectResponse, Response
 from sqlmodel import Session, select
 
 from app.deps import get_session, require_auth, verify_csrf
-from app.models import Piece, PieceList, PieceListItem, User
+from app.models import Loan, Piece, PieceList, PieceListItem, PiecePlacement, User
 from app.templates_setup import flash, render
 
 router = APIRouter(prefix="/lists", tags=["lists"])
@@ -112,15 +112,47 @@ async def list_detail(
     user: User = Depends(require_auth),
     session: Session = Depends(get_session),
 ) -> Response:
+    from app.routes.pieces import _placement_summaries
+
     ll = session.get(PieceList, list_id)
     if not ll or ll.user_id != user.id:
         raise HTTPException(404)
-    items = session.exec(
+    raw_items = session.exec(
         select(PieceListItem, Piece)
         .join(Piece, Piece.id == PieceListItem.piece_id)
         .where(PieceListItem.list_id == list_id)
         .order_by(PieceListItem.sort_order, PieceListItem.added_at)
     ).all()
+    piece_ids = [p.id for _, p in raw_items]
+    placement_summary = _placement_summaries(session, piece_ids)
+    # Räkna aktiva utlån per piece
+    active_loans_by_piece: dict[int, int] = {}
+    if piece_ids:
+        rows = session.exec(
+            select(Loan, PiecePlacement)
+            .join(PiecePlacement, PiecePlacement.id == Loan.placement_id)
+            .where(PiecePlacement.piece_id.in_(piece_ids))
+            .where(Loan.returned_at.is_(None))
+        ).all()
+        for loan, pl in rows:
+            active_loans_by_piece[pl.piece_id] = (
+                active_loans_by_piece.get(pl.piece_id, 0) + loan.copies
+            )
+    items = []
+    for it, piece in raw_items:
+        summary = placement_summary.get(piece.id, {"count": 0, "copies": 0, "digital": 0})
+        out_count = active_loans_by_piece.get(piece.id, 0)
+        home_count = max(0, summary.get("copies", 0) - out_count)
+        items.append({
+            "item": it,
+            "piece": piece,
+            "placement_count": summary.get("count", 0),
+            "copies_total": summary.get("copies", 0),
+            "digital_count": summary.get("digital", 0),
+            "out_count": out_count,
+            "home_count": home_count,
+            "has_lendable": summary.get("copies", 0) > 0,
+        })
     return render(
         request,
         "lists/detail.html",
@@ -255,6 +287,79 @@ async def remove_from_list(
         flash(request, "Borttagen ur listan", "info")
     dest = return_to if return_to.startswith("/") else f"/lists/{list_id}"
     return RedirectResponse(dest, status.HTTP_302_FOUND)
+
+
+@router.post("/{list_id}/add-to-cart", dependencies=[Depends(verify_csrf)])
+async def add_list_to_cart(
+    request: Request,
+    list_id: int,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Lägg en placering per piece (1 ex) i kundvagnen.
+
+    Väljer första placeringen per piece med fysiska exemplar (copies > 0).
+    Hoppar över rent digitala pieces och pieces utan placering. Befintliga
+    items i korgen lämnas oförändrade - duplicater hindras."""
+    from app.routes.loans import _get_or_create_cart
+
+    ll = session.get(PieceList, list_id)
+    if not ll or ll.user_id != user.id:
+        raise HTTPException(404)
+    items = session.exec(
+        select(PieceListItem)
+        .where(PieceListItem.list_id == list_id)
+        .order_by(PieceListItem.sort_order, PieceListItem.added_at)
+    ).all()
+    if not items:
+        flash(request, "Listan är tom", "info")
+        return RedirectResponse(f"/lists/{list_id}", status.HTTP_302_FOUND)
+
+    cart = _get_or_create_cart(session, user.id)
+    existing_placement_ids = {
+        loan.placement_id
+        for loan in session.exec(
+            select(Loan).where(Loan.batch_id == cart.id)
+        ).all()
+    }
+
+    added = 0
+    skipped_no_placement = 0
+    already_in_cart = 0
+    for it in items:
+        placements = session.exec(
+            select(PiecePlacement)
+            .where(PiecePlacement.piece_id == it.piece_id)
+            .where(PiecePlacement.copies.is_not(None))
+            .order_by(PiecePlacement.id)
+        ).all()
+        # Filtrera ut första med copies > 0
+        pl = next((p for p in placements if (p.copies or 0) > 0), None)
+        if pl is None:
+            skipped_no_placement += 1
+            continue
+        if pl.id in existing_placement_ids:
+            already_in_cart += 1
+            continue
+        loan = Loan(
+            placement_id=pl.id,
+            copies=1,
+            batch_id=cart.id,
+        )
+        session.add(loan)
+        existing_placement_ids.add(pl.id)
+        added += 1
+    session.commit()
+
+    msgs = []
+    if added:
+        msgs.append(f"{added} not{'er' if added != 1 else ''} lagd{'a' if added != 1 else ''} i korgen")
+    if already_in_cart:
+        msgs.append(f"{already_in_cart} redan i korgen")
+    if skipped_no_placement:
+        msgs.append(f"{skipped_no_placement} utan fysisk placering hoppades över")
+    flash(request, " · ".join(msgs) if msgs else "Inget att lägga till", "success" if added else "info")
+    return RedirectResponse("/loans/cart", status.HTTP_302_FOUND)
 
 
 @router.post("/favorite/{piece_id}", dependencies=[Depends(verify_csrf)])
