@@ -198,12 +198,12 @@ granska -> spara -> hitta igen.
       tagg-namnet på /tags-listan och som tooltip + extra rad i
       tag-search-autocompleten. Hjälper användarna förstå taggens
       innebörd.
-- [ ] **Nästlade/hierarkiska taggar med alias**: lägg `parent_id` på Tag
+- [x] **Nästlade/hierarkiska taggar med alias**: `parent_id` på Tag
       så taggar kan grupperas i träd, t.ex. "Kyrkliga handlingar >
-      Begravning/Dop/Vigsel/Konfirmation". Visa hierarki i /tags-vyn
+      Begravning/Dop/Vigsel/Konfirmation". Visar hierarki i /tags-vyn
       och i tag-search-autocompleten (full sökväg som tooltip).
-      Plus alias-stöd: en separat TagAlias-tabell (tag_id, alias_name)
-      så att "Minnesgudstjänst" och "Allhelgona" kan vara samma tagg
+      Alias-stöd via TagAlias-tabell (tag_id, alias_name) så att
+      "Minnesgudstjänst" och "Allhelgona" kan vara samma tagg
       sökmässigt utan att duplicera kopplingar. Påverkar filterlogik
       på /pieces.
 - [x] **Sök-baserad tagghantering på noter**: HTMX-baserad
@@ -282,13 +282,12 @@ granska -> spara -> hitta igen.
 - [x] **Psalmböcker som default seed**: `seed_psalms()` anropas
       automatiskt från `seed_all()` med 1986 års svenska psalmbok
       (700 psalmer) + Verbums tillägg 2003 (100 psalmer).
-- [ ] **Auto-logout i kiosken efter inaktivitet**: rensa
-      `kiosk_borrower_id` om det gått en lång stund (~60 min) utan
-      requests från sessionen. Långt utlovat-värde eftersom körledare
-      kan vandra runt och leta efter noter mellan skanningar. Kan
-      implementeras som JS-watchdog i kiosk-templaten (skickar
-      keep-alive vid aktivitet) eller server-side med
-      `kiosk_borrower_until`-timestamp i sessionen.
+- [x] **Auto-logout i kiosken efter inaktivitet** (commit bd52b0a):
+      server-side check i `_kiosk_borrower` som rensar
+      `kiosk_borrower_id` om det gått längre än
+      `kiosk_idle_timeout_minutes` sedan senaste request. Admin-
+      konfigurerbar via `/admin/settings` med default 60 min
+      (0 = aldrig logga ut).
 - [ ] **Inventering via kiosken**: idag görs `InventorySession` via
       vanliga vyer på /inventory. Naturligare flöde: stå vid kiosk-
       datorn, autentisera med PIN, skanna noter en åt gången för att
@@ -311,19 +310,22 @@ granska -> spara -> hitta igen.
 
 ### UX-konsekvens
 
-- [ ] **HTMX-modaler → Bootstrap-modaler**: `storage/_unit_form.html`,
-      `_location_form.html` och `_unit_edit_form.html` är idag
-      HTMX-renderade fragment som maler en *fake-modal* (`modal fade
-      show d-block` + manuell stäng-logik istället för Bootstrap-modal-
-      API:t). Refactor: statiskt modal-skal på sidan + HTMX laddar bara
-      `modal-body`. Då blir alla modaler i appen lika - stängbara med
-      `data-bs-dismiss`, korrekt backdrop, fokus-handling osv.
-- [ ] **Jinja-macro `place_breadcrumb` används överallt**: lade till
-      i `_macros.html` och använder i `loans/list.html`, `pieces/kiosk.html`,
-      `pieces/kiosk_piece.html` (via `row.path`). Resten av app:en visar
-      fortfarande path som text-muted-div eller länkad text - rulla ut
-      makron till `pieces/detail.html`, `_piece_list.html` (tooltips),
-      m.fl.
+- [x] **UX-audit 2026-05-28** (commit 4d0b4db): systematisk genomgång
+      av UX/UI-inkonsekvenser dokumenterad i `docs/ux-audit.md`.
+      Normaliserade empty-states, knapptext, datumformat, separator-
+      tecken i path-byggen, svensk översättning av ScanStatus.
+- [x] **HTMX-modaler → Bootstrap-modaler**: storage-modalerna
+      konverterade till riktiga Bootstrap-modaler via ny
+      `storage/_form_modal.html`-partial. Form-fragment returnerar bara
+      `modal-content`-form, modalen öppnas efter `htmx:afterSwap` så
+      submit garanterat går mot rätt entitet. Update-routen tar
+      `return_to`-parameter så modalen redirectar tillbaka till rätt sida.
+- [x] **Jinja-macro `place_breadcrumb`**: skapad i `_macros.html` och
+      utrullad på `loans/list.html`, `loans/_placement_search.html`,
+      `pieces/kiosk.html`, `pieces/kiosk_piece.html`, `pieces/detail.html`
+      (modal), `pieces/_kiosk_search_results.html`. Lämnade som-är:
+      PDF-templates, tooltips, redan-länkade paths där pill-byte
+      skulle bryta klickytan.
 
 ## V3 - "Långt fram"
 
