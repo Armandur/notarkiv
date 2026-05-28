@@ -282,6 +282,21 @@ granska -> spara -> hitta igen.
 - [x] **Psalmböcker som default seed**: `seed_psalms()` anropas
       automatiskt från `seed_all()` med 1986 års svenska psalmbok
       (700 psalmer) + Verbums tillägg 2003 (100 psalmer).
+- [ ] **Auto-logout i kiosken efter inaktivitet**: rensa
+      `kiosk_borrower_id` om det gått en lång stund (~60 min) utan
+      requests från sessionen. Långt utlovat-värde eftersom körledare
+      kan vandra runt och leta efter noter mellan skanningar. Kan
+      implementeras som JS-watchdog i kiosk-templaten (skickar
+      keep-alive vid aktivitet) eller server-side med
+      `kiosk_borrower_until`-timestamp i sessionen.
+- [ ] **Inventering via kiosken**: idag görs `InventorySession` via
+      vanliga vyer på /inventory. Naturligare flöde: stå vid kiosk-
+      datorn, autentisera med PIN, skanna noter en åt gången för att
+      kvittera "den här är på platsen". Skanningar kopplas till en
+      aktiv inventeringssession knuten till kioskens lagringsplats.
+      UI: list-baserad inventeringsläge-vy där varje not visar
+      checked-status, anteckningar och historik. Bör fungera med
+      både QR och fritext-sök.
 - [ ] **Förlag som strukturerad entitet** (liknande Person-modellen):
       `Publisher`-tabell med name + sort_name + ev. country, IMSLP-länk,
       hemsida, beskrivning. `Piece.publisher` (fritext) ersätts med
