@@ -22,6 +22,12 @@
                 class="btn btn-dark position-absolute top-50 end-0 translate-middle-y me-2 d-none"
                 style="z-index: 1056">›</button>
         <img id="scan-preview-img" alt="" style="max-width: 100%; max-height: 100%; object-fit: contain">
+        <div id="scan-preview-spinner"
+             class="position-absolute top-50 start-50 translate-middle d-none align-items-center gap-2 px-3 py-2 rounded"
+             style="background: rgba(0,0,0,0.7); z-index: 1057">
+          <div class="spinner-border spinner-border-sm text-light" role="status"></div>
+          <span class="small text-light">Bearbetar...</span>
+        </div>
       </div>
       <div class="modal-footer py-2 border-0 flex-column gap-2">
         <div class="d-flex justify-content-center gap-1 flex-wrap" id="scan-preview-filters">
@@ -113,10 +119,21 @@ window.notarkivScanPreview = (function() {
       state.callbacks.onRotateCw(state.idx);
     }
   });
-  document.getElementById('scan-preview-filters').addEventListener('click', e => {
+  function showSpinner(show) {
+    const el = document.getElementById('scan-preview-spinner');
+    el.classList.toggle('d-none', !show);
+    el.classList.toggle('d-flex', show);
+  }
+
+  document.getElementById('scan-preview-filters').addEventListener('click', async e => {
     const btn = e.target.closest('button[data-filter]');
     if (!btn || !state.callbacks || !state.callbacks.onFilter) return;
-    state.callbacks.onFilter(state.idx, btn.dataset.filter);
+    showSpinner(true);
+    try {
+      await state.callbacks.onFilter(state.idx, btn.dataset.filter);
+    } finally {
+      showSpinner(false);
+    }
   });
 
   // Tangentbordsnavigation

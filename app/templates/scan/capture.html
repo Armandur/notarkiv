@@ -28,10 +28,15 @@
           <div id="previewBlock" class="mb-3 d-none">
             <div class="card">
               <div class="card-body p-2 d-flex align-items-center gap-2">
-                <div style="width: 120px; height: 120px; overflow: hidden; flex-shrink: 0">
+                <div class="position-relative" style="width: 120px; height: 120px; overflow: hidden; flex-shrink: 0">
                   <img id="previewImg" alt="Förhandsgranskning"
                        title="Klicka för att förhandsgranska"
                        style="width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; transition: transform 0.2s">
+                  <div id="previewSpinner"
+                       class="position-absolute top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center"
+                       style="background: rgba(0,0,0,0.5)">
+                    <div class="spinner-border spinner-border-sm text-light" role="status"></div>
+                  </div>
                 </div>
                 <div class="flex-grow-1">
                   <div class="small text-muted">Rotera eller justera kanter innan du skannar.</div>
@@ -87,6 +92,7 @@
   let blobUrl = null;
   let corners = null;           // valda hörn från senaste crop
   let filter = 'none';
+  let filterCache = {};         // (source + '|' + filter) → blob
 
   function showRotation() {
     previewImg.style.transform = `rotate(${rotation}deg)`;
@@ -105,6 +111,12 @@
     });
   }
 
+  const spinnerEl = document.getElementById('previewSpinner');
+  function showSpinner(show) {
+    spinnerEl.classList.toggle('d-none', !show);
+    spinnerEl.classList.toggle('d-flex', show);
+  }
+
   input.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) { previewBlock.classList.add('d-none'); currentFile = null; return; }
@@ -114,6 +126,7 @@
     rotation = 0;
     corners = null;
     filter = 'none';
+    filterCache = {};
     originalBlobUrl = URL.createObjectURL(file);
     blobUrl = originalBlobUrl;
     croppedBlobUrl = null;
@@ -121,29 +134,35 @@
     previewBlock.classList.remove('d-none');
     croppedBadge.classList.add('d-none');
     showRotation();
+    showSpinner(true);
 
-    // Försök auto-cropa direkt
-    const result = await notarkivCrop.autoCrop(originalBlobUrl);
-    let sourceUrl = originalBlobUrl;
-    if (result) {
-      croppedBlobUrl = URL.createObjectURL(result.blob);
-      corners = result.corners;
-      sourceUrl = croppedBlobUrl;
-      croppedBadge.classList.remove('d-none');
+    try {
+      // Försök auto-cropa direkt
+      const result = await notarkivCrop.autoCrop(originalBlobUrl);
+      let sourceUrl = originalBlobUrl;
+      if (result) {
+        croppedBlobUrl = URL.createObjectURL(result.blob);
+        corners = result.corners;
+        sourceUrl = croppedBlobUrl;
+        croppedBadge.classList.remove('d-none');
+      }
+      // Applicera Dokument-filtret som default
+      const filteredBlob = await notarkivCrop.applyFilter(sourceUrl, 'document');
+      if (blobUrl !== originalBlobUrl) URL.revokeObjectURL(blobUrl);
+      if (filteredBlob) {
+        currentFile = new File([filteredBlob], 'scan.jpg', { type: 'image/jpeg' });
+        blobUrl = URL.createObjectURL(filteredBlob);
+        filter = 'document';
+        filterCache[sourceUrl + '|document'] = filteredBlob;
+      } else if (result) {
+        currentFile = new File([result.blob], 'crop-foto.jpg', { type: 'image/jpeg' });
+        blobUrl = croppedBlobUrl;
+        filter = 'none';
+      }
+      previewImg.src = blobUrl;
+    } finally {
+      showSpinner(false);
     }
-    // Applicera Dokument-filtret som default
-    const filteredBlob = await notarkivCrop.applyFilter(sourceUrl, 'document');
-    if (blobUrl !== originalBlobUrl) URL.revokeObjectURL(blobUrl);
-    if (filteredBlob) {
-      currentFile = new File([filteredBlob], 'scan.jpg', { type: 'image/jpeg' });
-      blobUrl = URL.createObjectURL(filteredBlob);
-      filter = 'document';
-    } else if (result) {
-      currentFile = new File([result.blob], 'crop-foto.jpg', { type: 'image/jpeg' });
-      blobUrl = croppedBlobUrl;
-      filter = 'none';
-    }
-    previewImg.src = blobUrl;
   });
 
   document.getElementById('rotateCwBtn').addEventListener('click', () => {
@@ -162,6 +181,7 @@
       croppedBlobUrl = blobUrl;
       corners = finalCorners;
       filter = 'none';
+      filterCache = {};  // crop ändrar källan
       previewImg.src = blobUrl;
       croppedBadge.classList.remove('d-none');
     }, corners);
@@ -170,8 +190,13 @@
 
   async function applyFilterTo(filterName) {
     const source = croppedBlobUrl || originalBlobUrl;
-    const blob = await notarkivCrop.applyFilter(source, filterName);
-    if (!blob) return;
+    const cacheKey = source + '|' + filterName;
+    let blob = filterCache[cacheKey];
+    if (!blob) {
+      blob = await notarkivCrop.applyFilter(source, filterName);
+      if (!blob) return;
+      filterCache[cacheKey] = blob;
+    }
     if (blobUrl !== croppedBlobUrl && blobUrl !== originalBlobUrl) URL.revokeObjectURL(blobUrl);
     currentFile = new File([blob], 'scan.jpg', { type: 'image/jpeg' });
     blobUrl = URL.createObjectURL(blob);
