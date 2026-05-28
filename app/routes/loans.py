@@ -428,7 +428,7 @@ async def cart_add(
 async def cart_add_all_from_unit(
     request: Request,
     unit_id: int,
-    user: User = Depends(require_editor),
+    user: User = Depends(require_cart_actor),
     session: Session = Depends(get_session),
 ) -> Response:
     """Lägg alla placeringar i en lagringsenhet i utlåningskorgen."""
@@ -484,7 +484,7 @@ async def cart_add_all_from_unit(
 @router.get("/loans/cart")
 async def cart_view(
     request: Request,
-    user: User = Depends(require_editor),
+    user: User = Depends(require_cart_actor),
     session: Session = Depends(get_session),
 ) -> Response:
     cart = _get_or_create_cart(session, user.id)
@@ -534,7 +534,7 @@ async def cart_update(
     request: Request,
     loan_id: int,
     copies: int = Form(...),
-    user: User = Depends(require_editor),
+    user: User = Depends(require_cart_actor),
     session: Session = Depends(get_session),
 ) -> Response:
     loan = session.get(Loan, loan_id)
@@ -582,7 +582,7 @@ async def cart_checkout(
     borrower_name: str | None = Form(None),
     expected_return: str | None = Form(None),
     notes: str | None = Form(None),
-    user: User = Depends(require_editor),
+    user: User = Depends(require_cart_actor),
     session: Session = Depends(get_session),
 ) -> Response:
     cart = _get_or_create_cart(session, user.id)

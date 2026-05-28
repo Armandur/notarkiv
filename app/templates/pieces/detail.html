@@ -165,7 +165,7 @@
               <span class="badge bg-secondary">{{ home }}/{{ pv.placement.copies }} ex hemma</span>
               {% if pv.out_count %}<span class="badge bg-warning text-dark">{{ pv.out_count }} utlånade</span>{% endif %}
             {% endif %}
-            {% if user.can_edit %}
+            {% if user %}
             <form method="post" action="/loans/cart/add" class="mb-0 d-inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
               <input type="hidden" name="placement_id" value="{{ pv.placement.id }}">
@@ -173,6 +173,8 @@
                 + Korg
               </button>
             </form>
+            {% endif %}
+            {% if user.can_edit %}
             <button class="btn btn-sm btn-outline-primary" type="button"
                     data-bs-toggle="modal" data-bs-target="#addLoanModal-{{ pv.placement.id }}">
               + Lån

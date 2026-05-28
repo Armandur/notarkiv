@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import func as sqlf
 from sqlmodel import Session, select
 
-from app.deps import get_session, require_admin, require_auth, verify_csrf
+from app.deps import get_session, require_auth, require_editor, verify_csrf
 from app.models import PieceTag, Tag, TagAlias, User
 from app.models.tag import TagKind
 from app.templates_setup import flash, render
@@ -69,7 +69,7 @@ async def create_tag(
     kind: str = Form("free"),
     description: str | None = Form(None),
     parent_id: str | None = Form(None),
-    user: User = Depends(require_admin),
+    user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
     name = name.strip()
@@ -111,7 +111,7 @@ async def update_tag(
     kind: str = Form("free"),
     description: str | None = Form(None),
     parent_id: str | None = Form(None),
-    user: User = Depends(require_admin),
+    user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
     tag = session.get(Tag, tag_id)
@@ -155,7 +155,7 @@ async def update_tag(
 async def delete_tag(
     request: Request,
     tag_id: int,
-    user: User = Depends(require_admin),
+    user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
     tag = session.get(Tag, tag_id)
@@ -179,7 +179,7 @@ async def add_alias(
     request: Request,
     tag_id: int,
     name: str = Form(...),
-    user: User = Depends(require_admin),
+    user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
     tag = session.get(Tag, tag_id)
@@ -209,7 +209,7 @@ async def delete_alias(
     request: Request,
     tag_id: int,
     alias_id: int,
-    user: User = Depends(require_admin),
+    user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
     alias = session.get(TagAlias, alias_id)

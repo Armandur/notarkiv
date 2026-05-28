@@ -80,7 +80,9 @@ def require_cart_actor(
 ) -> User:
     """Hämta User som agerar på en cart-action. I kiosk-only-session (ingen
     user_id men kiosk_borrower_id satt) returneras den PIN-autenticerade
-    låntagaren. Annars den inloggade användaren. Båda kräver editor-roll."""
+    låntagaren. Annars den inloggade användaren. Alla auth:ade roller
+    räcker - utlåning är inte en redigerande operation och alla i
+    körlaget ska kunna låna noter."""
     user_id = request.session.get("user_id") or request.session.get("kiosk_borrower_id")
     if not user_id:
         raise HTTPException(
@@ -91,10 +93,6 @@ def require_cart_actor(
     user = session.get(User, user_id)
     if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Ogiltig session")
-    if not user.can_edit:
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN, "Saknar redigeringsbehörighet"
-        )
     return user
 
 

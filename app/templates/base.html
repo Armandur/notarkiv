@@ -34,13 +34,13 @@
             {% if active_loans_count %}<span class="badge bg-warning text-dark">{{ active_loans_count }}</span>{% endif %}
           </a>
         </li>
-        {% if user and user.can_edit %}
         <li class="nav-item">
           <a class="nav-link" href="/loans/cart">
             Korg
             {% if cart_count %}<span class="badge bg-success">{{ cart_count }}</span>{% endif %}
           </a>
         </li>
+        {% if user and user.can_edit %}
         <li class="nav-item">
           <a class="nav-link" href="/kiosk">Kiosk</a>
         </li>

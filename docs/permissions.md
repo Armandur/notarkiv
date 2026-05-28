@@ -79,12 +79,15 @@ R = Reader, E = Editor, A = Admin, K = Kiosk (PIN-autentiserad i kiosk)
 |--------|---|---|---|---|------------|
 | Lista, batch-detalj | ✓ | ✓ | ✓ | | |
 | Mina lån-sidopanel | ✓ | ✓ | ✓ | | |
-| Lägg i kundvagn | | ✓ | ✓ | ✓ | Kiosk-låntagare via `require_cart_actor` |
-| Ändra antal / ta bort ur korg | | ✓ | ✓ | ✓ | Samma |
-| Skapa batch (checkout) | | ✓ | ✓ | ✓ | |
-| Markera plockad | | ✓ | ✓ | | Kiosk-läge gör detta via specialroute |
+| Se egen kundvagn | ✓ | ✓ | ✓ | ✓ | Reader får också låna |
+| Lägg i kundvagn | ✓ | ✓ | ✓ | ✓ | |
+| Bulk-lägg från lagringsenhet | ✓ | ✓ | ✓ | ✓ | |
+| Ändra antal / ta bort ur korg | ✓ | ✓ | ✓ | ✓ | |
+| Skapa batch (checkout) | ✓ | ✓ | ✓ | ✓ | Reader lånar med sig själv som låntagare |
+| Skapa direkt enskilt lån (piece-modal) | | ✓ | ✓ | | Admin-aktigt: registrera lån åt någon annan |
+| Plocklista-flöde | | ✓ | ✓ | | Plockning är arbetsuppgift |
 | Aktivera batch (slut-checkout) | | ✓ | ✓ | | |
-| Återlämna lån | | ✓ | ✓ | | Plus separat kiosk-route för plats-bunden återlämning |
+| Återlämna lån | ✓ | ✓ | ✓ | ✓ | Via `require_cart_actor` så reader kan återlämna |
 | **Radera lån** | | | ✓ | | Permanent borttagning av rad |
 
 ### Scan (skanning)
@@ -117,12 +120,8 @@ R = Reader, E = Editor, A = Admin, K = Kiosk (PIN-autentiserad i kiosk)
 | Lista hierarki | ✓ | ✓ | ✓ | |
 | Toggle tagg på piece | | ✓ | ✓ | Via piece-flow |
 | Skapa ny tagg via piece | | ✓ | ✓ | Snabb skapelse i tagg-area |
-| **Skapa/ändra/radera tagg via `/tags`** | | | ✓ | Hierarkihantering |
-| **Hantera alias** | | | ✓ | |
-
-**Inkonsekvens**: editor kan skapa enkla taggar via piece-edit men inte
-hantera dem via `/tags`. Medveten skillnad - piece-flow är dagligt arbete,
-`/tags`-CRUD är strukturuppdatering som ska gå via admin.
+| Skapa/ändra/radera tagg via `/tags` | | ✓ | ✓ | Hierarkihantering |
+| Hantera alias | | ✓ | ✓ | |
 
 ### Admin-vyer (`/admin/*`)
 
@@ -156,22 +155,28 @@ Alla under `require_auth`:
 - `GET /profile/kiosk-qr.png` - ladda ner egen QR
 - `POST /change-password` - byt lösenord
 
-## Kända inkonsekvenser och möjliga förbättringar
+## Designval och avgränsningar
 
-1. **Inventory saknar reader-vy**: en reader kan inte ens se
-   inventering-listan. Om read-only-läsning är önskvärt borde
-   `/inventory` (GET) bytas till `require_auth`.
+1. **Inventory är editor-bara** (medvetet). Inventering är en
+   städningsoperation för bibliotekarier - att se "saknas"-noter eller
+   logghistorik är inte relevant eller kan rentav vara förvirrande för
+   vanliga körmedlemmar. Reader ser därför ingenting av inventory-
+   flödet.
 
-2. **Tags-CRUD admin-bara**: editor kan inte ens redigera beskrivningar
-   eller lägga till alias på befintliga taggar via `/tags`. Övervägs om
-   det ska lättas - men piece-flow täcker det dagliga.
+2. **Cart/utlåning är öppet för alla auth:ade** (inkl reader). Det är
+   körlagets dagliga arbete att låna noter, så `require_cart_actor`
+   kräver bara giltig session - inte editor-roll. Detta gäller även
+   PIN-autentiserade kiosk-låntagare.
 
-3. **Kiosk-låntagare har implicit editor-roll**: en låntagare som loggar
-   in i kiosken via PIN måste vara editor (krävs av `require_cart_actor`).
-   Reader-användare med PIN kan alltså inte använda kiosken. Det är
-   troligen medvetet (utlåning är en redigerande operation) men bör
-   dokumenteras tydligare för slutanvändare.
+3. **Skapa direkt enskilt lån från piece-modal** kräver editor.
+   Skillnaden mot cart-flödet: enskilt lån = "registrera lån åt någon
+   annan med specifika fält" (bibliotekarie-uppgift). Cart-flödet =
+   "jag lånar dessa noter åt mig själv" (vanligt körmedlem).
 
-4. **Indexsidan** (`GET /`) använder `current_user` (mjuk-auth) men
+4. **Tagghantering**: editor kan nu redigera, lägga till alias och
+   skapa/ändra/radera taggar via `/tags`. Bara hård radering av piece
+   och location är fortsatt admin-bara.
+
+5. **Indexsidan** (`GET /`) använder `current_user` (mjuk-auth) men
    redirectar oinloggade till `/login` manuellt. Fungerar, men hade
    varit renare att använda `require_auth` direkt.
