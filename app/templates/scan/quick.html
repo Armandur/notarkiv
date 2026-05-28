@@ -82,6 +82,8 @@
   Du har skannat <strong>{{ today_count }}</strong> {% if today_count == 1 %}not{% else %}noter{% endif %} idag.
 </div>
 
+{% include "scan/_crop_modal.html" %}
+
 <script>
 (function() {
   const captures = []; // {file, rotation, blobUrl}
@@ -93,13 +95,36 @@
 
   addBtn.addEventListener('click', () => input.click());
 
-  input.addEventListener('change', (e) => {
-    for (const file of e.target.files) {
-      captures.push({ file, rotation: 0, blobUrl: URL.createObjectURL(file) });
-    }
+  input.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
     e.target.value = '';
-    render();
+    for (const file of files) {
+      const originalBlobUrl = URL.createObjectURL(file);
+      const cap = {
+        original_file: file,
+        original_blobUrl: originalBlobUrl,
+        file,
+        blobUrl: originalBlobUrl,
+        rotation: 0,
+        cropped: false,
+        corners: null,
+      };
+      captures.push(cap);
+      render();
+      // Försök auto-cropa i bakgrunden (laddar OpenCV första gången)
+      autoCropCapture(cap);
+    }
   });
+
+  async function autoCropCapture(cap) {
+    const result = await notarkivCrop.autoCrop(cap.original_blobUrl);
+    if (!result) return;
+    cap.file = new File([result.blob], 'crop-foto.jpg', { type: 'image/jpeg' });
+    cap.blobUrl = URL.createObjectURL(result.blob);
+    cap.cropped = true;
+    cap.corners = result.corners;
+    render();
+  }
 
   function render() {
     list.innerHTML = '';
@@ -108,17 +133,20 @@
       const card = document.createElement('div');
       card.className = 'card';
       card.innerHTML = `
-        <div class="card-body p-2 d-flex align-items-center gap-2">
-          <div class="position-relative" style="width: 100px; height: 100px; overflow: hidden; flex-shrink: 0">
+        <div class="card-body p-2 d-flex align-items-start gap-2 flex-wrap">
+          <div class="position-relative" style="width: 80px; height: 80px; overflow: hidden; flex-shrink: 0">
             <img src="${cap.blobUrl}"
                  style="width: 100%; height: 100%; object-fit: cover; transform: rotate(${cap.rotation}deg); transition: transform 0.2s">
           </div>
-          <div class="flex-grow-1 small">
+          <div class="flex-grow-1 small" style="min-width: 0">
             <div><strong>Bild ${idx + 1}</strong>${idx === 0 ? ' <span class="badge bg-primary">primär / OCR</span>' : ''}</div>
-            <div class="text-muted">${cap.file.name || 'foto.jpg'}</div>
-            ${cap.rotation !== 0 ? `<div class="badge bg-warning text-dark">roterad ${cap.rotation}°</div>` : ''}
+            <div class="d-flex gap-1 flex-wrap mt-1">
+              ${cap.cropped ? '<span class="badge bg-info text-dark">cropad</span>' : ''}
+              ${cap.rotation !== 0 ? `<span class="badge bg-warning text-dark">roterad ${cap.rotation}°</span>` : ''}
+            </div>
           </div>
-          <div class="btn-group-vertical btn-group-sm">
+          <div class="btn-group btn-group-sm flex-shrink-0" style="height: fit-content">
+            <button type="button" class="btn btn-outline-primary" data-action="crop" data-idx="${idx}" title="Justera kanter">⊡</button>
             <button type="button" class="btn btn-outline-secondary" data-action="rotate-ccw" data-idx="${idx}" title="Rotera moturs">⟲</button>
             <button type="button" class="btn btn-outline-secondary" data-action="rotate-cw" data-idx="${idx}" title="Rotera medurs">⟳</button>
             <button type="button" class="btn btn-outline-danger" data-action="remove" data-idx="${idx}" title="Ta bort">×</button>
@@ -138,8 +166,22 @@
     } else if (btn.dataset.action === 'rotate-ccw') {
       captures[idx].rotation = (captures[idx].rotation + 270) % 360;
     } else if (btn.dataset.action === 'remove') {
-      URL.revokeObjectURL(captures[idx].blobUrl);
+      const cap = captures[idx];
+      URL.revokeObjectURL(cap.blobUrl);
+      if (cap.original_blobUrl && cap.original_blobUrl !== cap.blobUrl) {
+        URL.revokeObjectURL(cap.original_blobUrl);
+      }
       captures.splice(idx, 1);
+    } else if (btn.dataset.action === 'crop') {
+      const cap = captures[idx];
+      notarkivCrop.open(cap.original_blobUrl, blob => {
+        if (cap.blobUrl !== cap.original_blobUrl) URL.revokeObjectURL(cap.blobUrl);
+        cap.file = new File([blob], 'crop-foto.jpg', { type: 'image/jpeg' });
+        cap.blobUrl = URL.createObjectURL(blob);
+        cap.cropped = true;
+        render();
+      }, cap.corners);
+      return;
     }
     render();
   });

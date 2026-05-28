@@ -33,10 +33,14 @@
                        style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.2s">
                 </div>
                 <div class="flex-grow-1">
-                  <div class="small text-muted">Rotera vid behov innan du skannar.</div>
-                  <span id="rotationBadge" class="badge bg-warning text-dark d-none"></span>
+                  <div class="small text-muted">Rotera eller justera kanter innan du skannar.</div>
+                  <div class="d-flex gap-1 flex-wrap">
+                    <span id="rotationBadge" class="badge bg-warning text-dark d-none"></span>
+                    <span id="croppedBadge" class="badge bg-info text-dark d-none">cropad</span>
+                  </div>
                 </div>
                 <div class="btn-group-vertical btn-group-sm">
+                  <button type="button" id="cropBtn" class="btn btn-outline-primary" title="Justera kanter">⊡</button>
                   <button type="button" id="rotateCcwBtn" class="btn btn-outline-secondary" title="Rotera moturs">⟲</button>
                   <button type="button" id="rotateCwBtn" class="btn btn-outline-secondary" title="Rotera medurs">⟳</button>
                 </div>
@@ -62,17 +66,23 @@
           <button type="submit" id="captureSubmit" class="btn btn-primary w-100">Skanna</button>
         </form>
 
+{% include "scan/_crop_modal.html" %}
+
 <script>
 (function() {
   const input = document.getElementById('captureInput');
   const previewBlock = document.getElementById('previewBlock');
   const previewImg = document.getElementById('previewImg');
   const badge = document.getElementById('rotationBadge');
+  const croppedBadge = document.getElementById('croppedBadge');
   const form = document.getElementById('captureForm');
   const submitBtn = document.getElementById('captureSubmit');
-  let currentFile = null;
+  let currentFile = null;       // den fil som skickas vid submit
+  let originalFile = null;      // originalbilden för re-cropping
+  let originalBlobUrl = null;
   let rotation = 0;
   let blobUrl = null;
+  let corners = null;           // valda hörn från senaste crop
 
   function showRotation() {
     previewImg.style.transform = `rotate(${rotation}deg)`;
@@ -84,16 +94,31 @@
     }
   }
 
-  input.addEventListener('change', (e) => {
+  input.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) { previewBlock.classList.add('d-none'); currentFile = null; return; }
-    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    if (blobUrl && blobUrl !== originalBlobUrl) URL.revokeObjectURL(blobUrl);
+    if (originalBlobUrl) URL.revokeObjectURL(originalBlobUrl);
+    originalFile = file;
     currentFile = file;
     rotation = 0;
-    blobUrl = URL.createObjectURL(file);
+    corners = null;
+    originalBlobUrl = URL.createObjectURL(file);
+    blobUrl = originalBlobUrl;
     previewImg.src = blobUrl;
     previewBlock.classList.remove('d-none');
+    croppedBadge.classList.add('d-none');
     showRotation();
+
+    // Försök auto-cropa direkt
+    const result = await notarkivCrop.autoCrop(originalBlobUrl);
+    if (!result) return;
+    if (blobUrl !== originalBlobUrl) URL.revokeObjectURL(blobUrl);
+    currentFile = new File([result.blob], 'crop-foto.jpg', { type: 'image/jpeg' });
+    blobUrl = URL.createObjectURL(result.blob);
+    corners = result.corners;
+    previewImg.src = blobUrl;
+    croppedBadge.classList.remove('d-none');
   });
 
   document.getElementById('rotateCwBtn').addEventListener('click', () => {
@@ -101,6 +126,16 @@
   });
   document.getElementById('rotateCcwBtn').addEventListener('click', () => {
     rotation = (rotation + 270) % 360; showRotation();
+  });
+  document.getElementById('cropBtn').addEventListener('click', () => {
+    if (!originalFile || !originalBlobUrl) return;
+    notarkivCrop.open(originalBlobUrl, blob => {
+      if (blobUrl && blobUrl !== originalBlobUrl) URL.revokeObjectURL(blobUrl);
+      currentFile = new File([blob], 'crop-foto.jpg', { type: 'image/jpeg' });
+      blobUrl = URL.createObjectURL(blob);
+      previewImg.src = blobUrl;
+      croppedBadge.classList.remove('d-none');
+    }, corners);
   });
 
   async function rotateFile(file, angle) {
@@ -130,14 +165,16 @@
   }
 
   form.addEventListener('submit', async (e) => {
-    if (!currentFile || rotation === 0) return; // ingen rotation - skicka som vanligt
+    if (!currentFile) return;
+    // Alltid manuellt submit - currentFile kan vara cropad eller roterad
+    // (file-input-fältet ändras inte när vi byter ut filen klientside).
     e.preventDefault();
     submitBtn.disabled = true;
     submitBtn.textContent = 'Laddar upp...';
 
-    const rotated = await rotateFile(currentFile, rotation);
+    const final = rotation === 0 ? currentFile : await rotateFile(currentFile, rotation);
     const fd = new FormData(form);
-    fd.set('image', rotated, rotated.name);
+    fd.set('image', final, final.name);
 
     const resp = await fetch(form.action, { method: 'POST', body: fd, redirect: 'follow' });
     if (resp.redirected) window.location.href = resp.url;

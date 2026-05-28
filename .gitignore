@@ -48,3 +48,6 @@ tmp/
 sync_vmworkspace.sh
 sync.log
 snapshots/
+
+# Tunga statiska js-bibliotek - laddas via scripts/install-static-assets.sh
+app/static/js/opencv.js

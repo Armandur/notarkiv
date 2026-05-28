@@ -1,0 +1,344 @@
+{# Delad crop-modal för scan-templates. Inkludera FÖRE script-blocket
+   som kallar notarkivCrop.open(). Skapar global window.notarkivCrop
+   med: open(blobUrl, onApply) - öppnar modalen och anropar onApply(blob)
+   när användaren klickar Använd cropad. #}
+<div class="modal fade" id="cropModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen-md-down modal-xl">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h2 class="modal-title h6 mb-0">Justera kanter</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Stäng"></button>
+      </div>
+      <div class="modal-body p-2 text-center" style="overflow: hidden">
+        <div id="crop-loading" class="py-4">
+          <div class="spinner-border" role="status"></div>
+          <p class="mt-2 mb-0 small text-muted">Laddar bildanalys (~9 MB första gången)...</p>
+        </div>
+        <div id="crop-canvas-wrap" class="d-none position-relative d-inline-block">
+          <canvas id="crop-canvas" style="max-width: 100%; touch-action: none; cursor: grab"></canvas>
+          <canvas id="crop-magnifier" width="120" height="120"
+                  class="position-absolute d-none border border-2 border-success rounded-circle bg-white"
+                  style="top: 8px; left: 8px; pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.3)"></canvas>
+        </div>
+        <div id="crop-error" class="alert alert-warning small mt-2 mb-0 d-none"></div>
+        <p class="text-muted small mt-2 mb-0">Dra hörnen för att markera notens kanter.</p>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-sm btn-link" data-bs-dismiss="modal">Avbryt</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="crop-reset">Auto-detektera</button>
+        <button type="button" class="btn btn-sm btn-primary" id="crop-apply">Använd cropad</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+window.notarkivCrop = (function() {
+  let cvReady = null;
+  function loadCv() {
+    if (cvReady) return cvReady;
+    cvReady = new Promise((resolve, reject) => {
+      window.Module = { onRuntimeInitialized: () => {
+        const s = document.createElement('script');
+        s.src = '/static/js/jscanify.min.js';
+        s.onload = () => resolve();
+        s.onerror = reject;
+        document.head.appendChild(s);
+      }};
+      const s = document.createElement('script');
+      s.src = '/static/js/opencv.js';
+      s.async = true;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+    return cvReady;
+  }
+
+  const state = { img: null, corners: null, dragging: -1, scale: 1, onApply: null };
+
+  function fallbackCorners(img) {
+    const w = img.width, h = img.height;
+    return [
+      { x: w * 0.05, y: h * 0.05 },
+      { x: w * 0.95, y: h * 0.05 },
+      { x: w * 0.95, y: h * 0.95 },
+      { x: w * 0.05, y: h * 0.95 },
+    ];
+  }
+
+  function detectInitialCorners(img) {
+    try {
+      const scanner = new jscanify();
+      const cvImg = cv.imread(img);
+      const contour = scanner.findPaperContour(cvImg);
+      if (contour) {
+        const c = scanner.getCornerPoints(contour, cvImg);
+        state.corners = [c.topLeftCorner, c.topRightCorner, c.bottomRightCorner, c.bottomLeftCorner];
+      } else {
+        state.corners = fallbackCorners(img);
+      }
+      cvImg.delete();
+    } catch (e) {
+      state.corners = fallbackCorners(img);
+    }
+  }
+
+  function drawCrop() {
+    const canvas = document.getElementById('crop-canvas');
+    const ctx = canvas.getContext('2d');
+    const img = state.img;
+    // Använd modal-body som ankare för max-storlek. inline-block-wrap har
+    // 0 bredd innan canvas ritats så den går inte att använda.
+    const modalBody = canvas.closest('.modal-body');
+    const bodyRect = modalBody.getBoundingClientRect();
+    const maxW = Math.max(200, bodyRect.width - 16);
+    // Reservera plats för "Dra hörn..."-text + modal-footer
+    const maxH = Math.max(200, window.innerHeight - bodyRect.top - 120);
+    const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+    state.scale = scale;
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = '#198754';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    state.corners.forEach((p, i) => {
+      const x = p.x * scale, y = p.y * scale;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.stroke();
+
+    state.corners.forEach(p => {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(p.x * scale, p.y * scale, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#198754';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    });
+  }
+
+  function drawMagnifier(canvasPos) {
+    const mag = document.getElementById('crop-magnifier');
+    if (state.dragging < 0 || !state.img) {
+      mag.classList.add('d-none');
+      return;
+    }
+    mag.classList.remove('d-none');
+    // Placera magnifier i motsatt hörn av där användaren drar - så fingret
+    // inte ligger ivägen. canvasPos är touch/mouse-position relativt canvas.
+    const canvas = document.getElementById('crop-canvas');
+    const inUpperHalf = canvasPos.y < canvas.height / 2;
+    const inLeftHalf = canvasPos.x < canvas.width / 2;
+    mag.style.top = inUpperHalf ? 'auto' : '8px';
+    mag.style.bottom = inUpperHalf ? '8px' : 'auto';
+    mag.style.left = inLeftHalf ? 'auto' : '8px';
+    mag.style.right = inLeftHalf ? '8px' : 'auto';
+
+    const ctx = mag.getContext('2d');
+    const size = mag.width;
+    const zoom = 1.8;
+    const corner = state.corners[state.dragging];
+    const srcSize = size / zoom;
+    ctx.clearRect(0, 0, size, size);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, size, size);
+    // Klipp till cirkel
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(
+      state.img,
+      corner.x - srcSize / 2, corner.y - srcSize / 2, srcSize, srcSize,
+      0, 0, size, size
+    );
+    ctx.restore();
+    // Hårkors
+    ctx.strokeStyle = '#198754';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(size / 2, size / 2 - 20); ctx.lineTo(size / 2, size / 2 + 20);
+    ctx.moveTo(size / 2 - 20, size / 2); ctx.lineTo(size / 2 + 20, size / 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, 6, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  function setupCanvasEvents() {
+    const canvas = document.getElementById('crop-canvas');
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const t = e.touches ? e.touches[0] : e;
+      return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+    }
+    function findCornerIdx(pos) {
+      let best = -1, bestDist = 40;
+      state.corners.forEach((p, i) => {
+        const d = Math.hypot(pos.x - p.x * state.scale, pos.y - p.y * state.scale);
+        if (d < bestDist) { best = i; bestDist = d; }
+      });
+      return best;
+    }
+    function moveCorner(pos) {
+      state.corners[state.dragging] = {
+        x: Math.max(0, Math.min(state.img.width, pos.x / state.scale)),
+        y: Math.max(0, Math.min(state.img.height, pos.y / state.scale)),
+      };
+      drawCrop();
+      drawMagnifier(pos);
+    }
+    function start(pos) {
+      state.dragging = findCornerIdx(pos);
+      if (state.dragging >= 0) drawMagnifier(pos);
+    }
+    function end() {
+      state.dragging = -1;
+      document.getElementById('crop-magnifier').classList.add('d-none');
+    }
+    canvas.addEventListener('mousedown', e => start(getPos(e)));
+    canvas.addEventListener('mousemove', e => { if (state.dragging >= 0) moveCorner(getPos(e)); });
+    canvas.addEventListener('mouseup', end);
+    canvas.addEventListener('mouseleave', end);
+    canvas.addEventListener('touchstart', e => {
+      e.preventDefault();
+      start(getPos(e));
+    }, { passive: false });
+    canvas.addEventListener('touchmove', e => {
+      if (state.dragging < 0) return;
+      e.preventDefault();
+      moveCorner(getPos(e));
+    }, { passive: false });
+    canvas.addEventListener('touchend', end);
+  }
+  setupCanvasEvents();
+
+  document.getElementById('crop-reset').addEventListener('click', () => {
+    if (state.img) {
+      detectInitialCorners(state.img);
+      drawCrop();
+    }
+  });
+
+  // Bootstrap-modalen animerar in - första drawCrop() kan köra innan
+  // modal-body har fullt utvecklad bredd. Rita om när animationen klar.
+  document.getElementById('cropModal').addEventListener('shown.bs.modal', () => {
+    if (state.img) drawCrop();
+  });
+
+  function dim(corners) {
+    const dist = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+    const w = Math.round(Math.max(dist(corners[0], corners[1]), dist(corners[3], corners[2])));
+    const h = Math.round(Math.max(dist(corners[0], corners[3]), dist(corners[1], corners[2])));
+    return { w: Math.max(50, w), h: Math.max(50, h) };
+  }
+
+  function cornersObj(arr) {
+    return {
+      topLeftCorner: arr[0],
+      topRightCorner: arr[1],
+      bottomRightCorner: arr[2],
+      bottomLeftCorner: arr[3],
+    };
+  }
+
+  document.getElementById('crop-apply').addEventListener('click', async () => {
+    const errEl = document.getElementById('crop-error');
+    errEl.classList.add('d-none');
+    try {
+      const scanner = new jscanify();
+      const { w, h } = dim(state.corners);
+      const outCanvas = scanner.extractPaper(state.img, w, h, cornersObj(state.corners));
+      const blob = await new Promise(r => outCanvas.toBlob(r, 'image/jpeg', 0.92));
+      if (!blob) throw new Error('Toblob misslyckades');
+      const cb = state.onApply;
+      bootstrap.Modal.getInstance(document.getElementById('cropModal')).hide();
+      if (cb) cb(blob);
+    } catch (e) {
+      errEl.textContent = 'Kunde inte cropa: ' + e.message;
+      errEl.classList.remove('d-none');
+    }
+  });
+
+  async function open(blobUrl, onApply, initialCorners) {
+    state.onApply = onApply;
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('cropModal'));
+    modal.show();
+    const loading = document.getElementById('crop-loading');
+    const wrap = document.getElementById('crop-canvas-wrap');
+    const errEl = document.getElementById('crop-error');
+    errEl.classList.add('d-none');
+    loading.classList.remove('d-none');
+    wrap.classList.add('d-none');
+
+    try {
+      await loadCv();
+    } catch (e) {
+      loading.classList.add('d-none');
+      errEl.textContent = 'Kunde inte ladda bildanalys-biblioteket.';
+      errEl.classList.remove('d-none');
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      state.img = img;
+      if (initialCorners && initialCorners.length === 4) {
+        state.corners = initialCorners.map(p => ({ x: p.x, y: p.y }));
+      } else {
+        detectInitialCorners(img);
+      }
+      drawCrop();
+      loading.classList.add('d-none');
+      wrap.classList.remove('d-none');
+    };
+    img.onerror = () => {
+      loading.classList.add('d-none');
+      errEl.textContent = 'Kunde inte ladda bilden.';
+      errEl.classList.remove('d-none');
+    };
+    img.src = blobUrl;
+  }
+
+  // Auto-detektera och cropa direkt utan att visa modalen.
+  // Returnerar { blob, corners } eller null om detektion misslyckas.
+  async function autoCrop(blobUrl) {
+    try {
+      await loadCv();
+    } catch (e) {
+      return null;
+    }
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const scanner = new jscanify();
+          const cvImg = cv.imread(img);
+          const contour = scanner.findPaperContour(cvImg);
+          if (!contour) { cvImg.delete(); resolve(null); return; }
+          const c = scanner.getCornerPoints(contour, cvImg);
+          const corners = [c.topLeftCorner, c.topRightCorner, c.bottomRightCorner, c.bottomLeftCorner];
+          cvImg.delete();
+          const { w, h } = dim(corners);
+          const outCanvas = scanner.extractPaper(img, w, h, cornersObj(corners));
+          outCanvas.toBlob(blob => {
+            if (!blob) { resolve(null); return; }
+            resolve({ blob, corners });
+          }, 'image/jpeg', 0.92);
+        } catch (e) {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = blobUrl;
+    });
+  }
+
+  return { open, autoCrop };
+})();
+</script>
