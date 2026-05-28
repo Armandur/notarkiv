@@ -322,6 +322,15 @@ granska -> spara -> hitta igen.
       `modal-content`-form, modalen öppnas efter `htmx:afterSwap` så
       submit garanterat går mot rätt entitet. Update-routen tar
       `return_to`-parameter så modalen redirectar tillbaka till rätt sida.
+- [ ] **Mobil-UI/UX-genomgång**: systematisk granskning av alla vyer
+      i smal viewport (typiskt 360-400px). Inget element ska orsaka
+      horisontell scroll, bredda containern eller bli större än
+      viewporten. Granska särskilt: tabeller (table-responsive eller
+      kort-vy?), filterformulär (vertikal stackning på mobil), modaler
+      (modal-fullscreen-sm-down?), navbarmenyn (Skanna-knapp + alla
+      reguljära items får plats i hamburgermenyn), pill-makron
+      (overflow-wrap), embeddade `<pre>`/`<code>`-block, pickup-listor,
+      kiosk-vyn. Testa på en riktig telefon, inte bara DevTools.
 - [x] **Jinja-macro `place_breadcrumb`**: skapad i `_macros.html` och
       utrullad på `loans/list.html`, `loans/_placement_search.html`,
       `pieces/kiosk.html`, `pieces/kiosk_piece.html`, `pieces/detail.html`

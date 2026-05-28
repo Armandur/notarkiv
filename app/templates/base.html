@@ -46,7 +46,7 @@
         </li>
         {% endif %}
         {% if user.can_edit %}
-        <li class="nav-item"><a class="nav-link" href="/scan">Skanna</a></li>
+        <li class="nav-item"><a class="nav-link" href="/scan">Skanna ny not</a></li>
         <li class="nav-item">
           <a class="nav-link" href="/scan/queue">
             Granskningskö
@@ -63,6 +63,10 @@
         </li>
         <li class="nav-item"><a class="nav-link" href="/storage">Lagringsplatser</a></li>
         {% endif %}
+        <li class="nav-item">
+          <button type="button" class="nav-link border-0 bg-transparent camera-scan-btn"
+                  title="Skanna QR-kod på en not för att öppna den">📷 Sök QR</button>
+        </li>
         {% if user.is_admin %}
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Admin</a>
@@ -289,6 +293,111 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 });
+</script>
+
+{# In-browser QR-läsare via mobilkameran. Knappar med class="camera-scan-btn"
+   (navbar och kiosk-vyn) öppnar modalen. Hanterar piece-QR (URL eller
+   public_id → navigerar till /p/<id> som auto-routar till piece-detalj
+   eller kiosk-vy beroende på session) och user-token (u:<hex>, bara om
+   kiosk-auth-formen finns på sidan). Kräver HTTPS eller localhost. #}
+<div class="modal fade" id="cameraScannerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Skanna QR-kod</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Stäng"></button>
+      </div>
+      <div class="modal-body">
+        <div id="qr-reader" style="width: 100%"></div>
+        <div id="qr-reader-error" class="alert alert-warning small mt-2 mb-0 d-none"></div>
+        <p class="text-muted small mt-2 mb-0">
+          Rikta kameran mot QR-koden på noten - sidan öppnas automatiskt.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/html5-qrcode.min.js"></script>
+<script>
+(function() {
+  const buttons = document.querySelectorAll('.camera-scan-btn');
+  if (!buttons.length) return;
+
+  const modalEl = document.getElementById('cameraScannerModal');
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  const errEl = document.getElementById('qr-reader-error');
+  let scanner = null;
+
+  buttons.forEach(btn => btn.addEventListener('click', () => {
+    errEl.classList.add('d-none');
+    errEl.textContent = '';
+    modal.show();
+    if (!window.Html5Qrcode) {
+      showError('html5-qrcode-biblioteket gick inte att läsa in (offline?)');
+      return;
+    }
+    scanner = new Html5Qrcode("qr-reader");
+    scanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 240, height: 240 } },
+      onDecoded,
+      () => {}
+    ).catch(err => showError('Kunde inte starta kamera: ' + err
+      + '. Kameran kräver HTTPS eller localhost.'));
+  }));
+
+  modalEl.addEventListener('hidden.bs.modal', stopScanner);
+
+  function stopScanner() {
+    if (scanner && scanner.isScanning) {
+      scanner.stop().then(() => scanner.clear()).catch(() => {});
+    }
+    scanner = null;
+  }
+
+  function showError(msg) {
+    errEl.textContent = msg;
+    errEl.classList.remove('d-none');
+  }
+
+  function onDecoded(text) {
+    stopScanner();
+    modal.hide();
+    handleQr(text);
+  }
+
+  function handleQr(code) {
+    code = (code || '').trim();
+    // 1. Piece-URL: <host>/p/<id> eller <host>/kiosk/<id> → samma landningssida
+    const pieceMatch = code.match(/\/(?:p|kiosk)\/([A-Za-z0-9_-]+)/);
+    if (pieceMatch) {
+      window.location.href = '/p/' + pieceMatch[1];
+      return;
+    }
+    // 2. User-token: bara relevant om vi har auth-form i DOM:en (kiosk-vyn)
+    const userMatch = code.match(/^u:([a-f0-9]+)$/i) || code.match(/^([a-f0-9]{32})$/i);
+    if (userMatch) {
+      const tokenInput = document.getElementById('qr-auth-token');
+      const tokenForm = document.getElementById('qr-auth-form');
+      if (tokenInput && tokenForm) {
+        tokenInput.value = userMatch[1];
+        tokenForm.submit();
+        return;
+      }
+      showError('QR-koden är en användar-token - skanna i kiosken istället.');
+      modal.show();
+      return;
+    }
+    // 3. Rent public_id (framtidssäkring om QR-format förenklas)
+    if (/^[A-Za-z0-9_-]{6,}$/.test(code)) {
+      window.location.href = '/p/' + code;
+      return;
+    }
+    showError('Kunde inte tolka QR-koden: ' + code);
+    modal.show();
+  }
+})();
 </script>
 </body>
 </html>
