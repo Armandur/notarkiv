@@ -41,7 +41,7 @@
         {% endmacro %}
 
         {% if not tree %}
-        <p class="text-muted fst-italic">Inga lagringsplatser. Skapa via menyn Lagringsplatser.</p>
+        <p class="text-muted fst-italic">Inga lagringsplatser ännu. Skapa via menyn Lagringsplatser.</p>
         {% endif %}
         {% for branch in tree %}
         <div class="mb-3">
@@ -55,7 +55,7 @@
             {{ render_unit_node(node, branch.location, 0) }}
           {% endfor %}
           {% if not branch.units %}
-          <div class="text-muted fst-italic small ps-3">Inga enheter</div>
+          <div class="text-muted fst-italic small ps-3">Inga enheter ännu</div>
           {% endif %}
         </div>
         {% endfor %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Skanna - Notarkiv{% endblock %}
 
 {% block content %}
@@ -151,15 +152,13 @@
   <div class="col-md-6">
     <h2 class="h6">Senaste skanningar</h2>
     {% if not recent %}
-    <p class="text-muted fst-italic">Inga skanningar än.</p>
+    <p class="text-muted fst-italic">Inga skanningar ännu.</p>
     {% else %}
     <ul class="list-group">
       {% for s in recent %}
       <li class="list-group-item d-flex justify-content-between align-items-center">
         <a href="/scan/{{ s.id }}">#{{ s.id }} - {{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</a>
-        <span class="badge bg-{% if s.status == 'done' %}success{% elif s.status == 'failed' %}danger{% else %}secondary{% endif %}">
-          {{ s.status }}
-        </span>
+        {{ ui.scan_status_badge(s.status) }}
       </li>
       {% endfor %}
     </ul>

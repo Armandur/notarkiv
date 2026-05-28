@@ -1,39 +1,33 @@
-<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)" id="location-form-modal">
-  <div class="modal-dialog">
-    <form class="modal-content" method="post" action="/storage/locations/{{ location.id }}/update">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<form class="modal-content" method="post" action="/storage/locations/{{ location.id }}/update">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-      <div class="modal-header">
-        <h2 class="modal-title h5">Redigera lagringsplats</h2>
-        <button type="button" class="btn-close"
-                onclick="document.getElementById('modal-target').innerHTML=''"></button>
-      </div>
-
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Namn</label>
-          <input type="text" name="name" class="form-control" value="{{ location.name }}" required autofocus>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label">Typ</label>
-          <select name="kind" class="form-select" required>
-            <option value="physical" {% if location.kind == 'physical' %}selected{% endif %}>Fysisk</option>
-            <option value="digital"  {% if location.kind == 'digital'  %}selected{% endif %}>Digital</option>
-          </select>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label">Beskrivning (valfritt)</label>
-          <textarea name="description" class="form-control" rows="2">{{ location.description or '' }}</textarea>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button type="button" class="btn btn-link"
-                onclick="document.getElementById('modal-target').innerHTML=''">Avbryt</button>
-        <button type="submit" class="btn btn-primary">Spara</button>
-      </div>
-    </form>
+  <div class="modal-header">
+    <h2 class="modal-title h5">Redigera lagringsplats</h2>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Stäng"></button>
   </div>
-</div>
+
+  <div class="modal-body">
+    <div class="mb-3">
+      <label class="form-label">Namn</label>
+      <input type="text" name="name" class="form-control" value="{{ location.name }}" required autofocus>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Typ</label>
+      <select name="kind" class="form-select" required>
+        <option value="physical" {% if location.kind == 'physical' %}selected{% endif %}>Fysisk</option>
+        <option value="digital"  {% if location.kind == 'digital'  %}selected{% endif %}>Digital</option>
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Beskrivning (valfritt)</label>
+      <textarea name="description" class="form-control" rows="2">{{ location.description or '' }}</textarea>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+    <button type="submit" class="btn btn-primary">Spara</button>
+  </div>
+</form>

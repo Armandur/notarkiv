@@ -1131,7 +1131,7 @@ def _load_unit_options(session: Session) -> list[dict]:
         loc = locations.get(unit.location_id)
         if loc:
             parts.append(loc.name)
-        return " > ".join(reversed(parts))
+        return " › ".join(reversed(parts))
 
     options = []
     for unit in units:

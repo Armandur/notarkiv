@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}{{ piece.title }} - Notarkiv{% endblock %}
 
 {% block content %}
@@ -217,7 +218,7 @@
       {% endfor %}
     </div>
     {% else %}
-    <p class="text-muted fst-italic">Inga placeringar registrerade.{% if user.can_edit %} Lägg till via "Redigera".{% endif %}</p>
+    <p class="text-muted fst-italic">Inga placeringar ännu.{% if user.can_edit %} Lägg till via "Redigera".{% endif %}</p>
     {% endif %}
 
     {% if user.can_edit %}
@@ -232,7 +233,7 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            <div class="text-muted small mb-2">Från: {{ pv.path }}</div>
+            <div class="small mb-2">Från: {{ ui.place_breadcrumb(pv.path) }}</div>
             <div class="mb-3">
               <label class="form-label">Låntagare *</label>
               <div class="loan-borrower-picker">

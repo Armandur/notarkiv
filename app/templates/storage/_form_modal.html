@@ -1,0 +1,19 @@
+{# Delad Bootstrap-modal för Ny enhet / Redigera enhet / Redigera lagringsplats.
+   Knapparna laddar form-innehåll via hx-get → #storage-form-dialog och
+   modalen öppnas FÖRST efter att HTMX hunnit byta ut innehållet, annars
+   riskerar man race condition där submit går mot tidigare form-action. #}
+<div class="modal fade" id="storageFormModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog" id="storage-form-dialog">
+    <div class="modal-content">
+      <div class="modal-body text-muted text-center py-4">
+        <div class="spinner-border spinner-border-sm" role="status"></div>
+        Laddar...
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  document.getElementById('storage-form-dialog').addEventListener('htmx:afterSwap', function() {
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('storageFormModal')).show();
+  });
+</script>

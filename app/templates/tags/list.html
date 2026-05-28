@@ -200,7 +200,7 @@
           {% endfor %}
         </ul>
         {% else %}
-        <p class="text-muted fst-italic small">Inga alias än.</p>
+        <p class="text-muted fst-italic small">Inga alias ännu.</p>
         {% endif %}
         <form method="post" action="/tags/{{ t.id }}/alias/add" class="d-flex gap-2">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

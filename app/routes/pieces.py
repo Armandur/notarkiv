@@ -557,6 +557,8 @@ async def kiosk_piece(
     if not piece:
         raise HTTPException(404)
 
+    from app.services.storage import unit_path as _unit_path
+
     allowed_unit_ids = _kiosk_location_unit_ids(session, kiosk.location_id)
     kiosk_location = (
         session.get(StorageLocation, kiosk.location_id) if kiosk.location_id else None
@@ -607,6 +609,7 @@ async def kiosk_piece(
             {
                 "placement": pl,
                 "unit": unit,
+                "path": _unit_path(session, unit) if unit else "Okänd plats",
                 "home": (pl.copies or 0) - out if pl.copies else None,
                 "out_count": out,
                 "loans": loans_by_placement.get(pl.id, []),
@@ -1507,7 +1510,7 @@ async def piece_detail(
                 "placement": p,
                 "unit": unit,
                 "location": loc,
-                "path": " > ".join(reversed(parts)),
+                "path": " › ".join(reversed(parts)),
                 "kind_name": kinds.get(unit.kind_id),
                 "loans": loans_here,
                 "out_count": out_count,
@@ -1677,7 +1680,7 @@ async def edit_piece_form(
         placement_views.append(
             {
                 "placement": p,
-                "path": " > ".join(reversed(parts)),
+                "path": " › ".join(reversed(parts)),
                 "location_kind": loc.kind if loc else "",
             }
         )
@@ -2372,7 +2375,7 @@ def _unit_path_options(session: Session) -> list[dict]:
         loc = locations.get(unit.location_id)
         if loc:
             parts.append(loc.name)
-        return " > ".join(reversed(parts))
+        return " › ".join(reversed(parts))
 
     options = []
     for u in units:

@@ -16,7 +16,7 @@
     {% if user.can_edit %}
     <button class="btn btn-sm btn-outline-secondary"
             hx-get="/storage/units/{{ unit.id }}/edit-form"
-            hx-target="#modal-target"
+            hx-target="#storage-form-dialog"
             hx-swap="innerHTML">Redigera</button>
     {% endif %}
     <a href="/storage" class="btn btn-sm btn-outline-secondary">Trädet</a>
@@ -49,7 +49,7 @@
     {% if user.can_edit %}
     <button class="btn btn-sm btn-outline-primary" type="button"
             data-bs-toggle="collapse" data-bs-target="#unit-upload-form">
-      + Lägg till foto
+      Lägg till foto
     </button>
     {% endif %}
   </div>
@@ -119,7 +119,7 @@
   {% if user.can_edit and pieces %}
   <form method="post" action="/storage/units/{{ unit.id }}/add-all-to-cart" class="mb-0">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <button type="submit" class="btn btn-sm btn-outline-success">+ Lägg alla i utlåningskorg</button>
+    <button type="submit" class="btn btn-sm btn-outline-success">Lägg alla i utlåningskorg</button>
   </form>
   {% endif %}
 </div>
@@ -130,5 +130,5 @@
 <p class="text-muted fst-italic">Inga noter registrerade på den här platsen.</p>
 {% endif %}
 
-<div id="modal-target"></div>
+{% include "storage/_form_modal.html" %}
 {% endblock %}

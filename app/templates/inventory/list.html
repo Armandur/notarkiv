@@ -30,7 +30,7 @@
 {% endif %}
 
 {% if not sessions %}
-<p class="text-muted fst-italic">Inga sessioner än.</p>
+<p class="text-muted fst-italic">Inga sessioner ännu.</p>
 {% else %}
 <div class="card">
   <table class="table table-hover mb-0">
@@ -51,11 +51,12 @@
           {% if s.description %}<div class="text-muted small">{{ s.description }}</div>{% endif %}
         </td>
         <td class="text-muted small">
-          {% set planned_loc = locations|selectattr("id", "equalto", s.planned_location_id)|first if s.planned_location_id else None %}
-          {% set planned_unit = units|selectattr("id", "equalto", s.planned_unit_id)|first if s.planned_unit_id else None %}
-          {% if planned_loc %}{{ planned_loc.name }}{% endif %}
-          {% if planned_unit %} › {{ planned_unit.name }}{% endif %}
-          {% if not planned_loc and not planned_unit %}-{% endif %}
+          {% set planned_path = planned_paths.get(s.id) %}
+          {% set planned_loc = locations|selectattr("id", "equalto", s.planned_location_id)|first if s.planned_location_id and not planned_path else None %}
+          {% if planned_path %}{{ planned_path }}
+          {% elif planned_loc %}{{ planned_loc.name }}
+          {% else %}-
+          {% endif %}
         </td>
         <td class="text-muted small">{{ s.started_at.strftime('%Y-%m-%d %H:%M') }}</td>
         <td class="text-muted small">

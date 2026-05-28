@@ -23,6 +23,7 @@ from app.models import (
     StorageUnit,
     User,
 )
+from app.services.storage import unit_path as _unit_path
 from app.templates_setup import flash, render
 
 router = APIRouter(tags=["loans"])
@@ -142,22 +143,7 @@ def _enrich_loans(session: Session, loans: list[Loan]) -> list[dict]:
     return items
 
 
-def _unit_path(session: Session, unit: StorageUnit | None) -> str:
-    """Bygg fullständig hierarkisk sökväg till en unit (för visning)."""
-    if not unit:
-        return ""
-    parts = [unit.name]
-    cur = unit
-    while cur.parent_id:
-        parent = session.get(StorageUnit, cur.parent_id)
-        if not parent:
-            break
-        parts.append(parent.name)
-        cur = parent
-    loc = session.get(StorageLocation, unit.location_id)
-    if loc:
-        parts.append(loc.name)
-    return " › ".join(reversed(parts))
+# _unit_path importeras från app.services.storage längst upp i filen
 
 
 # ----- /loans-översikt -----------------------------------------------------

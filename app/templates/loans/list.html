@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Utlån - Notarkiv{% endblock %}
 
 {% block content %}
@@ -62,7 +63,7 @@
             {% if item.loan.returned_at %} · återlämnad {{ item.loan.returned_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}
           </div>
         </div>
-        <div class="text-muted small">{{ item.path }}</div>
+        {{ ui.place_breadcrumb(item.path) }}
       </li>
       {% endfor %}
       {% if bi.entries|length > 5 %}

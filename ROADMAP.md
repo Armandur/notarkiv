@@ -309,6 +309,22 @@ granska -> spara -> hitta igen.
       fritext-värden. Tar an `MUSIC PUBLISHER`-MBID-länkningen från
       MusicBrainz om relevant så Wikipedia-länk + logotyp kan följa med.
 
+### UX-konsekvens
+
+- [ ] **HTMX-modaler → Bootstrap-modaler**: `storage/_unit_form.html`,
+      `_location_form.html` och `_unit_edit_form.html` är idag
+      HTMX-renderade fragment som maler en *fake-modal* (`modal fade
+      show d-block` + manuell stäng-logik istället för Bootstrap-modal-
+      API:t). Refactor: statiskt modal-skal på sidan + HTMX laddar bara
+      `modal-body`. Då blir alla modaler i appen lika - stängbara med
+      `data-bs-dismiss`, korrekt backdrop, fokus-handling osv.
+- [ ] **Jinja-macro `place_breadcrumb` används överallt**: lade till
+      i `_macros.html` och använder i `loans/list.html`, `pieces/kiosk.html`,
+      `pieces/kiosk_piece.html` (via `row.path`). Resten av app:en visar
+      fortfarande path som text-muted-div eller länkad text - rulla ut
+      makron till `pieces/detail.html`, `_piece_list.html` (tooltips),
+      m.fl.
+
 ## V3 - "Långt fram"
 
 - [ ] **Framförandehistorik**: spara vilka noter som använts vid vilka

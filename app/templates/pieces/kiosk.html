@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Kiosk - Notarkiv{% endblock %}
 
 {% block content %}
@@ -129,7 +130,7 @@
       </div>
       <div class="card-body p-0" style="max-height: 50vh; overflow-y: auto;">
         {% if not cart_items %}
-        <p class="text-muted fst-italic small p-3 mb-0">Inga noter än. Skanna första noten.</p>
+        <p class="text-muted fst-italic small p-3 mb-0">Inga noter ännu. Skanna första noten.</p>
         {% else %}
         <ul class="list-group list-group-flush small">
           {% for item in cart_items %}
@@ -176,7 +177,7 @@
               {% if item.loan.borrower_user_id != borrower.id %}
               <div class="small">Till: <strong>{{ item.loan.borrower_name }}</strong>{% if not item.loan.borrower_user_id %} <span class="badge bg-secondary">extern</span>{% endif %}</div>
               {% endif %}
-              <div class="text-muted small">{{ item.path }}</div>
+              <div>{{ ui.place_breadcrumb(item.path) }}</div>
               <div class="text-muted small">Lånat {{ item.loan.borrowed_at.strftime('%Y-%m-%d %H:%M') }}</div>
             </div>
             {% if item.in_kiosk_location %}
@@ -214,7 +215,7 @@
             <div>
               <strong>{{ item.piece.title }}</strong>
               <span class="text-muted">· {{ item.loan.copies }} ex</span>
-              <div class="text-muted small">{{ item.path }}</div>
+              <div>{{ ui.place_breadcrumb(item.path) }}</div>
               <div class="text-muted small">Lånat {{ item.loan.borrowed_at.strftime('%Y-%m-%d %H:%M') }}</div>
             </div>
             {% if item.in_kiosk_location %}

@@ -108,7 +108,7 @@
         {% endfor %}
         {% set _non_spotify = links | rejectattr('kind', 'equalto', 'spotify') | list %}
         {% if not _non_spotify and not person.musicbrainz_artist_id %}
-        <div class="list-group-item text-muted small fst-italic">Inga länkar än</div>
+        <div class="list-group-item text-muted small fst-italic">Inga länkar ännu</div>
         {% endif %}
       </div>
     </div>

@@ -18,6 +18,7 @@ from app.models import (
 )
 from app.models.storage import LocationKind
 from app.routes.pieces import _placement_summaries, _voicings_by_piece
+from app.services.storage import unit_path as _unit_full_path
 from app.templates_setup import flash, render
 
 router = APIRouter(prefix="/storage", tags=["storage"])
@@ -200,6 +201,7 @@ async def create_unit(
 async def edit_unit_form(
     request: Request,
     unit_id: int,
+    return_to: str = "",
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -233,6 +235,7 @@ async def edit_unit_form(
             "location": location,
             "kind": kind,
             "valid_parents": valid_parents,
+            "return_to": return_to or f"/storage/units/{unit_id}",
         },
         user=user,
     )
@@ -246,6 +249,7 @@ async def update_unit(
     parent_id: int | None = Form(None),
     kind_id: int | None = Form(None),
     notes: str | None = Form(None),
+    return_to: str = Form(""),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -280,7 +284,8 @@ async def update_unit(
     session.add(unit)
     session.commit()
     flash(request, f"Uppdaterade '{unit.name}'", "success")
-    return RedirectResponse(f"/storage/units/{unit_id}", status.HTTP_302_FOUND)
+    dest = return_to if return_to.startswith("/") else f"/storage/units/{unit_id}"
+    return RedirectResponse(dest, status.HTTP_302_FOUND)
 
 
 @router.post("/units/{unit_id}/delete", dependencies=[Depends(verify_csrf)])
@@ -406,21 +411,6 @@ async def create_unit_kind(
         {"kindSelected": {"id": kind.id, "name": kind.name}}
     )
     return response
-
-
-def _unit_full_path(session: Session, unit: StorageUnit) -> str:
-    parts = [unit.name]
-    cur = unit
-    while cur.parent_id:
-        parent = session.get(StorageUnit, cur.parent_id)
-        if not parent:
-            break
-        parts.append(parent.name)
-        cur = parent
-    loc = session.get(StorageLocation, unit.location_id)
-    if loc:
-        parts.append(loc.name)
-    return " › ".join(reversed(parts))
 
 
 @router.get("/units/{unit_id}")

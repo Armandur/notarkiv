@@ -1,3 +1,4 @@
+{% import "_macros.html" as ui %}
 {% if not rows %}
 <p class="text-muted small fst-italic mb-0">Inga träffar.</p>
 {% else %}
@@ -10,14 +11,14 @@
       <div class="text-muted small">{{ row.piece.contributors_cache }}</div>
       {% endif %}
       <div class="mt-1">
-        <span class="badge bg-light text-muted border">{{ row.path }}</span>
+        {{ ui.place_breadcrumb(row.path) }}
       </div>
     </div>
     <form method="post" action="/loans/batch/{{ batch_id }}/add-more" class="mb-0">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="placement_id" value="{{ row.placement.id }}">
       <input type="hidden" name="copies" value="1">
-      <button type="submit" class="btn btn-sm btn-outline-primary">+ Lägg till</button>
+      <button type="submit" class="btn btn-sm btn-outline-primary">Lägg till</button>
     </form>
   </li>
   {% endfor %}

@@ -13,7 +13,7 @@
     {% if user.can_edit %}
     <div class="btn-group btn-group-sm">
       <a href="/scan" class="btn btn-primary">Skanna ny</a>
-      <a href="/pieces/new" class="btn btn-outline-primary">Lägg till manuellt</a>
+      <a href="/pieces/new" class="btn btn-outline-primary">Ny not</a>
     </div>
     {% endif %}
   </div>
@@ -42,7 +42,7 @@
 {% endmacro %}
 
 {% if not tree %}
-<p class="text-muted fst-italic">Inga lagringsplatser registrerade än.</p>
+<p class="text-muted fst-italic">Inga lagringsplatser ännu.</p>
 {% else %}
 {% for branch in tree %}
 <div class="card mb-3">

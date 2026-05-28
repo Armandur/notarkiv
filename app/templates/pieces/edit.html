@@ -10,7 +10,7 @@
   <div class="btn-group btn-group-sm">
     <a href="/pieces/{{ piece.id }}/qr.png" target="_blank" class="btn btn-outline-secondary" title="QR-kod för utskrift">QR</a>
     <button type="button" class="btn btn-outline-secondary"
-            onclick="confirmAction('/pieces/{{ piece.id }}/re-ocr', 'Kör OCR igen på primärbilden? Resultatet hamnar i granskningskön - originalnoten påverkas inte förrän du sparar därifrån.', {submitLabel: 'Kör OCR'})">
+            onclick="confirmAction('/pieces/{{ piece.id }}/re-ocr', 'Kör OCR igen på primärbilden? Resultatet hamnar i granskningskön - originalnoten påverkas inte förrän du sparar därifrån.', {submitLabel: 'Kör OCR', submitClass: 'btn-primary'})">
       Kör OCR igen
     </button>
     {% if user.is_admin %}
@@ -182,7 +182,7 @@
   <div class="card-header d-flex justify-content-between align-items-center">
     <h2 class="h6 mb-0">Placeringar</h2>
     <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#addPlacementModal">
-      + Lägg till placering
+      Lägg till placering
     </button>
   </div>
   {% if placements %}
@@ -208,7 +208,7 @@
     {% endfor %}
   </div>
   {% else %}
-  <div class="card-body text-muted fst-italic">Inga placeringar än.</div>
+  <div class="card-body text-muted fst-italic">Inga placeringar ännu.</div>
   {% endif %}
 </div>
 
@@ -309,7 +309,7 @@
 
     {% if not psalm_books %}
     <p class="text-muted small fst-italic">
-      Inga psalmböcker registrerade. <a href="/admin/psalmbooks">Lägg till en</a> innan du kan koppla referenser.
+      Inga psalmböcker ännu. <a href="/admin/psalmbooks">Lägg till en</a> innan du kan koppla referenser.
     </p>
     {% else %}
     <form method="post" action="/pieces/{{ piece.id }}/psalmrefs">

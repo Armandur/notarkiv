@@ -33,6 +33,8 @@ async def list_sessions(
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
+    from app.services.storage import unit_path
+
     sessions = session.exec(
         select(InventorySession).order_by(InventorySession.started_at.desc())
     ).all()
@@ -42,6 +44,12 @@ async def list_sessions(
     units = session.exec(
         select(StorageUnit).where(StorageUnit.archived == False)  # noqa: E712
     ).all()
+    units_by_id = {u.id: u for u in units}
+    planned_paths = {
+        s.id: unit_path(session, units_by_id.get(s.planned_unit_id))
+        for s in sessions
+        if s.planned_unit_id
+    }
     # Username-lookup för att visa "startad av" på varje aktiv
     starter_ids = {s.started_by for s in actives if s.started_by}
     starters = {}
@@ -61,6 +69,7 @@ async def list_sessions(
             "starters": starters,
             "locations": locations,
             "units": units,
+            "planned_paths": planned_paths,
         },
         user=user,
     )
@@ -252,7 +261,7 @@ async def check_pick_unit(
             select(PiecePlacement).where(PiecePlacement.storage_unit_id == u.id)
         ).all()
         options.append(
-            {"id": u.id, "label": " > ".join(reversed(parts)), "count": len(count)}
+            {"id": u.id, "label": " › ".join(reversed(parts)), "count": len(count)}
         )
     options.sort(key=lambda o: o["label"])
 

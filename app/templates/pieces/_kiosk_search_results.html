@@ -1,3 +1,4 @@
+{% import "_macros.html" as ui %}
 {% if not rows %}
 <p class="text-muted small fst-italic mb-0">Inga träffar.</p>
 {% else %}
@@ -11,16 +12,16 @@
         <div class="text-muted small">{{ row.piece.contributors_cache }}</div>
         {% endif %}
         {% if row.paths_here %}
-        <div class="text-muted small mt-1">
-          {% for path in row.paths_here %}
-          <span class="badge bg-light text-muted border">{{ path }}</span>
-          {% endfor %}
+        <div class="small mt-1 d-flex flex-wrap gap-1">
+          {% for path in row.paths_here %}{{ ui.place_breadcrumb(path) }}{% endfor %}
         </div>
         {% endif %}
         {% if not row.on_location and row.paths_elsewhere %}
-        <div class="text-warning small mt-1">
-          ⚠ Finns inte på {{ kiosk_location.name }} - hittas hos:
-          {% for path in row.paths_elsewhere %}<em>{{ path }}</em>{% if not loop.last %}; {% endif %}{% endfor %}
+        <div class="bg-warning-subtle text-warning-emphasis small mt-1 px-2 py-1 rounded">
+          <div>⚠ Finns inte på {{ kiosk_location.name }} - hittas hos:</div>
+          <div class="d-flex flex-wrap gap-1 mt-1">
+            {% for path in row.paths_elsewhere %}{{ ui.place_breadcrumb(path) }}{% endfor %}
+          </div>
         </div>
         {% endif %}
       </div>

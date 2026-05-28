@@ -14,16 +14,15 @@
     <div class="btn-group btn-group-sm">
       <a class="btn btn-outline-secondary" href="/storage/units/{{ node.unit.id }}" title="Öppna">↗</a>
       <button class="btn btn-outline-secondary"
-              hx-get="/storage/units/{{ node.unit.id }}/edit-form"
-              hx-target="#modal-target"
+              hx-get="/storage/units/{{ node.unit.id }}/edit-form?return_to=/storage"
+              hx-target="#storage-form-dialog"
               hx-swap="innerHTML"
               title="Redigera">✏</button>
       <button class="btn btn-outline-secondary"
               hx-get="/storage/units/new-form?location_id={{ location.id }}&parent_id={{ node.unit.id }}"
-              hx-target="#modal-target"
-              hx-swap="innerHTML">
-        + under
-      </button>
+              hx-target="#storage-form-dialog"
+              hx-swap="innerHTML"
+              title="Skapa underenhet">+ under</button>
       <button class="btn btn-outline-danger"
               onclick="confirmAction('/storage/units/{{ node.unit.id }}/delete', 'Ta bort \'{{ node.unit.name|e }}\'?')">
         ×
@@ -51,14 +50,14 @@
     <div class="btn-group btn-group-sm">
       <button class="btn btn-outline-primary"
               hx-get="/storage/units/new-form?location_id={{ branch.location.id }}"
-              hx-target="#modal-target"
+              hx-target="#storage-form-dialog"
               hx-swap="innerHTML">
-        + Ny enhet
+        Ny enhet
       </button>
       {% if user.is_admin %}
       <button class="btn btn-outline-secondary"
               hx-get="/storage/locations/{{ branch.location.id }}/edit-form"
-              hx-target="#modal-target"
+              hx-target="#storage-form-dialog"
               hx-swap="innerHTML"
               title="Redigera lagringsplats">✏</button>
       <button class="btn btn-outline-danger"

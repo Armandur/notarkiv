@@ -43,7 +43,7 @@
                  oninput="(function(el){var q=el.value.toLowerCase();el.parentElement.querySelectorAll('label.country-item').forEach(function(l){l.style.display=l.textContent.toLowerCase().indexOf(q)>=0?'':'none';});})(this)"
                  onkeydown="if(event.key==='Enter'){event.preventDefault();}">
           {% if not country_options %}
-          <div class="text-muted small fst-italic">Inga länder registrerade än</div>
+          <div class="text-muted small fst-italic">Inga länder ännu</div>
           {% endif %}
           {% for c in country_options %}
           <label class="form-check country-item d-block">
@@ -67,7 +67,7 @@
 
 {% if not people %}
 <p class="text-muted fst-italic">
-  {% if q or active_roles or active_countries %}Inga träffar med filtren.{% else %}Inga personer registrerade än - de skapas när du sparar noter med kompositör/arrangör/textförfattare.{% endif %}
+  {% if q or active_roles or active_countries %}Inga träffar med valda filter.{% else %}Inga personer ännu - de skapas när du sparar noter med kompositör/arrangör/textförfattare.{% endif %}
 </p>
 {% else %}
 <div class="list-group">

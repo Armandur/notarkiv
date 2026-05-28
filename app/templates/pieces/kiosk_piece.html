@@ -110,7 +110,7 @@
   <div class="col-md-7">
     <h2 class="h6 mb-2">Placeringar</h2>
     {% if not placements %}
-    <div class="alert alert-warning py-2 small mb-0">Inga placeringar registrerade.</div>
+    <div class="alert alert-warning py-2 small mb-0">Inga placeringar ännu.</div>
     {% else %}
     <div class="vstack gap-2">
       {% for row in placements %}
@@ -118,7 +118,7 @@
         <div class="card-body py-2 px-3">
           <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
-              <strong>{% if row.unit %}{{ row.unit.name }}{% else %}Okänd plats{% endif %}</strong>
+              <strong>{{ row.path }}</strong>
               {% if not row.in_kiosk_location and kiosk_location %}
               <span class="badge bg-light text-muted border ms-1">utanför kiosken</span>
               {% endif %}
@@ -133,13 +133,13 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="placement_id" value="{{ row.placement.id }}">
                 <input type="hidden" name="return_to" value="/kiosk">
-                <button type="submit" class="btn btn-success">+ Nytt utlån</button>
+                <button type="submit" class="btn btn-success">Nytt utlån</button>
               </form>
               {% if active_batches %}
               <button type="button" class="btn btn-outline-success"
                       data-bs-toggle="modal"
                       data-bs-target="#addToBatchModal-{{ row.placement.id }}">
-                + Lägg till i pågående lån
+                Lägg till i pågående lån
               </button>
               {% endif %}
             </div>

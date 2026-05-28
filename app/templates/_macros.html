@@ -1,0 +1,39 @@
+{# Delade Jinja-makron för UI-konsekvens.
+
+   Användning i andra templates:
+     {% import "_macros.html" as ui %}
+     {{ ui.place_breadcrumb(item.path) }}
+#}
+
+{# Svensk översättning av ScanStatus-värden. #}
+{% set _scan_status_labels = {
+  "pending": ("klar i kö", "secondary"),
+  "extracting": ("extraherar", "info text-dark"),
+  "enriching": ("berikar", "info text-dark"),
+  "done": ("klar", "success"),
+  "failed": ("misslyckad", "danger"),
+} %}
+
+{% macro scan_status_badge(status, discarded=False) %}
+  {%- if discarded -%}
+    <span class="badge bg-secondary">avvisad</span>
+  {%- else -%}
+    {%- set entry = _scan_status_labels.get(status, (status, "info text-dark")) -%}
+    <span class="badge bg-{{ entry[1] }}">{{ entry[0] }}</span>
+  {%- endif -%}
+{% endmacro %}
+
+{# Renderar en plats-sökväg ('Plats › Skåp › Hylla') som ett kompakt
+   badge med segment-separatorer. Tomt path → ingenting. #}
+{% macro place_breadcrumb(path, kind="physical") %}
+  {%- if path -%}
+    <span class="badge bg-light text-muted border fw-normal">
+      {%- if kind == "digital" -%}<span class="me-1">☁</span>{%- endif -%}
+      {%- set _parts = path.split(" › ") -%}
+      {%- for part in _parts -%}
+        <span>{{ part }}</span>
+        {%- if not loop.last %} <span class="text-muted opacity-50">›</span> {% endif -%}
+      {%- endfor -%}
+    </span>
+  {%- endif -%}
+{% endmacro %}

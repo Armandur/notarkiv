@@ -21,7 +21,7 @@
     {% if user.can_edit %}
     <div class="btn-group btn-group-sm">
       <a href="/scan" class="btn btn-primary">Skanna ny</a>
-      <a href="/pieces/new" class="btn btn-outline-primary">Lägg till manuellt</a>
+      <a href="/pieces/new" class="btn btn-outline-primary">Ny not</a>
     </div>
     {% endif %}
   </div>
@@ -43,7 +43,7 @@
         </button>
         <ul class="dropdown-menu w-100 px-3" style="max-height: 360px; overflow-y: auto">
           {% if not voicings %}
-          <li><div class="text-muted small fst-italic">Inga besättningar registrerade än</div></li>
+          <li><div class="text-muted small fst-italic">Inga besättningar ännu</div></li>
           {% endif %}
           {% for v in voicings %}
           <li>
@@ -73,7 +73,7 @@
                  onkeydown="if(event.key==='Enter'){event.preventDefault();}">
           {% endif %}
           {% if not languages %}
-          <div class="text-muted small fst-italic">Inga språk registrerade än</div>
+          <div class="text-muted small fst-italic">Inga språk ännu</div>
           {% endif %}
           {% for l in languages %}
           <label class="form-check lang-item d-block">
@@ -191,9 +191,9 @@
 {% endwith %}
 
 {% if not pieces and (q or active_tags or active_voicings or active_languages or active_unit) %}
-<p class="text-muted fst-italic">Inga träffar med filtren.</p>
+<p class="text-muted fst-italic">Inga träffar med valda filter.</p>
 {% elif not pieces %}
-<p class="text-muted fst-italic">Inga noter registrerade än.</p>
+<p class="text-muted fst-italic">Inga noter ännu.</p>
 {% else %}
 {% include "pieces/_piece_list.html" %}
 {% endif %}
