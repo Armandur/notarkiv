@@ -359,7 +359,7 @@
 <!-- Modaler för placeringshantering -->
 {% for pv in placements %}
 <div class="modal fade" id="editPlacementModal-{{ pv.placement.id }}" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-fullscreen-sm-down">
     <form class="modal-content" method="post" action="/pieces/{{ piece.id }}/placements/{{ pv.placement.id }}/update">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="storage_unit_id" id="edit-place-unit-{{ pv.placement.id }}" value="{{ pv.placement.storage_unit_id }}">
@@ -401,7 +401,7 @@
 {% endfor %}
 
 <div class="modal fade" id="addPlacementModal" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-fullscreen-sm-down">
     <form class="modal-content" method="post" action="/pieces/{{ piece.id }}/placements">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="storage_unit_id" id="add-place-unit" value="" required>

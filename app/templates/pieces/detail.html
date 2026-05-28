@@ -224,7 +224,7 @@
     {% if user.can_edit %}
     {% for pv in placements %}
     <div class="modal fade" id="addLoanModal-{{ pv.placement.id }}" tabindex="-1">
-      <div class="modal-dialog">
+      <div class="modal-dialog modal-fullscreen-sm-down">
         <form class="modal-content" method="post"
               action="/pieces/{{ piece.id }}/placements/{{ pv.placement.id }}/loans">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

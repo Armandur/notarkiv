@@ -67,6 +67,7 @@
 {% set color = kind_colors.get(kind, 'secondary') %}
 <h2 class="h5 mt-4">{{ label }}</h2>
 <div class="card">
+  <div class="table-responsive">
   <table class="table table-hover mb-0 align-middle">
     <thead>
       <tr>
@@ -81,13 +82,14 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 {% endif %}
 {% endfor %}
 
 {% if user.is_admin %}
 <div class="modal fade" id="newTagModal" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-fullscreen-sm-down">
     <form class="modal-content" method="post" action="/tags">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="modal-header">
@@ -132,7 +134,7 @@
 
 {% for t in all_tags %}
 <div class="modal fade" id="editTagModal-{{ t.id }}" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-fullscreen-sm-down">
     <form class="modal-content" method="post" action="/tags/{{ t.id }}/update">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="modal-header">
@@ -177,7 +179,7 @@
 </div>
 
 <div class="modal fade" id="aliasModal-{{ t.id }}" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-fullscreen-sm-down">
     <div class="modal-content">
       <div class="modal-header">
         <h2 class="modal-title h5">Alias för {{ t.name }}</h2>

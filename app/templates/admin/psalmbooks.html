@@ -19,6 +19,7 @@
 <div class="alert alert-light">Inga psalmböcker ännu. Skapa den första via knappen ovan.</div>
 {% else %}
 <div class="card">
+  <div class="table-responsive">
   <table class="table table-hover mb-0">
     <thead>
       <tr>
@@ -48,12 +49,13 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 {% endif %}
 
 <!-- Ny psalmbok-modal -->
 <div class="modal fade" id="newBookModal" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-fullscreen-sm-down">
     <form class="modal-content" method="post" action="/admin/psalmbooks">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="modal-header">
@@ -92,7 +94,7 @@
 <!-- Edit-modaler -->
 {% for b in books %}
 <div class="modal fade" id="editBookModal-{{ b.id }}" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-fullscreen-sm-down">
     <form class="modal-content" method="post" action="/admin/psalmbooks/{{ b.id }}/update">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="modal-header">

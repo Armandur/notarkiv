@@ -65,7 +65,7 @@
 {% endif %}
 
 <div class="modal fade" id="newKioskModal" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-fullscreen-sm-down">
     <form class="modal-content" method="post" action="/admin/kiosks">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="modal-header"><h2 class="modal-title h5">Ny kiosk</h2>
@@ -101,7 +101,7 @@
 
 {% for k in kiosks %}
 <div class="modal fade" id="editKioskModal-{{ k.id }}" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-fullscreen-sm-down">
     <form class="modal-content" method="post" action="/admin/kiosks/{{ k.id }}/update">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="modal-header"><h2 class="modal-title h5">Redigera kiosk</h2>

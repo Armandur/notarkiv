@@ -33,6 +33,7 @@
 <p class="text-muted fst-italic">Inga sessioner ännu.</p>
 {% else %}
 <div class="card">
+  <div class="table-responsive">
   <table class="table table-hover mb-0">
     <thead>
       <tr>
@@ -73,11 +74,12 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 {% endif %}
 
 <div class="modal fade" id="newSessionModal" tabindex="-1">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-fullscreen-sm-down">
     <form class="modal-content" method="post" action="/inventory">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="modal-header">

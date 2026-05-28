@@ -37,6 +37,7 @@
   {% if not stuck %}
   <div class="card-body text-muted small fst-italic">Inga fastnade just nu.</div>
   {% else %}
+  <div class="table-responsive">
   <table class="table table-sm mb-0">
     <thead>
       <tr><th>#</th><th>Skannad</th><th>Provider</th></tr>
@@ -51,6 +52,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% endif %}
 </div>
 
@@ -67,6 +69,7 @@
   {% if not recent_failed %}
   <div class="card-body text-muted small fst-italic">Inga misslyckade.</div>
   {% else %}
+  <div class="table-responsive">
   <table class="table table-sm mb-0">
     <thead>
       <tr><th>#</th><th>Skannad</th><th>Felmeddelande</th></tr>
@@ -81,6 +84,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% endif %}
 </div>
 {% endblock %}

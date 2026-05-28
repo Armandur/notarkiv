@@ -3,7 +3,7 @@
    modalen öppnas FÖRST efter att HTMX hunnit byta ut innehållet, annars
    riskerar man race condition där submit går mot tidigare form-action. #}
 <div class="modal fade" id="storageFormModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog" id="storage-form-dialog">
+  <div class="modal-dialog modal-fullscreen-sm-down" id="storage-form-dialog">
     <div class="modal-content">
       <div class="modal-body text-muted text-center py-4">
         <div class="spinner-border spinner-border-sm" role="status"></div>
