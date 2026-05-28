@@ -131,11 +131,15 @@ granska -> spara -> hitta igen.
       som auto-uppdateras från huvudfältet via JS men kan rättas
       manuellt. Backend stödjer override via parse_sort_field +
       replace_contributors. Förifylld från Person.sort_name i edit-vyn.
-- [ ] **Auto-import av Person från MusicBrainz**: arq-jobb finns
-      (enrich_person_job) som söker MB, accepterar match med fuzz-score
-      >= 88 och berikar in-place. Triggas dock inte automatiskt - nuvarande
-      design är att användaren aktivt väljer applicering via MB-förslag
-      i granskningsflödet.
+- [ ] **Interaktiv approval av låg-konfidens-personmatchningar**:
+      `enrich_person_job` auto-triggas redan från scan-save, piece-update
+      och manuell-create via `enqueue_enrich_for_piece`. Auto-applicerar
+      bara träff med fuzz-score >= 88. Lägre konfidens lämnas oberikade
+      utan spår. Förslag: spara kandidater under tröskeln på Person så
+      personens detaljsida kan visa "Möjliga MB-matchningar" med
+      Använd-knapp per kandidat. Plus retry-knapp för jobb som
+      misslyckades. Kräver ny PersonCandidate-tabell eller JSON-fält på
+      Person.
 - [ ] **Auto-crop med jscanify**: webbläsare-baserad dokument-detektion
       via OpenCV.js, perspektivkorrigering, manuell hörnjustering.
       Ersätter standard `<input capture>` på mobil.
