@@ -143,8 +143,6 @@ granska -> spara -> hitta igen.
       filter för gråskala, svartvit (adaptiv tröskel), nivåjustering
       och skärpa. Användaren väljer per skanning vilken filtertyp.
       Hör ihop med auto-crop och OpenCV.js.
-- [ ] **Batch-skanningsläge**: skanna in flera *noter* i rad utan att gå
-      tillbaka mellan varje (jfr nuvarande multi-foto som gäller samma not)
 - [x] **Dubblettkoll**: vid skanning, jämför mot befintliga poster på
       `(titel, kompositör, arrangör)`. Föreslå "lägg till placering"
       istället för "skapa ny post" om träff finns
@@ -329,6 +327,13 @@ granska -> spara -> hitta igen.
 
 ## V3 - "Långt fram"
 
+- [ ] **Batch-skanningsläge**: stå framför en hylla och skanna en not
+      efter en annan i ren rytm utan navigering mellan submits. Form
+      skickas i bakgrunden (HTMX), nollställs, kameran direkt redo för
+      nästa not. Persistera placering över submits ("samma plats för
+      alla"). Live-feed av redan skannade noter ovanför formuläret.
+      Nuvarande snabbskanning fungerar tillräckligt bra och snabbt -
+      detta är optimering av rytmen, inte ny funktionalitet.
 - [ ] **Framförandehistorik**: spara vilka noter som använts vid vilka
       gudstjänster/konserter, generera statistik
 - [ ] **Offline-stöd via PWA**: cacha skanningar lokalt på mobilen och
