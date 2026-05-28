@@ -34,7 +34,10 @@ Avviker från användarens globala defaulter på några punkter - se
 - **Auth**: Egen användarhantering med användarnamn + lösenord
   (bcrypt-hashning), sessionscookies via Starlette `SessionMiddleware`.
   Användarna skapas av admin och får ett initialt lösenord som de byter
-  vid första login.
+  vid första login. Roller: `reader` (alla i arbetslaget),
+  `editor` (betrodda redigerare), `admin` (bibliotekarier). Fullständig
+  permissions-matris i `docs/permissions.md` - uppdatera den vid
+  rollpolicy-ändringar.
 - **OCR/vision**: Anthropic API (claude-haiku-4-5) som default,
   Tesseract som fallback, hybrid som tredje val. Se
   `docs/ocr-strategi.md`.

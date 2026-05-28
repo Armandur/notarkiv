@@ -217,13 +217,15 @@ granska -> spara -> hitta igen.
       "Extern person" kopplar bort dropdownen och visar fritext-input
       för vikarierande körledare etc. borrower_user_id sätts vid
       användarval, annars sparas borrower_name som fritext.
-- [ ] **Genomgång av roller och behörigheter**: idag finns tre roller
-      (reader, editor, admin) med ganska grov uppdelning. Dokumentera
-      i CLAUDE.md eller separat permissions-matris vad varje roll ska
-      kunna göra på respektive vy/endpoint. Gå igenom alla routes och
-      templates för konsekvens - t.ex. ska reader kunna se /tags men
-      inte modifiera, ska editor kunna radera pieces eller bara admin,
-      etc. Inkludera även mobilflöden (snabbskanning vs granskning).
+- [x] **Genomgång av roller och behörigheter**: dokumenterad i
+      `docs/permissions.md` (permissions-matris per resurs, dependency-
+      översikt, kända inkonsekvenser). CLAUDE.md uppdaterad med kort
+      sammanfattning + länk. Genomgång av alla route-filer visade
+      konsekvent mönster: GET-listor/detalj = `require_auth`,
+      create/update = `require_editor`, delete + locations + tags-CRUD
+      = `require_admin`. Inga uppenbara gaps - några medvetna
+      avgränsningar (tags-CRUD admin-bara, inventory editor-bara)
+      dokumenterade som "kända inkonsekvenser" att överväga senare.
 - [x] **Anteckning per tagg**: Tag.description-fält. Visas under
       tagg-namnet på /tags-listan och som tooltip + extra rad i
       tag-search-autocompleten. Hjälper användarna förstå taggens
