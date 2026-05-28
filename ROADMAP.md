@@ -140,13 +140,21 @@ granska -> spara -> hitta igen.
       Använd-knapp per kandidat. Plus retry-knapp för jobb som
       misslyckades. Kräver ny PersonCandidate-tabell eller JSON-fält på
       Person.
-- [ ] **Auto-crop med jscanify**: webbläsare-baserad dokument-detektion
-      via OpenCV.js, perspektivkorrigering, manuell hörnjustering.
-      Ersätter standard `<input capture>` på mobil.
-- [ ] **Dokumentfilter likt OneDrive-skannern**: efter crop, klientside-
-      filter för gråskala, svartvit (adaptiv tröskel), nivåjustering
-      och skärpa. Användaren väljer per skanning vilken filtertyp.
-      Hör ihop med auto-crop och OpenCV.js.
+- [x] **Auto-crop med jscanify** (commit 5e1dfa1, 54118cf): webbläsare-
+      baserad dokument-detektion via OpenCV.js + jscanify, körs direkt
+      efter att bilden tas. Cropad version blir thumbnail med "cropad"-
+      badge. ⊡-knapp öppnar modal med dragbara hörn för manuell
+      justering, original-bilden bevaras för re-cropping. Magnifier
+      med hårkors vid dragning. Bukhari/Shafait-formel för korrekt
+      aspekt-beräkning från perspektivprojicerade hörn. Förhandsgranskning
+      i fullskärm med kontroller (cropa, rotera, filter).
+- [x] **Dokumentfilter** (commit ea17a2e, c4a4005): klientside-pipeline
+      via OpenCV.js. "Dokument"-filtret som default kombinerar gråskala +
+      illumination correction (GaussianBlur som bakgrund, divide för
+      skuggborttagning) + CLAHE för lokal kontrast + mild unsharp mask.
+      Användaren kan växla till Original / Svartvit (adaptiv tröskel) /
+      Gråskala i preview-modalen. Cache per (source, filter) → blob så
+      växling mellan filter blir omedelbar efter första filtreringen.
 - [x] **Dubblettkoll**: vid skanning, jämför mot befintliga poster på
       `(titel, kompositör, arrangör)`. Föreslå "lägg till placering"
       istället för "skapa ny post" om träff finns
