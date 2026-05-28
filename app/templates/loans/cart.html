@@ -68,6 +68,7 @@
     <div class="mb-3">
       <label class="form-label">Låntagare *</label>
       <div class="loan-borrower-picker">
+        {% if user.can_edit %}
         <select name="borrower_user_id" class="form-select user-picker">
           {% for u in loan_users %}
           <option value="{{ u.id }}" {% if u.id == user.id %}selected{% endif %}>{{ u.username }}</option>
@@ -80,6 +81,38 @@
             Extern person (skriv namn manuellt)
           </label>
         </div>
+        {% else %}
+        {# Reader får bara låna åt sig själv eller åt extern fritext-person - inte åt andra interna #}
+        <input type="hidden" name="borrower_user_id" id="cart-self-id" value="{{ user.id }}">
+        <input type="text" name="borrower_name" class="form-control" id="cart-extern-name"
+               placeholder="Skriv namn på extern person" disabled value="{{ user.username }}">
+        <div class="form-check mt-1">
+          <input class="form-check-input" type="checkbox" id="cart-extern-toggle">
+          <label class="form-check-label small" for="cart-extern-toggle">
+            Låna åt extern person istället för mig själv
+          </label>
+        </div>
+        <script>
+          (function() {
+            const tg = document.getElementById('cart-extern-toggle');
+            const nm = document.getElementById('cart-extern-name');
+            const sid = document.getElementById('cart-self-id');
+            tg.addEventListener('change', () => {
+              if (tg.checked) {
+                nm.disabled = false;
+                nm.value = '';
+                nm.placeholder = 'Namn på extern person';
+                sid.disabled = true;
+                nm.focus();
+              } else {
+                nm.disabled = true;
+                nm.value = {{ user.username|tojson }};
+                sid.disabled = false;
+              }
+            });
+          })();
+        </script>
+        {% endif %}
       </div>
     </div>
 

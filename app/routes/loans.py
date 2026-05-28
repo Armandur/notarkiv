@@ -603,6 +603,14 @@ async def cart_checkout(
         if bu:
             bid = bu.id
             bname = bu.username
+    # Reader får bara låna åt sig själv eller åt extern fritext-person
+    if not user.can_edit and bid is not None and bid != user.id:
+        flash(
+            request,
+            "Du får bara låna åt dig själv eller åt extern person",
+            "danger",
+        )
+        return RedirectResponse("/loans/cart", status.HTTP_302_FOUND)
     if not bname:
         flash(request, "Låntagare måste anges", "danger")
         return RedirectResponse("/loans/cart", status.HTTP_302_FOUND)

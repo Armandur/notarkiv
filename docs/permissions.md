@@ -9,9 +9,9 @@ Definierade i `app/models/user.py::Role`:
 
 | Roll | Värde | Beskrivning |
 |------|-------|-------------|
-| `READER` | `"reader"` | Hela arbetslaget. Kan läsa noter, personer, lagringsplatser, utlåningsöversikt, taggar. Kan inte ändra något. |
-| `EDITOR` | `"editor"` | Betrodda redigerare. Kan skanna nya noter, ändra metadata, registrera utlån, hantera inventering, skapa lagringsenheter. |
-| `ADMIN` | `"admin"` | Bibliotekarier / systemansvariga. Allt editor kan + radera entiteter, hantera lagringsplatser, taggar, psalmböcker, användare, kiosker, inställningar. |
+| `READER` | `"reader"` | Anställda musiker och körledare som behöver söka och låna noter men inte är fullt betrodda att skanna eller ändra metadata. Får läsa hela katalogen och hantera sin egen kundvagn/sina lån. |
+| `EDITOR` | `"editor"` | Betrodda redigerare bland personalen. Kan skanna nya noter, ändra metadata, hantera taggar, skapa lagringsenheter, registrera lån åt andra. |
+| `ADMIN` | `"admin"` | Bibliotekarier / systemansvariga. Allt editor kan + radera entiteter, hantera lagringsplatser, psalmböcker, användare, kiosker, inställningar. |
 
 `User.can_edit` är `True` för EDITOR och ADMIN. `User.is_admin` är `True`
 bara för ADMIN.
@@ -83,7 +83,7 @@ R = Reader, E = Editor, A = Admin, K = Kiosk (PIN-autentiserad i kiosk)
 | Lägg i kundvagn | ✓ | ✓ | ✓ | ✓ | |
 | Bulk-lägg från lagringsenhet | ✓ | ✓ | ✓ | ✓ | |
 | Ändra antal / ta bort ur korg | ✓ | ✓ | ✓ | ✓ | |
-| Skapa batch (checkout) | ✓ | ✓ | ✓ | ✓ | Reader lånar med sig själv som låntagare |
+| Skapa batch (checkout) | ✓ | ✓ | ✓ | ✓ | Reader får bara välja sig själv eller extern fritext-låntagare - inte andra interna |
 | Skapa direkt enskilt lån (piece-modal) | | ✓ | ✓ | | Admin-aktigt: registrera lån åt någon annan |
 | Plocklista-flöde | | ✓ | ✓ | | Plockning är arbetsuppgift |
 | Aktivera batch (slut-checkout) | | ✓ | ✓ | | |
