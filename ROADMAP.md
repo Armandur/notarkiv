@@ -172,13 +172,17 @@ granska -> spara -> hitta igen.
 
 ### V2-utvidgning av QR-flödet
 
-- [ ] **In-browser QR-läsare**: live kameravy direkt i webbappen
-      (getUserMedia + jsQR eller html5-qrcode-biblioteket) så
-      användaren slipper växla mellan kameraappen och webbläsaren.
-      Med detta blir det också naturligt att låta QR-koderna kodifiera
-      en stabil UUID istället för full URL - då går etiketterna inte
-      sönder om appen flyttar till annan domän. Krav: live-detection
-      som funkar smidigt på mobil (testning behövs).
+- [x] **In-browser QR-läsare** (commit 57b0b47): navbar-knapp "📷 Sök QR"
+      öppnar Bootstrap-modal med live-kameravy via html5-qrcode-biblioteket
+      (laddas som statisk fil under /static/js/ för CSP/proxy-säkerhet).
+      Parsar piece-URL, kiosk-URL och rent public_id - navigerar till
+      /p/<id> som auto-routar till piece-detalj eller kiosk-vy beroende
+      på session. Kräver HTTPS eller localhost (getUserMedia-policy).
+      Stabil UUID istället för URL i QR-koden: inte gjort - befintliga
+      utskrivna etiketter kodar `<base>/p/<public_id>`. Public_id är
+      redan en UUID-baserad sträng så att byta till QR med bara id
+      skulle vara backwards-kompatibelt för in-browser-skannern men
+      bryta för externa kamera-appar som öppnar URL:en direkt.
 - [x] **Anteckningsfält per användare på not** (körledarens egna
       tonarter, repetitionsnoter etc.)
 - [x] **Utlåningshantering**: registrera utlån per placering med
