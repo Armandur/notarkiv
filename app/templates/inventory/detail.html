@@ -23,9 +23,17 @@
   <dd class="col-sm-9">{{ inv.ended_at.strftime('%Y-%m-%d %H:%M') }}</dd>
   {% endif %}
 
-  {% if location %}
-  <dt class="col-sm-3">Planerad plats</dt>
-  <dd class="col-sm-9">{{ location.name }}{% if unit %} › {{ unit.name }}{% endif %}</dd>
+  <dt class="col-sm-3">Aktuell placering</dt>
+  <dd class="col-sm-9">
+    {% if unit %}{{ location.name if location else '' }}{% if location %} › {% endif %}{{ unit.name }}{% else %}<em class="text-muted">ingen vald</em>{% endif %}
+    {% if active %}
+    <button type="button" class="btn btn-sm btn-link p-0 ms-2" data-bs-toggle="modal" data-bs-target="#changePlacedModal">byt</button>
+    {% endif %}
+  </dd>
+  {% if active and not unit %}
+  <dd class="col-sm-9 offset-sm-3 small text-warning">
+    ⚠ Snabbskanningar kräver att placering antingen sätts här eller väljs explicit vid varje skanning.
+  </dd>
   {% endif %}
 
   <dt class="col-sm-3">Skanningar</dt>
@@ -92,4 +100,35 @@
     {% endif %}
   </div>
 </div>
+
+{% if active %}
+<div class="modal fade" id="changePlacedModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="/inventory/{{ inv.id }}/set-planned-unit">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Byt aktuell placering</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">
+          Skanningar utan eget placeringsval ärver den aktuella placeringen.
+          Byte loggas i sessionens logg.
+        </p>
+        <label class="form-label">Placering</label>
+        <select name="planned_unit_id" class="form-select tomselect">
+          <option value="">(ingen)</option>
+          {% for opt in unit_options %}
+          <option value="{{ opt.id }}" {% if unit and unit.id == opt.id %}selected{% endif %}>{{ opt.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+        <button type="submit" class="btn btn-primary">Spara</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

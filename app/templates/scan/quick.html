@@ -8,17 +8,24 @@
 </div>
 
 {% if my_inventories %}
-<div class="alert alert-success py-2 small">
+<div class="alert alert-success py-2 small mb-2">
   <strong>Skanningar knyts till:</strong>
   {% if my_inventories|length == 1 %}
-  <a href="/inventory/{{ my_inventories[0].id }}" class="alert-link">{{ my_inventories[0].name }}</a>
+    {% set inv0 = my_inventories[0] %}
+    <a href="/inventory/{{ inv0.id }}" class="alert-link">{{ inv0.name }}</a>
+    {% if inventory_planned_paths.get(inv0.id) %}
+    · placering: <strong>{{ inventory_planned_paths[inv0.id] }}</strong>
+    {% else %}
+    · <span class="text-warning">ingen planerad placering - välj nedan</span>
+    {% endif %}
   {% else %}
-  vald inventering nedan (default: senaste)
+    vald inventering nedan (default: senaste)
   {% endif %}
 </div>
 {% else %}
-<div class="alert alert-light py-2 small">
-  Ingen egen aktiv inventering - <a href="/inventory">starta en session</a> för att gruppera skanningarna.
+<div class="alert alert-warning py-2 small mb-2">
+  Ingen egen aktiv inventering - <a href="/inventory">starta en session</a>
+  eller välj placering manuellt nedan.
 </div>
 {% endif %}
 

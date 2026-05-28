@@ -10,6 +10,7 @@ from sqlalchemy import func
 from app.deps import get_session, require_editor, verify_csrf
 from app.services.app_settings import get_ocr_provider
 from app.services.duplicates import find_duplicates
+from app.routes.loans import _unit_path
 from app.services.inventory import (
     append_log,
     get_active_session,
@@ -100,6 +101,15 @@ async def quick_scan_page(
     unit_options = _load_unit_options(session)
     pending_count = _count_pending(session)
     my_inventories = get_user_active_sessions(session, user.id)
+
+    # Bygg lookup för pretty path till varje inventerings planned_unit_id
+    inventory_planned_paths: dict[int, str] = {}
+    for inv in my_inventories:
+        if inv.planned_unit_id:
+            u = session.get(StorageUnit, inv.planned_unit_id)
+            if u:
+                inventory_planned_paths[inv.id] = _unit_path(session, u)
+
     return render(
         request,
         "scan/quick.html",
@@ -109,6 +119,7 @@ async def quick_scan_page(
             "ocr_provider": get_ocr_provider(),
             "pending_count": pending_count,
             "my_inventories": my_inventories,
+            "inventory_planned_paths": inventory_planned_paths,
         },
         user=user,
     )
@@ -153,12 +164,25 @@ async def quick_scan_upload(
     )
 
     # Inventering: explicit val från form, annars användarens default
-    inv_id: int | None = None
+    inv: InventorySession | None = None
     if inventory_session_id and inventory_session_id.strip().isdigit():
-        inv_id = int(inventory_session_id)
-    else:
-        default_inv = get_user_default_active_session(session, user.id)
-        inv_id = default_inv.id if default_inv else None
+        inv = session.get(InventorySession, int(inventory_session_id))
+    if not inv:
+        inv = get_user_default_active_session(session, user.id)
+
+    # Om ingen explicit placering valts, ärv från inventeringens planerade
+    if unit_id is None and inv and inv.planned_unit_id:
+        unit_id = inv.planned_unit_id
+
+    # Tvinga placement-val: om varken explicit val OR ärvd från inventering
+    if unit_id is None:
+        flash(
+            request,
+            "Välj en placering (eller starta en inventering med planerad placering)",
+            "danger",
+        )
+        return RedirectResponse("/scan/quick", status.HTTP_302_FOUND)
+
     scan = ScanSession(
         user_id=user.id,
         image_path=primary_path,
@@ -166,7 +190,7 @@ async def quick_scan_upload(
         status=ScanStatus.PENDING,
         pre_placement_unit_id=unit_id,
         pre_placement_copies=copies,
-        inventory_session_id=inv_id,
+        inventory_session_id=inv.id if inv else None,
     )
     session.add(scan)
     session.commit()
@@ -183,10 +207,12 @@ async def quick_scan_upload(
     pool = await get_pool()
     await pool.enqueue_job("extract_metadata_job", scan.id)
 
-    if active_inv:
+    if inv:
         suffix = f" ({len(images)} bilder)" if len(images) > 1 else ""
-        append_log(active_inv, f"Skanning #{scan.id} sparad{suffix}", user.username)
-        session.add(active_inv)
+        unit_obj = session.get(StorageUnit, unit_id) if unit_id else None
+        place = _unit_path(session, unit_obj) if unit_obj else "ingen plats"
+        append_log(inv, f"Skanning #{scan.id} sparad{suffix} - placering: {place}", user.username)
+        session.add(inv)
         session.commit()
 
     flash(
@@ -913,6 +939,7 @@ async def save_piece(
     next_in_queue: str | None = Form(None),
     voicing_tag_id: list[int] = Form(default=[]),
     accompaniment_tag_id: list[int] = Form(default=[]),
+    psalmref: list[str] = Form(default=[]),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -1017,6 +1044,39 @@ async def save_piece(
         tag = session.get(Tag, tag_id)
         if tag and tag.kind == TagKind.ACCOMPANIMENT:
             session.add(PieceTag(piece_id=piece.id, tag_id=tag.id))
+
+    # Psalmreferenser från review-formuläret. Format: "book_id:number"
+    from app.models import PiecePsalmRef, PsalmBook
+
+    for ref_str in psalmref:
+        if not ref_str or ":" not in ref_str:
+            continue
+        try:
+            book_id_str, number_str = ref_str.split(":", 1)
+            book_id = int(book_id_str)
+            number = int(number_str)
+        except ValueError:
+            continue
+        book = session.get(PsalmBook, book_id)
+        if not book:
+            continue
+        # Idempotent: hoppa över om referensen redan finns
+        existing = session.exec(
+            select(PiecePsalmRef)
+            .where(PiecePsalmRef.piece_id == piece.id)
+            .where(PiecePsalmRef.book_id == book_id)
+            .where(PiecePsalmRef.number == number)
+        ).first()
+        if existing:
+            continue
+        session.add(
+            PiecePsalmRef(
+                piece_id=piece.id,
+                book_id=book_id,
+                edition=book.edition,
+                number=number,
+            )
+        )
 
     scan.resulting_piece_id = piece.id
     session.add(scan)

@@ -125,6 +125,22 @@ async def session_detail(
         else None
     )
     unit = session.get(StorageUnit, inv.planned_unit_id) if inv.planned_unit_id else None
+
+    # Dropdown över alla units (för "byt placering"-formuläret) - bara
+    # om sessionen är aktiv. Path-bygge för läsbara etiketter.
+    from app.routes.loans import _unit_path
+
+    unit_options: list[dict] = []
+    if inv.ended_at is None:
+        all_units = session.exec(
+            select(StorageUnit)
+            .where(StorageUnit.archived == False)  # noqa: E712
+            .order_by(StorageUnit.name)
+        ).all()
+        for u in all_units:
+            unit_options.append({"id": u.id, "label": _unit_path(session, u)})
+        unit_options.sort(key=lambda x: x["label"])
+
     return render(
         request,
         "inventory/detail.html",
@@ -133,11 +149,51 @@ async def session_detail(
             "scans": scans,
             "location": location,
             "unit": unit,
+            "unit_options": unit_options,
             "active": inv.ended_at is None,
             "saved_count": sum(1 for s in scans if s.resulting_piece_id),
         },
         user=user,
     )
+
+
+@router.post("/{inv_id}/set-planned-unit", dependencies=[Depends(verify_csrf)])
+async def set_planned_unit(
+    request: Request,
+    inv_id: int,
+    planned_unit_id: str | None = Form(None),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Byt vilken placering som inventeringen är aktuellt på. Loggas på
+    sessionens fritext-logg så historiken syns."""
+    from app.routes.loans import _unit_path
+
+    inv = session.get(InventorySession, inv_id)
+    if not inv or inv.ended_at:
+        raise HTTPException(404)
+
+    new_id: int | None = None
+    if planned_unit_id and planned_unit_id.strip().isdigit():
+        new_id = int(planned_unit_id)
+
+    old_unit = (
+        session.get(StorageUnit, inv.planned_unit_id) if inv.planned_unit_id else None
+    )
+    new_unit = session.get(StorageUnit, new_id) if new_id else None
+
+    old_label = _unit_path(session, old_unit) if old_unit else "ingen"
+    new_label = _unit_path(session, new_unit) if new_unit else "ingen"
+
+    if old_label == new_label:
+        return RedirectResponse(f"/inventory/{inv_id}", status.HTTP_302_FOUND)
+
+    inv.planned_unit_id = new_id
+    append_log(inv, f"Bytte placering: {old_label} → {new_label}", user.username)
+    session.add(inv)
+    session.commit()
+    flash(request, f"Bytte placering till {new_label}", "success")
+    return RedirectResponse(f"/inventory/{inv_id}", status.HTTP_302_FOUND)
 
 
 @router.post("/{inv_id}/log", dependencies=[Depends(verify_csrf)])
