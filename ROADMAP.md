@@ -226,6 +226,17 @@ granska -> spara -> hitta igen.
       = `require_admin`. Inga uppenbara gaps - några medvetna
       avgränsningar (tags-CRUD admin-bara, inventory editor-bara)
       dokumenterade som "kända inkonsekvenser" att överväga senare.
+- [ ] **Hjälpsidor per roll**: bygg `/help`-sidor med korta guider över
+      de vanligaste flödena per rolltyp. Reader-sidan: hur sökning
+      fungerar, hur man lånar en not (cart → checkout), hur man
+      återlämnar, hur kioskens QR-inloggning fungerar. Editor-sidan:
+      skanningsflödet (mobil/desktop), granskningskön, taggning,
+      hur man registrerar lån åt andra. Admin-sidan: användarhantering,
+      kiosk-setup, lagringsplatser vs enheter, psalmböcker, system-
+      inställningar. Mobil/skrivbord-skillnader markerade. Länkar in
+      från ?-ikon i navbaren eller från relevanta sidor (kontext-
+      sensitiv hjälp). Ska gå att uppdatera i markdown utan att
+      committa kod.
 - [x] **Anteckning per tagg**: Tag.description-fält. Visas under
       tagg-namnet på /tags-listan och som tooltip + extra rad i
       tag-search-autocompleten. Hjälper användarna förstå taggens
