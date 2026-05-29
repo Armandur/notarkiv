@@ -196,35 +196,62 @@ def get_inventory_progress(session: Session, kiosk: Kiosk) -> dict | None:
     inv = session.get(InventorySession, kiosk.active_inventory_session_id)
     if not inv:
         return None
-    # Räkna unika piece_ids som har en FOUND-check i sessionen
+
+    from app.models import StorageLocation
     from app.routes.pieces import _kiosk_location_unit_ids
 
+    location = (
+        session.get(StorageLocation, kiosk.location_id)
+        if kiosk.location_id
+        else None
+    )
     allowed_unit_ids = _kiosk_location_unit_ids(session, kiosk.location_id)
 
-    # Totalt: alla placeringar på kioskens plats
+    # Alla placeringar på kioskens plats
     if allowed_unit_ids is None:
-        total_placements = session.exec(select(PiecePlacement)).all()
+        total_placements = list(session.exec(select(PiecePlacement)).all())
     else:
         total_placements = [
             pl for pl in session.exec(select(PiecePlacement)).all()
             if pl.storage_unit_id in allowed_unit_ids
         ]
-    total = len(total_placements)
+    total_placements_count = len(total_placements)
+    total_pieces = len({pl.piece_id for pl in total_placements})
+    total_expected_copies = sum((pl.copies or 0) for pl in total_placements)
 
+    # Räkna ALLA check-status (inte bara FOUND) - vi vill kunna visa
+    # delvis/saknas/extra också. Senaste check per placement gäller.
     checked_rows = session.exec(
         select(InventoryCheck)
         .where(InventoryCheck.inventory_session_id == inv.id)
-        .where(InventoryCheck.status == CheckStatus.FOUND)
+        .order_by(InventoryCheck.checked_at.desc())
     ).all()
-    # Senaste check per placement_id (om upprepade)
-    checked_placement_ids = {c.placement_id for c in checked_rows}
-    # Räkna bara de som tillhör kioskens plats
+    latest_per_placement: dict[int, InventoryCheck] = {}
+    for c in checked_rows:
+        if c.placement_id not in latest_per_placement:
+            latest_per_placement[c.placement_id] = c
+
     allowed_placement_ids = {pl.id for pl in total_placements}
-    checked = len(checked_placement_ids & allowed_placement_ids)
+    placements_checked = 0
+    pieces_checked: set[int] = set()
+    actual_copies_total = 0
+    counts = {"found": 0, "partial": 0, "missing": 0, "extra": 0}
+    for pl in total_placements:
+        c = latest_per_placement.get(pl.id)
+        if c and c.status != CheckStatus.NOT_CHECKED:
+            placements_checked += 1
+            pieces_checked.add(pl.piece_id)
+            actual_copies_total += c.actual_copies or 0
+            counts[c.status.value] = counts.get(c.status.value, 0) + 1
 
     return {
         "session": inv,
-        "total": total,
-        "checked": checked,
-        "remaining": max(0, total - checked),
+        "location": location,
+        "total_pieces": total_pieces,
+        "pieces_checked": len(pieces_checked),
+        "total_placements": total_placements_count,
+        "placements_checked": placements_checked,
+        "total_expected_copies": total_expected_copies,
+        "actual_copies_total": actual_copies_total,
+        "counts": counts,
     }

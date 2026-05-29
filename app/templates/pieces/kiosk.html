@@ -100,22 +100,65 @@
     </div>
 
     {% if inventory_progress %}
-    <div class="alert alert-info py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
-      <div>
-        <strong>📋 Inventering pågår:</strong> {{ inventory_progress.session.name }}
-        <span class="ms-2 small">{{ inventory_progress.checked }}/{{ inventory_progress.total }} placeringar checkade · {{ inventory_progress.remaining }} kvar</span>
+    <div class="alert alert-info mb-3">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+        <div>
+          <strong>📋 Inventering pågår</strong>
+          <div class="small mt-1">
+            <span class="text-muted">Session:</span> <strong>{{ inventory_progress.session.name }}</strong>
+            {% if inventory_progress.session.description %}
+            <div class="text-muted">{{ inventory_progress.session.description }}</div>
+            {% endif %}
+          </div>
+          {% if inventory_progress.location %}
+          <div class="small">
+            <span class="text-muted">Plats att inventera:</span>
+            <strong>{{ inventory_progress.location.name }}</strong>
+            <span class="text-muted">(noter med placering här räknas)</span>
+          </div>
+          {% else %}
+          <div class="small text-warning">
+            ⚠ Kiosken är inte knuten till någon plats - alla noter räknas
+          </div>
+          {% endif %}
+        </div>
+        {% if borrower and borrower.can_edit %}
+        <form method="post" action="/kiosk/inventory/stop" class="mb-0">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Avsluta läget</button>
+        </form>
+        {% endif %}
       </div>
-      {% if borrower and borrower.can_edit %}
-      <form method="post" action="/kiosk/inventory/stop" class="mb-0">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button type="submit" class="btn btn-sm btn-outline-secondary">Avsluta inventeringsläge</button>
-      </form>
-      {% endif %}
+
+      {# Progress + status-fördelning #}
+      {% set p = inventory_progress %}
+      {% set total = p.total_placements %}
+      {% set done = p.placements_checked %}
+      {% set pct = (100 * done / total)|round(0, 'floor')|int if total else 0 %}
+      <div class="progress mb-2" style="height: 8px">
+        <div class="progress-bar bg-success" role="progressbar" style="width: {{ pct }}%"></div>
+      </div>
+      <div class="d-flex gap-3 flex-wrap small">
+        <span><strong>{{ p.pieces_checked }}/{{ p.total_pieces }}</strong> noter kvitterade</span>
+        <span><strong>{{ p.actual_copies_total }}/{{ p.total_expected_copies }}</strong> ex hittade</span>
+        {% if p.counts.found %}<span class="text-success">✓ {{ p.counts.found }} stämmer</span>{% endif %}
+        {% if p.counts.partial %}<span class="text-warning">⚠ {{ p.counts.partial }} ofullständiga</span>{% endif %}
+        {% if p.counts.extra %}<span class="text-warning">+ {{ p.counts.extra }} extra</span>{% endif %}
+        {% if p.counts.missing %}<span class="text-danger">✗ {{ p.counts.missing }} saknas</span>{% endif %}
+        {% if total - done > 0 %}<span class="text-muted">○ {{ total - done }} okvitterade</span>{% endif %}
+      </div>
     </div>
     {% elif borrower and borrower.can_edit and available_inventories %}
     <div class="alert alert-light py-2">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <span class="small text-muted">Starta inventeringsläge så registreras skanningar som "hittad":</span>
+        <div>
+          <div class="small"><strong>Starta inventeringsläge</strong></div>
+          <div class="small text-muted">
+            Skanningar registreras som "hittad" på
+            {% if kiosk_location %}<strong>{{ kiosk_location.name }}</strong>{% else %}alla platser{% endif %}.
+            Blippa fler gånger eller justera manuellt om noten har flera ex.
+          </div>
+        </div>
         <form method="post" action="/kiosk/inventory/start" class="d-flex gap-2 mb-0">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <select name="inventory_session_id" class="form-select form-select-sm">
