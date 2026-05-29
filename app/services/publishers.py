@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlmodel import Session, select
 
-from app.models import Publisher
+from app.models import Publisher, PublisherLink, PublisherLinkKind
 
 
 _COMPANY_AFFIXES = ("ab", "förlag", "musikförlag", "edition", "gmbh", "inc", "ltd", "co")
@@ -74,6 +74,41 @@ def all_publishers_for_autocomplete(session: Session) -> list[dict]:
     return [{"id": p.id, "name": p.name, "country": p.country or ""} for p in pubs]
 
 
+def _classify_link(url: str) -> PublisherLinkKind:
+    u = url.lower()
+    if "wikipedia.org" in u:
+        return PublisherLinkKind.WIKIPEDIA
+    if "wikidata.org" in u:
+        return PublisherLinkKind.WIKIDATA
+    if "musicbrainz.org" in u:
+        return PublisherLinkKind.MUSICBRAINZ
+    if "imslp.org" in u:
+        return PublisherLinkKind.IMSLP
+    return PublisherLinkKind.OFFICIAL
+
+
+def _add_link_if_new(
+    session: Session,
+    publisher: Publisher,
+    url: str,
+    kind: PublisherLinkKind,
+    label: str | None = None,
+) -> None:
+    """Lägg en länk om samma URL inte redan finns på publishern."""
+    if not url:
+        return
+    existing = session.exec(
+        select(PublisherLink)
+        .where(PublisherLink.publisher_id == publisher.id)
+        .where(PublisherLink.url == url)
+    ).first()
+    if existing:
+        return
+    session.add(PublisherLink(
+        publisher_id=publisher.id, url=url, kind=kind, label=label
+    ))
+
+
 def enrich_publisher_from_mb(
     session: Session,
     publisher: Publisher,
@@ -95,8 +130,6 @@ def enrich_publisher_from_mb(
 
     # Spara gamla värden om de ändras (för flash-meddelande)
     if mb_name and mb_name != publisher.name:
-        # Kolla att namnet inte redan används av annan publisher
-        from sqlmodel import select
         clash = session.exec(
             select(Publisher)
             .where(Publisher.name == mb_name)
@@ -128,11 +161,36 @@ def enrich_publisher_from_mb(
                     publisher.website_url = url
                     break
 
-    # Beskrivning från Wikipedia - skriv över bara om vi inte har
-    if not publisher.description and description:
+    # Wikipedia-beskrivning + källattribution
+    if description and (not publisher.description or publisher.description_source_url):
         publisher.description = description
+        publisher.description_source_url = wikipedia_url
 
     publisher.enriched_at = datetime.utcnow()
     publisher.updated_at = datetime.utcnow()
     session.add(publisher)
+    session.flush()  # ge publisher.id om ny
+
+    # Skapa länkar för alla URL-rels (Wikipedia, IMSLP, officiella etc.)
+    for rel in mb_label.get("relations", []):
+        url = (rel.get("url") or {}).get("resource") or ""
+        if not url:
+            continue
+        rel_type = rel.get("type", "")
+        if rel_type == "official homepage":
+            kind = PublisherLinkKind.OFFICIAL
+        elif rel_type == "wikidata":
+            kind = PublisherLinkKind.WIKIDATA
+        elif rel_type == "wikipedia":
+            kind = PublisherLinkKind.WIKIPEDIA
+        elif rel_type == "IMSLP":
+            kind = PublisherLinkKind.IMSLP
+        else:
+            kind = _classify_link(url)
+        _add_link_if_new(session, publisher, url, kind, label=rel_type or None)
+
+    # Wikipedia-URL från get_wikipedia_url (om inte redan med via rels)
+    if wikipedia_url:
+        _add_link_if_new(session, publisher, wikipedia_url, PublisherLinkKind.WIKIPEDIA)
+
     return changes

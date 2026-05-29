@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse, Response
 from sqlmodel import Session, select
 
 from app.deps import get_session, require_admin, require_auth, require_editor, verify_csrf
-from app.models import Piece, Publisher, User
+from app.models import Piece, Publisher, PublisherLink, User
 from app.templates_setup import flash, render
 
 router = APIRouter(prefix="/publishers", tags=["publishers"])
@@ -79,10 +79,22 @@ async def publisher_detail(
             .order_by(Publisher.sort_name)
         ).all()
     )
+    links = list(
+        session.exec(
+            select(PublisherLink)
+            .where(PublisherLink.publisher_id == publisher_id)
+            .order_by(PublisherLink.sort_order, PublisherLink.id)
+        ).all()
+    )
     return render(
         request,
         "publishers/detail.html",
-        {"pub": pub, "pieces": pieces, "other_pubs": other_pubs},
+        {
+            "pub": pub,
+            "pieces": pieces,
+            "other_pubs": other_pubs,
+            "links": links,
+        },
         user=user,
     )
 
@@ -348,6 +360,59 @@ async def clear_musicbrainz(
     session.add(pub)
     session.commit()
     flash(request, "MusicBrainz-koppling rensad", "info")
+    return RedirectResponse(f"/publishers/{publisher_id}", status.HTTP_302_FOUND)
+
+
+@router.post("/{publisher_id}/links/add", dependencies=[Depends(verify_csrf)])
+async def add_link(
+    request: Request,
+    publisher_id: int,
+    url: str = Form(...),
+    kind: str = Form("other"),
+    label: str | None = Form(None),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    pub = session.get(Publisher, publisher_id)
+    if not pub:
+        raise HTTPException(404)
+    clean_url = url.strip()
+    if not clean_url:
+        flash(request, "Tom URL", "danger")
+        return RedirectResponse(f"/publishers/{publisher_id}", status.HTTP_302_FOUND)
+    from app.models.publisher import PublisherLinkKind
+
+    try:
+        kind_enum = PublisherLinkKind(kind)
+    except ValueError:
+        kind_enum = PublisherLinkKind.OTHER
+    session.add(PublisherLink(
+        publisher_id=publisher_id,
+        url=clean_url,
+        kind=kind_enum,
+        label=(label or "").strip() or None,
+    ))
+    session.commit()
+    flash(request, "Länk tillagd", "success")
+    return RedirectResponse(f"/publishers/{publisher_id}", status.HTTP_302_FOUND)
+
+
+@router.post(
+    "/{publisher_id}/links/{link_id}/delete", dependencies=[Depends(verify_csrf)]
+)
+async def delete_link(
+    request: Request,
+    publisher_id: int,
+    link_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    link = session.get(PublisherLink, link_id)
+    if not link or link.publisher_id != publisher_id:
+        raise HTTPException(404)
+    session.delete(link)
+    session.commit()
+    flash(request, "Länk borttagen", "info")
     return RedirectResponse(f"/publishers/{publisher_id}", status.HTTP_302_FOUND)
 
 

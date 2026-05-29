@@ -158,6 +158,7 @@ def _ensure_column_guards() -> None:
             ("musicbrainz_label_id", "VARCHAR"),
             ("wikidata_id", "VARCHAR"),
             ("enriched_at", "DATETIME"),
+            ("description_source_url", "VARCHAR"),
         ],
     }
 

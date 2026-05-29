@@ -10,7 +10,7 @@ from app.models.piece_image import PieceImage
 from app.models.piece_list import PieceList, PieceListItem
 from app.models.piece_user_note import PieceUserNote
 from app.models.psalm import PiecePsalmRef, PsalmBook, PsalmEntry
-from app.models.publisher import Publisher
+from app.models.publisher import Publisher, PublisherLink, PublisherLinkKind
 from app.models.scan_session import ScanSession
 from app.models.scan_session_image import ScanSessionImage
 from app.models.storage import PiecePlacement, StorageLocation, StorageUnit, UnitKind
@@ -40,6 +40,8 @@ __all__ = [
     "PsalmBook",
     "PsalmEntry",
     "Publisher",
+    "PublisherLink",
+    "PublisherLinkKind",
     "ScanSession",
     "ScanSessionImage",
     "PiecePlacement",

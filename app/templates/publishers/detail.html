@@ -68,9 +68,65 @@
   {% endif %}
   {% if pub.description %}
   <dt class="col-sm-3">Beskrivning</dt>
-  <dd class="col-sm-9">{{ pub.description }}</dd>
+  <dd class="col-sm-9">
+    {{ pub.description | markdown | safe }}
+    {% if pub.description_source_url %}
+    <div class="small text-muted mt-1">
+      Källa: <a href="{{ pub.description_source_url }}" target="_blank" rel="noopener">{{ pub.description_source_url }}</a>
+      <span class="ms-1">(CC BY-SA)</span>
+    </div>
+    {% endif %}
+  </dd>
   {% endif %}
 </dl>
+
+{# Externa länkar #}
+<div class="mb-4">
+  <h2 class="h6 mb-2">Externa länkar</h2>
+  {% if not links %}
+  <p class="text-muted small fst-italic">Inga länkar än - lägg till manuellt eller koppla mot MusicBrainz för att hämta automatiskt.</p>
+  {% else %}
+  <div class="d-flex flex-wrap gap-1 mb-2">
+    {% for l in links %}
+    <span class="badge bg-light text-dark border d-flex align-items-center gap-1">
+      <a href="{{ l.url }}" target="_blank" rel="noopener" class="text-decoration-none">
+        <span class="badge bg-secondary me-1">{{ l.kind }}</span>{{ l.label or l.url }}
+      </a>
+      {% if user.can_edit %}
+      <button type="button" class="btn-close btn-close-sm" aria-label="Ta bort"
+              onclick="confirmAction('/publishers/{{ pub.id }}/links/{{ l.id }}/delete', 'Ta bort länken?')"></button>
+      {% endif %}
+    </span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if user.can_edit %}
+  <form method="post" action="/publishers/{{ pub.id }}/links/add" class="d-flex gap-2 flex-wrap align-items-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="flex-grow-1" style="min-width: 12em">
+      <label class="form-label small mb-0">URL</label>
+      <input type="url" name="url" class="form-control form-control-sm" required placeholder="https://...">
+    </div>
+    <div>
+      <label class="form-label small mb-0">Typ</label>
+      <select name="kind" class="form-select form-select-sm">
+        <option value="official">official</option>
+        <option value="wikipedia">wikipedia</option>
+        <option value="wikidata">wikidata</option>
+        <option value="musicbrainz">musicbrainz</option>
+        <option value="imslp">imslp</option>
+        <option value="other" selected>other</option>
+      </select>
+    </div>
+    <div>
+      <label class="form-label small mb-0">Etikett (valfri)</label>
+      <input type="text" name="label" class="form-control form-control-sm" placeholder="t.ex. Företagets blogg">
+    </div>
+    <button type="submit" class="btn btn-sm btn-outline-secondary">Lägg till</button>
+  </form>
+  {% endif %}
+</div>
 
 <h2 class="h5 mb-2">Noter ({{ pieces|length }})</h2>
 {% if not pieces %}
