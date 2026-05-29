@@ -48,7 +48,11 @@
     <div>
       <strong>{{ p.name }}</strong>
       {% if p.country %}<span class="badge bg-light text-muted border ms-1">{{ p.country }}</span>{% endif %}
-      {% if p.description %}<div class="text-muted small">{{ p.description }}</div>{% endif %}
+      {% if p.description %}
+      <div class="text-muted small text-truncate" style="max-width: 60ch" title="{{ p.description }}">
+        {{ p.description }}
+      </div>
+      {% endif %}
     </div>
     <span class="badge bg-secondary">{{ counts.get(p.id, 0) }} not{% if counts.get(p.id, 0) != 1 %}er{% endif %}</span>
   </a>
