@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% block title %}Redigera {{ pub.name }} - Notarkiv{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
+  <h1 class="h3 mb-0">Redigera förlag</h1>
+  <a href="/publishers/{{ pub.id }}" class="small">← Tillbaka</a>
+</div>
+
+{% if pub.musicbrainz_label_id and not mb_preview %}
+<div class="mb-3">
+  <a href="?refresh=1" class="btn btn-sm btn-outline-secondary">
+    Hämta om data från metadatakällor
+  </a>
+  <span class="form-text ms-2">Slår upp aktuella värden från MusicBrainz och Wikipedia - visas som klickbara förslag bredvid fälten.</span>
+</div>
+{% endif %}
+
+{% macro mb_pill(target_id, mb_value, current_value) %}
+  {% if mb_preview and mb_value and mb_value != current_value %}
+  <button type="button" class="btn btn-sm btn-outline-primary mt-1 py-0 px-2 mb-apply"
+          data-target="{{ target_id }}" data-value="{{ mb_value }}">
+    MB: {{ mb_value }}
+  </button>
+  {% endif %}
+{% endmacro %}
+
+<form method="post" action="/publishers/{{ pub.id }}/update">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+  <div class="card">
+    <div class="card-header"><h2 class="h6 mb-0">Metadata</h2></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Namn (visas) *</label>
+          <input type="text" name="name" id="name" class="form-control" required value="{{ pub.name }}">
+          {{ mb_pill('name', mb_preview.name if mb_preview else '', pub.name) }}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Sorteringsnamn</label>
+          <input type="text" name="sort_name" id="sort_name" class="form-control" value="{{ pub.sort_name }}">
+          {{ mb_pill('sort_name', mb_preview.sort_name if mb_preview else '', pub.sort_name) }}
+          <div class="form-text">T.ex. "Nordiska Musikförlaget AB" - lämna tomt för auto.</div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Land</label>
+          <select name="country" id="country" class="form-select tomselect">
+            <option value="">(inget)</option>
+            {% for c in countries %}
+            <option value="{{ c.code }}" {% if pub.country == c.code %}selected{% endif %}>
+              {{ c.display }}
+            </option>
+            {% endfor %}
+          </select>
+          {% if mb_preview and mb_preview.country and mb_preview.country != (pub.country or '') %}
+          <button type="button" class="btn btn-sm btn-outline-primary mt-1 py-0 px-2 mb-apply-select"
+                  data-target="country" data-value="{{ mb_preview.country }}">
+            MB: {{ mb_preview.country }}
+          </button>
+          {% endif %}
+        </div>
+        <div class="col-md-8">
+          <label class="form-label">Hemsida</label>
+          <input type="url" name="website_url" id="website_url" class="form-control"
+                 value="{{ pub.website_url or '' }}" placeholder="https://...">
+        </div>
+
+        <div class="col-md-12">
+          <label class="form-label">Identitet (MusicBrainz / Wikidata)</label>
+          <input type="hidden" name="musicbrainz_label_id" value="{{ pub.musicbrainz_label_id or '' }}">
+          <input type="hidden" name="wikidata_id" value="{{ pub.wikidata_id or '' }}">
+          <div class="d-flex gap-2 align-items-center flex-wrap">
+            {% if pub.musicbrainz_label_id %}
+            <span class="badge bg-light text-dark border d-flex align-items-center gap-1">
+              <a href="https://musicbrainz.org/label/{{ pub.musicbrainz_label_id }}" target="_blank"
+                 class="text-decoration-none" title="{{ pub.musicbrainz_label_id }}">
+                MB: {{ pub.musicbrainz_label_id[:8] }}…
+              </a>
+              <button type="button" class="btn-close btn-close-sm" aria-label="Rensa MBID"
+                      onclick="confirmAction('/publishers/{{ pub.id }}/musicbrainz-id/clear', 'Rensa MB-koppling?', {submitLabel: 'Rensa'})"></button>
+            </span>
+            {% endif %}
+            {% if pub.wikidata_id %}
+            <span class="badge bg-light text-dark border d-flex align-items-center gap-1">
+              <a href="https://www.wikidata.org/wiki/{{ pub.wikidata_id }}" target="_blank"
+                 class="text-decoration-none">WD: {{ pub.wikidata_id }}</a>
+            </span>
+            {% endif %}
+            {% if not pub.musicbrainz_label_id and not pub.wikidata_id %}
+            <span class="text-muted small fst-italic">Ingen koppling</span>
+            {% endif %}
+            <button type="button" class="btn btn-sm btn-outline-secondary ms-auto"
+                    hx-get="/publishers/{{ pub.id }}/musicbrainz"
+                    hx-target="#mb-modal-target"
+                    hx-swap="innerHTML">
+              Sök i MusicBrainz
+            </button>
+          </div>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Beskrivning</label>
+          <textarea name="description" id="description" class="form-control markdown-editor" rows="6">{{ pub.description or '' }}</textarea>
+          {% if pub.description_source_url %}
+          <div class="form-text">
+            Importerad från <a href="{{ pub.description_source_url }}" target="_blank">{{ pub.description_source_url }}</a>
+            - vid utgivning utanför interna verktyg: behåll länken och CC BY-SA-villkoren.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-3 d-flex gap-2">
+    <button type="submit" class="btn btn-primary">Spara metadata</button>
+    <a href="/publishers/{{ pub.id }}" class="btn btn-link">Avbryt</a>
+    {% if user.is_admin %}
+    <button type="button" class="btn btn-outline-danger ms-auto"
+            onclick="confirmAction('/publishers/{{ pub.id }}/delete', 'Radera {{ pub.name|e }}? Tillåtet bara om inga noter refererar till förlaget.')">
+      Radera
+    </button>
+    {% endif %}
+  </div>
+</form>
+
+<div class="card mt-4">
+  <div class="card-header"><h2 class="h6 mb-0">Länkar</h2></div>
+  {% if links %}
+  <div class="list-group list-group-flush">
+    {% for l in links %}
+    <div class="list-group-item" id="link-row-{{ l.id }}">
+      <div class="d-flex justify-content-between align-items-center gap-2">
+        <div class="text-truncate">
+          <span class="badge bg-light text-muted">{{ l.kind }}</span>
+          <a href="{{ l.url }}" target="_blank">{{ l.label or l.url }}</a>
+        </div>
+        <div class="btn-group btn-group-sm">
+          <button class="btn btn-outline-secondary" type="button"
+                  onclick="document.getElementById('link-row-{{ l.id }}').classList.toggle('editing')">✏</button>
+          <button class="btn btn-outline-danger" type="button"
+                  onclick="confirmAction('/publishers/{{ pub.id }}/links/{{ l.id }}/delete', 'Ta bort länken?')">×</button>
+        </div>
+      </div>
+      <form method="post" action="/publishers/{{ pub.id }}/links/{{ l.id }}/update"
+            class="link-edit-form row g-2 mt-2 d-none">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="col-md-3">
+          <select name="kind" class="form-select form-select-sm">
+            {% for k in link_kinds %}
+            <option value="{{ k }}" {% if l.kind == k %}selected{% endif %}>{{ k }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-5">
+          <input type="url" name="url" class="form-control form-control-sm" value="{{ l.url }}" required>
+        </div>
+        <div class="col-md-2">
+          <input type="text" name="label" class="form-control form-control-sm" value="{{ l.label or '' }}" placeholder="Etikett">
+        </div>
+        <div class="col-md-2 d-grid">
+          <button type="submit" class="btn btn-sm btn-primary">Spara</button>
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  <style>.list-group-item.editing .link-edit-form { display: flex !important; }</style>
+  {% endif %}
+  {% if mb_preview and mb_preview.wikidata_url and not mb_preview.wd_already_linked %}
+  <div class="card-body border-top bg-light-subtle">
+    <form method="post" action="/publishers/{{ pub.id }}/links/add">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="url" value="{{ mb_preview.wikidata_url }}">
+      <input type="hidden" name="kind" value="wikidata">
+      <input type="hidden" name="label" value="Wikidata">
+      <button type="submit" class="btn btn-sm btn-outline-primary">
+        Lägg till Wikidata-länk från metadatakällor
+      </button>
+      <span class="form-text ms-1">({{ mb_preview.wikidata_url|truncate(50) }})</span>
+    </form>
+  </div>
+  {% endif %}
+  <div class="card-body">
+    <form method="post" action="/publishers/{{ pub.id }}/links/add" class="row g-2 align-items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Typ</label>
+        <select name="kind" class="form-select form-select-sm">
+          {% for k in link_kinds %}
+          <option value="{{ k }}" {% if k == "other" %}selected{% endif %}>{{ k }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-5">
+        <label class="form-label small mb-1">URL</label>
+        <input type="url" name="url" class="form-control form-control-sm" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Etikett (valfri)</label>
+        <input type="text" name="label" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-1">
+        <button class="btn btn-sm btn-primary w-100" type="submit">+</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="mb-modal-target"></div>
+
+{% if mb_preview and mb_preview.description and mb_preview.description != (pub.description or '') %}
+<div class="card mt-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h2 class="h6 mb-0">Beskrivning-förslag från Wikipedia</h2>
+    <button type="button" class="btn btn-sm btn-outline-primary mb-apply"
+            data-target="description" data-value="{{ mb_preview.description }}">
+      Applicera beskrivning
+    </button>
+  </div>
+  <div class="card-body small text-muted p-0">
+    <div class="bio-preview-content p-3" style="max-height: 400px; overflow-y: auto;">
+      {% for p in to_paragraphs(mb_preview.description) %}
+        {% if p.kind == 'heading' %}<h6 class="mt-2 mb-1">{{ p.text }}</h6>
+        {% else %}<p class="mb-2">{{ p.text }}</p>{% endif %}
+      {% endfor %}
+      {% if mb_preview.wikipedia_url %}
+      <div class="mt-2">
+        Källa: <a href="{{ mb_preview.wikipedia_url }}" target="_blank">{{ mb_preview.wikipedia_url }}</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+document.addEventListener('click', (e) => {
+  const inp = e.target.closest('.mb-apply');
+  if (inp) {
+    const el = document.getElementById(inp.dataset.target);
+    if (el) {
+      if (el._easymde) {
+        el._easymde.value(inp.dataset.value);
+      } else {
+        el.value = inp.dataset.value;
+        el.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+    }
+    inp.classList.add('btn-success');
+    inp.classList.remove('btn-outline-primary');
+    return;
+  }
+  const sel = e.target.closest('.mb-apply-select');
+  if (sel) {
+    const el = document.getElementById(sel.dataset.target);
+    if (el) {
+      // Tom Select API om wrappad
+      const ts = el.tomselect;
+      if (ts) ts.setValue(sel.dataset.value);
+      else { el.value = sel.dataset.value; el.dispatchEvent(new Event('change', {bubbles: true})); }
+    }
+    sel.classList.add('btn-success');
+    sel.classList.remove('btn-outline-primary');
+  }
+});
+</script>
+{% endblock %}

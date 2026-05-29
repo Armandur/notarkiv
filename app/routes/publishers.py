@@ -8,7 +8,9 @@ from sqlmodel import Session, select
 
 from app.deps import get_session, require_admin, require_auth, require_editor, verify_csrf
 from app.models import Piece, Publisher, PublisherLink, User
+from app.models.publisher import PublisherLinkKind
 from app.templates_setup import flash, render
+from app.utils.countries import all_countries
 
 router = APIRouter(prefix="/publishers", tags=["publishers"])
 
@@ -51,6 +53,101 @@ async def list_publishers(
             "unmatched_count": unmatched_count,
         },
         user=user,
+    )
+
+
+@router.get("/{publisher_id}/edit")
+async def edit_publisher(
+    request: Request,
+    publisher_id: int,
+    refresh: bool = False,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Helsidesvy för att redigera publisher. Likt /people/{id}/edit.
+    Om ?refresh=1 och publishern är kopplad till MB - hämta aktuell
+    data från MB + Wikipedia och visa som klickbara förslag."""
+    pub = session.get(Publisher, publisher_id)
+    if not pub:
+        raise HTTPException(404)
+    links = list(
+        session.exec(
+            select(PublisherLink)
+            .where(PublisherLink.publisher_id == publisher_id)
+            .order_by(PublisherLink.sort_order, PublisherLink.id)
+        ).all()
+    )
+    mb_preview: dict | None = None
+    if refresh and pub.musicbrainz_label_id:
+        from app.services.musicbrainz import (
+            extract_wikidata_url,
+            fetch_wikipedia_summary,
+            get_client,
+            get_wikipedia_url,
+        )
+
+        try:
+            client = get_client()
+            label_data = await client.get_label_with_urls(pub.musicbrainz_label_id)
+        except Exception:
+            label_data = None
+        if label_data:
+            wiki_url = await get_wikipedia_url(label_data)
+            wiki_summary = (
+                await fetch_wikipedia_summary(wiki_url) if wiki_url else None
+            )
+            wd_url = extract_wikidata_url(label_data)
+            existing_urls = {l.url for l in links}
+            mb_preview = {
+                "name": (label_data.get("name") or "").strip(),
+                "sort_name": (label_data.get("sort-name") or "").strip(),
+                "country": label_data.get("country") or "",
+                "description": wiki_summary,
+                "wikipedia_url": wiki_url,
+                "wikidata_url": wd_url,
+                "wd_already_linked": wd_url in existing_urls if wd_url else True,
+            }
+    return render(
+        request,
+        "publishers/edit.html",
+        {
+            "pub": pub,
+            "links": links,
+            "mb_preview": mb_preview,
+            "countries": all_countries(),
+            "link_kinds": [k.value for k in PublisherLinkKind],
+        },
+        user=user,
+    )
+
+
+@router.post(
+    "/{publisher_id}/links/{link_id}/update", dependencies=[Depends(verify_csrf)]
+)
+async def update_link(
+    request: Request,
+    publisher_id: int,
+    link_id: int,
+    url: str = Form(...),
+    kind: str = Form("other"),
+    label: str | None = Form(None),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    link = session.get(PublisherLink, link_id)
+    if not link or link.publisher_id != publisher_id:
+        raise HTTPException(404)
+    link.url = url.strip() or link.url
+    try:
+        link.kind = PublisherLinkKind(kind)
+    except ValueError:
+        pass
+    link.label = (label or "").strip() or None
+    session.add(link)
+    session.commit()
+    flash(request, "Länk uppdaterad", "success")
+    return RedirectResponse(
+        f"/publishers/{publisher_id}/edit", status.HTTP_302_FOUND
     )
 
 
