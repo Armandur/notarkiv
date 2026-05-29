@@ -401,6 +401,14 @@ granska -> spara -> hitta igen.
       (modal), `pieces/_kiosk_search_results.html`. Lämnade som-är:
       PDF-templates, tooltips, redan-länkade paths där pill-byte
       skulle bryta klickytan.
+- [ ] **Tom Select-konsekvens i hela systemet**: efter att
+      composer/arranger/lyricist + publisher konverterats till Tom Select
+      i scan/review, pieces/new och pieces/edit, gå igenom resten av
+      systemet och byt ut native `<select>` och `<datalist>`-baserade
+      autocompletes där det är lämpligt (storage-units, loans,
+      inventory, admin-användarroll, tag-parents osv) så Tom Select
+      används konsekvent överallt. Behåll native för korta on/off-listor
+      (max 5 alternativ utan sök).
 
 ## V3 - "Långt fram"
 
