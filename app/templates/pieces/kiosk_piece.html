@@ -13,6 +13,19 @@
   </div>
 </div>
 
+{% if inventory_result %}
+  {% if inventory_result.checked %}
+  <div class="alert alert-success py-2 small mb-2">
+    📋 <strong>Kvitterad som hittad</strong> ({{ inventory_result.checked }} placering{% if inventory_result.checked != 1 %}ar{% endif %} på {{ kiosk_location.name if kiosk_location else 'denna plats' }})
+  </div>
+  {% elif inventory_result.outside_location %}
+  <div class="alert alert-warning py-2 small mb-2">
+    📋 <strong>Inte kvitterad</strong> - noten ligger på en annan plats än {{ kiosk_location.name }}.
+    Skanna här bara om du fysiskt flyttar den hit.
+  </div>
+  {% endif %}
+{% endif %}
+
 {% if not_at_kiosk_location %}
 <div class="alert alert-warning py-2 small mb-2">
   <strong>Noten finns inte på {{ kiosk_location.name }}.</strong>

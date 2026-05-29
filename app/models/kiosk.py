@@ -31,5 +31,10 @@ class Kiosk(SQLModel, table=True):
     access_token: str = Field(
         default_factory=_new_access_token, unique=True, index=True
     )
+    # Om satt: kioskens skanningar registreras som inventering-checks
+    # på sessionen. Editor sätter via /kiosk/inventory/start.
+    active_inventory_session_id: int | None = Field(
+        default=None, foreign_key="inventory_sessions.id"
+    )
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_activity_at: datetime | None = None

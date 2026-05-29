@@ -202,6 +202,24 @@ def _kiosk_context(request: Request, session: Session, kiosk) -> dict:
                 }
             )
 
+    # Aktivt inventeringsläge + progress
+    from app.models import InventorySession
+    from app.routes.kiosk_inventory import get_inventory_progress
+
+    inv_progress = get_inventory_progress(session, kiosk)
+    # Lista pågående inventeringar som editor kan välja att starta
+    available_inventories = (
+        list(
+            session.exec(
+                select(InventorySession)
+                .where(InventorySession.ended_at.is_(None))
+                .order_by(InventorySession.started_at.desc())
+            ).all()
+        )
+        if borrower
+        else []
+    )
+
     return {
         "borrower": borrower,
         "kiosk": kiosk,
@@ -211,6 +229,8 @@ def _kiosk_context(request: Request, session: Session, kiosk) -> dict:
         "cart_total": len(cart_items),
         "active_solo": active_solo,
         "active_batches": active_batches,
+        "inventory_progress": inv_progress,
+        "available_inventories": available_inventories,
     }
 
 
@@ -699,6 +719,16 @@ async def kiosk_piece(
                     {"label": "Enskilt lån", "copies": copies, "batch_id": None}
                 )
 
+    # Om inventeringsläge är aktivt på kiosken: registrera piecen som FOUND
+    # på alla placeringar inom kioskens plats.
+    inventory_result = None
+    if kiosk.active_inventory_session_id:
+        from app.routes.kiosk_inventory import check_piece_for_kiosk
+
+        inventory_result = check_piece_for_kiosk(
+            session, kiosk, piece.id, borrower.id if borrower else None
+        )
+
     return render(
         request,
         "pieces/kiosk_piece.html",
@@ -720,6 +750,7 @@ async def kiosk_piece(
             "composer_role": ContributorRole.COMPOSER,
             "arranger_role": ContributorRole.ARRANGER,
             "lyricist_role": ContributorRole.LYRICIST,
+            "inventory_result": inventory_result,
         },
         user=None,
     )

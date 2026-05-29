@@ -334,14 +334,25 @@ granska -> spara -> hitta igen.
       `kiosk_idle_timeout_minutes` sedan senaste request. Admin-
       konfigurerbar via `/admin/settings` med default 60 min
       (0 = aldrig logga ut).
-- [ ] **Inventering via kiosken**: idag görs `InventorySession` via
-      vanliga vyer på /inventory. Naturligare flöde: stå vid kiosk-
-      datorn, autentisera med PIN, skanna noter en åt gången för att
-      kvittera "den här är på platsen". Skanningar kopplas till en
-      aktiv inventeringssession knuten till kioskens lagringsplats.
-      UI: list-baserad inventeringsläge-vy där varje not visar
-      checked-status, anteckningar och historik. Bör fungera med
-      både QR och fritext-sök.
+- [x] **Inventering via kiosken (MVP)**: `Kiosk.active_inventory_session_id`-
+      kolumn lagrar vilken InventorySession kiosken kvitterar mot.
+      Editor (PIN-autentiserad i kiosken) startar/stoppar via knapp i
+      kioskens startvy. När aktivt registreras varje piece-skanning
+      som FOUND-check på alla placeringar inom kioskens plats. Visar
+      progress (N/M placeringar checkade) och varning om noten ligger
+      utanför kioskens plats. Logger inventory-aktivitet (start/stop +
+      varje kvittering). Fungerar med både QR-skanning och fritext-
+      sökning eftersom båda går via kiosk_piece-vyn.
+- [ ] **Telefon-som-skanner mot kiosk**: när kiosken inte har handhållen
+      QR-skanner men en användare vill bidra med skanningar via sin
+      mobil. Flöde: kiosken visar en tether-QR/token, användaren skannar
+      med sin telefon (in-browser QR-läsaren finns redan), telefonen
+      blir tillfälligt "klistrad" till kioskens session via en kort-livs-
+      token. Telefonens efterföljande QR-skanningar pushas till kioskens
+      session via polling eller SSE. Kan användas både för **inventering**
+      (telefon skannar piece → registreras som check på kiosken) och för
+      **utlåning** (telefon skannar piece → läggs i kioskens kundvagn).
+      Frikopplas när användaren är klar eller när timeout slår till.
 - [ ] **Förlag som strukturerad entitet** (liknande Person-modellen):
       `Publisher`-tabell med name + sort_name + ev. country, IMSLP-länk,
       hemsida, beskrivning. `Piece.publisher` (fritext) ersätts med

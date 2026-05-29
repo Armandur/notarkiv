@@ -150,6 +150,9 @@ def _ensure_column_guards() -> None:
             ("pin_hash", "VARCHAR"),
             ("kiosk_token", "VARCHAR"),
         ],
+        "kiosks": [
+            ("active_inventory_session_id", "INTEGER REFERENCES inventory_sessions(id)"),
+        ],
     }
 
     with engine.begin() as conn:
