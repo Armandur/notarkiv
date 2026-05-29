@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from sqlalchemy import func as sqlf
 from sqlmodel import Session, select
 
@@ -101,6 +101,44 @@ async def create_tag(
     session.commit()
     flash(request, f"Skapade '{name}'", "success")
     return RedirectResponse("/tags", status.HTTP_302_FOUND)
+
+
+_INLINE_KINDS = {TagKind.VOICING, TagKind.ACCOMPANIMENT}
+
+
+@router.post("/inline", dependencies=[Depends(verify_csrf)])
+async def create_tag_inline(
+    request: Request,
+    name: str = Form(...),
+    kind: str = Form(...),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Skapa eller återanvänd en tagg från scan/review-flödet. Returnerar JSON
+    så Tom Select kan plocka in värdet utan sidladdning."""
+    name = name.strip()
+    if not name:
+        return JSONResponse({"error": "Namn krävs"}, status_code=400)
+    try:
+        kind_enum = TagKind(kind)
+    except ValueError:
+        return JSONResponse({"error": "Okänd typ"}, status_code=400)
+    if kind_enum not in _INLINE_KINDS:
+        return JSONResponse({"error": "Endast besättning/ackompanjemang"}, status_code=400)
+
+    existing = session.exec(select(Tag).where(Tag.name == name)).first()
+    if existing:
+        if existing.kind != kind_enum.value:
+            return JSONResponse(
+                {"error": f"'{name}' finns redan som {existing.kind}"}, status_code=409
+            )
+        return JSONResponse({"id": existing.id, "name": existing.name, "existing": True})
+
+    tag = Tag(name=name, kind=kind_enum)
+    session.add(tag)
+    session.commit()
+    session.refresh(tag)
+    return JSONResponse({"id": tag.id, "name": tag.name, "existing": False})
 
 
 @router.post("/{tag_id}/update", dependencies=[Depends(verify_csrf)])

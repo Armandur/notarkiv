@@ -102,6 +102,66 @@ def test_alias_unique(logged_in_client, session: Session, admin_user_setup):
     assert "redan ett taggnamn" in r.text
 
 
+def test_inline_create_voicing(logged_in_client, session: Session, admin_user_setup):
+    from app.models import Tag
+    from app.models.tag import TagKind
+
+    csrf = get_csrf(logged_in_client, "/tags")
+    r = logged_in_client.post(
+        "/tags/inline",
+        data={"csrf_token": csrf, "name": "Mansröstkvintett", "kind": "voicing"},
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["existing"] is False
+    assert data["name"] == "Mansröstkvintett"
+    new_id = data["id"]
+
+    session.expire_all()
+    tag = session.get(Tag, new_id)
+    assert tag is not None
+    assert tag.kind == TagKind.VOICING.value
+
+    # Idempotent: andra anropet returnerar existing=true
+    r = logged_in_client.post(
+        "/tags/inline",
+        data={"csrf_token": csrf, "name": "Mansröstkvintett", "kind": "voicing"},
+    )
+    assert r.status_code == 200
+    assert r.json()["existing"] is True
+    assert r.json()["id"] == new_id
+
+
+def test_inline_create_rejects_other_kinds(
+    logged_in_client, session: Session, admin_user_setup
+):
+    csrf = get_csrf(logged_in_client, "/tags")
+    r = logged_in_client.post(
+        "/tags/inline",
+        data={"csrf_token": csrf, "name": "Helgmål", "kind": "occasion"},
+    )
+    assert r.status_code == 400, r.text
+
+
+def test_inline_create_kind_conflict(
+    logged_in_client, session: Session, admin_user_setup
+):
+    """Om namnet redan finns som annan kind, returnera 409."""
+    from app.models import Tag
+    from app.models.tag import TagKind
+
+    existing = Tag(name="Trumpetsolo", kind=TagKind.FREE)
+    session.add(existing)
+    session.commit()
+
+    csrf = get_csrf(logged_in_client, "/tags")
+    r = logged_in_client.post(
+        "/tags/inline",
+        data={"csrf_token": csrf, "name": "Trumpetsolo", "kind": "accompaniment"},
+    )
+    assert r.status_code == 409
+
+
 def test_delete_tag_lifts_children(
     logged_in_client, session: Session, admin_user_setup
 ):

@@ -22,12 +22,10 @@
 - { name: Mikaelitid, kind: occasion, sort_order: 130, parent: Kyrkoåret }
 - { name: Allhelgona, kind: occasion, sort_order: 140, parent: Kyrkoåret }
 - { name: Domsöndag, kind: occasion, sort_order: 150, parent: Kyrkoåret }
-- { name: Allmän gudstjänst, kind: occasion, sort_order: 200, parent: Kyrkoåret }
-
 # Tillfällen - kyrkliga handlingar
 - name: Kyrklig handling
   kind: occasion
-  description: Samlingsnamn för dop, konfirmation, vigsel och begravning
+  description: Samlingsnamn för dop, konfirmation, vigsel, begravning och minnesgudstjänst
   sort_order: 300
 - { name: Begravning, kind: occasion, sort_order: 310, parent: Kyrklig handling }
 - { name: Dop, kind: occasion, sort_order: 330, parent: Kyrklig handling }
@@ -37,13 +35,19 @@
   sort_order: 350
   parent: Kyrklig handling
   aliases: [Bröllop]
-- { name: Minnesgudstjänst, kind: occasion, sort_order: 360 }
-- { name: Skördegudstjänst, kind: occasion, sort_order: 70 }
-- { name: Gudstjänst med barn, kind: occasion, sort_order: 80 }
-- { name: Skolavslutning, kind: occasion, sort_order: 90 }
-- { name: Skoljul, kind: occasion, sort_order: 100 }
-- { name: Musikgudstjänst, kind: occasion, sort_order: 110 }
-- { name: Konsert, kind: occasion, sort_order: 120 }
+# Tillfällen - övriga gudstjänster och evenemang
+- name: Övriga tillfällen
+  kind: occasion
+  description: Gudstjänster och evenemang utanför kyrkoåret och kyrkliga handlingar
+  sort_order: 500
+- { name: Allmän gudstjänst, kind: occasion, sort_order: 510, parent: Övriga tillfällen }
+- { name: Skördegudstjänst, kind: occasion, sort_order: 520, parent: Övriga tillfällen }
+- { name: Gudstjänst med barn, kind: occasion, sort_order: 530, parent: Övriga tillfällen }
+- { name: Skolavslutning, kind: occasion, sort_order: 540, parent: Övriga tillfällen }
+- { name: Skoljul, kind: occasion, sort_order: 550, parent: Övriga tillfällen }
+- { name: Musikgudstjänst, kind: occasion, sort_order: 560, parent: Övriga tillfällen }
+- { name: Konsert, kind: occasion, sort_order: 570, parent: Övriga tillfällen }
+- { name: Minnesgudstjänst, kind: occasion, sort_order: 580, parent: Övriga tillfällen }
 
 # Besättningar (voicing) - tagg-formade så de kan kombineras
 - { name: SATB, kind: voicing, sort_order: 10 }
