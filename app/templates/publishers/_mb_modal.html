@@ -27,7 +27,7 @@
               <div class="flex-grow-1" style="min-width: 0">
                 <div>
                   <strong>{{ c.name }}</strong>
-                  {% if c.country %}<span class="badge bg-light text-muted border ms-1">{{ c.country }}</span>{% endif %}
+                  {% if c.country %}<span class="ms-1 small">{{ country_display(c.country) }}</span>{% endif %}
                   {% if c.type %}<span class="badge bg-light text-muted border ms-1">{{ c.type }}</span>{% endif %}
                   {% if c.score %}<span class="badge bg-secondary ms-1">{{ c.score }}%</span>{% endif %}
                 </div>
