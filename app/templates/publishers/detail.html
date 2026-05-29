@@ -18,6 +18,11 @@
       Sök i MusicBrainz
     </button>
     {% endif %}
+    {% if other_pubs %}
+    <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#mergeModal">
+      Slå ihop
+    </button>
+    {% endif %}
     <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editPubModal">
       Redigera
     </button>
@@ -85,6 +90,38 @@
 {% endif %}
 
 <div id="mb-modal-target"></div>
+
+{% if user.can_edit and other_pubs %}
+<div class="modal fade" id="mergeModal" tabindex="-1">
+  <div class="modal-dialog modal-fullscreen-sm-down">
+    <form class="modal-content" method="post" action="/publishers/{{ pub.id }}/merge">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Slå ihop förlag</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted">
+          <strong>{{ pub.name }}</strong> kommer raderas och alla {{ pieces|length }} not(er)
+          flyttas till valt målförlag. Mål-förlagets metadata behålls.
+          <strong>Kan inte ångras.</strong>
+        </p>
+        <label class="form-label">Slå ihop till</label>
+        <select name="target_id" class="form-select tomselect" required>
+          <option value="">Välj målförlag...</option>
+          {% for op in other_pubs %}
+          <option value="{{ op.id }}">{{ op.name }}{% if op.country %} ({{ op.country }}){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+        <button type="submit" class="btn btn-warning">Slå ihop</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 
 {% if user.can_edit %}
 <div class="modal fade" id="editPubModal" tabindex="-1">

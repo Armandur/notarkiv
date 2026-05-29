@@ -7,16 +7,40 @@ from sqlmodel import Session, select
 from app.models import Publisher
 
 
+_COMPANY_AFFIXES = ("ab", "förlag", "musikförlag", "edition", "gmbh", "inc", "ltd", "co")
+
+
 def _normalize(name: str) -> str:
-    """Normalisera namn för dubblettkoll - strippa whitespace,
-    lowercase, kollapsera multipla mellanslag och ta bort vanliga
-    företagssuffix så 'Verbum' / 'Verbum AB' / 'Verbum Förlag' matchar."""
-    n = " ".join(name.strip().split()).lower()
-    # Vanliga suffix
-    for suffix in (" ab", " förlag", " musikförlag", " edition", " gmbh", " inc", " ltd"):
-        if n.endswith(suffix):
-            n = n[: -len(suffix)].rstrip()
-    return n
+    """Normalisera namn för dubblettkoll - lowercase, strippa
+    skiljetecken (punkter, bindestreck, komma), kollapsera mellanslag
+    och ta bort företagsaffix från både början och slutet.
+
+    Gör att 'A.-B. Nordiska Musikförlaget', 'AB Nordiska Musikförlaget'
+    och 'Nordiska Musikförlaget AB' matchar som samma. Plus klassiska
+    'Verbum' = 'Verbum AB' = 'Verbum Förlag'."""
+    import re
+
+    n = name.lower().strip()
+    # Skiljetecken till mellanslag - så 'a.-b.' blir 'a b'
+    n = re.sub(r"[.,\-_/]+", " ", n)
+    # Kollapsera mellanslag
+    n = " ".join(n.split())
+    # Slå ihop isolerat 'a b' till 'ab' (vanligt mönster för förkortat
+    # AB i förlagsnamn: "A.-B. Nordiska" → "a b nordiska" → "ab nordiska")
+    n = re.sub(r"\ba b\b", "ab", n)
+    # Loopa tills inget affix kan strippas - täcker både prefix och
+    # suffix, samt staplade affix ('AB Förlag X' eller 'X AB Förlag')
+    changed = True
+    while changed:
+        changed = False
+        for affix in _COMPANY_AFFIXES:
+            if n.startswith(affix + " "):
+                n = n[len(affix) + 1:]
+                changed = True
+            if n.endswith(" " + affix):
+                n = n[: -(len(affix) + 1)]
+                changed = True
+    return n.strip()
 
 
 def find_or_create_publisher(session: Session, name: str | None) -> Publisher | None:

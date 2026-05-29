@@ -71,10 +71,18 @@ async def publisher_detail(
             .order_by(Piece.title)
         ).all()
     )
+    # Andra publishers att eventuellt slå ihop med
+    other_pubs = list(
+        session.exec(
+            select(Publisher)
+            .where(Publisher.id != publisher_id)
+            .order_by(Publisher.sort_name)
+        ).all()
+    )
     return render(
         request,
         "publishers/detail.html",
-        {"pub": pub, "pieces": pieces},
+        {"pub": pub, "pieces": pieces, "other_pubs": other_pubs},
         user=user,
     )
 
@@ -156,6 +164,41 @@ async def update_publisher(
     session.commit()
     flash(request, "Förlag uppdaterat", "success")
     return RedirectResponse(f"/publishers/{publisher_id}", status.HTTP_302_FOUND)
+
+
+@router.post("/{source_id}/merge", dependencies=[Depends(verify_csrf)])
+async def merge_publishers(
+    request: Request,
+    source_id: int,
+    target_id: int = Form(...),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Slå ihop två publishers. source raderas, alla pieces flyttas till
+    target. Target behåller sin metadata (mbid, beskrivning etc.) - bara
+    pieces flyttas över."""
+    if source_id == target_id:
+        flash(request, "Kan inte slå ihop med sig själv", "warning")
+        return RedirectResponse(f"/publishers/{source_id}", status.HTTP_302_FOUND)
+    source = session.get(Publisher, source_id)
+    target = session.get(Publisher, target_id)
+    if not source or not target:
+        raise HTTPException(404)
+    pieces = list(
+        session.exec(select(Piece).where(Piece.publisher_id == source_id)).all()
+    )
+    for p in pieces:
+        p.publisher_id = target_id
+        session.add(p)
+    source_name = source.name
+    session.delete(source)
+    session.commit()
+    flash(
+        request,
+        f'Slog ihop "{source_name}" → "{target.name}" ({len(pieces)} not(er) flyttade)',
+        "success",
+    )
+    return RedirectResponse(f"/publishers/{target_id}", status.HTTP_302_FOUND)
 
 
 @router.post("/match-existing", dependencies=[Depends(verify_csrf)])
