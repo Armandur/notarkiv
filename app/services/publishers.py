@@ -161,8 +161,12 @@ def enrich_publisher_from_mb(
                     publisher.website_url = url
                     break
 
-    # Wikipedia-beskrivning + källattribution
-    if description and (not publisher.description or publisher.description_source_url):
+    # Wikipedia-beskrivning + källattribution. Spara wiki_url även om
+    # beskrivningen redan finns (gammal data kan sakna källangivelse).
+    # Skriver bara över beskrivnings-texten om det inte redan finns en.
+    if wikipedia_url and not publisher.description_source_url:
+        publisher.description_source_url = wikipedia_url
+    if description and not publisher.description:
         publisher.description = description
         publisher.description_source_url = wikipedia_url
 

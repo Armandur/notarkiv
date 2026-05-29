@@ -105,6 +105,11 @@ async def edit_publisher(
                 if qid.startswith("Q"):
                     pub.wikidata_id = qid
 
+            # Spara wiki_url som källattribution om beskrivning finns men
+            # ingen källa - vanligt för data matchat innan source_url-fältet
+            if wiki_url and not pub.description_source_url and pub.description:
+                pub.description_source_url = wiki_url
+
             # Auto-skapa länkar utan att kräva bekräftelse - rena externa
             # data som inte behöver namn/beskrivnings-godkännande
             added = sync_links_from_mb(session, pub, label_data, wiki_url)
