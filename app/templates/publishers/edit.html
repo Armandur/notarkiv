@@ -115,7 +115,7 @@
   </div>
 
   <div class="mt-3 d-flex gap-2">
-    <button type="submit" class="btn btn-primary">Spara metadata</button>
+    <button type="submit" class="btn btn-primary" id="metadata-save-btn">Spara metadata</button>
     <a href="/publishers/{{ pub.id }}" class="btn btn-link">Avbryt</a>
     {% if user.is_admin %}
     <button type="button" class="btn btn-outline-danger ms-auto"
@@ -124,7 +124,26 @@
     </button>
     {% endif %}
   </div>
+
+  {# Flytande spara-knapp som syns när användaren scrollat förbi den vanliga. #}
+  <button type="submit" id="metadata-save-floating"
+          class="btn btn-primary shadow d-none"
+          style="position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 1030; padding: 0.6rem 1.2rem">
+    💾 Spara metadata
+  </button>
 </form>
+
+<script>
+(function() {
+  const original = document.getElementById('metadata-save-btn');
+  const floating = document.getElementById('metadata-save-floating');
+  if (!original || !floating) return;
+  const obs = new IntersectionObserver((entries) => {
+    floating.classList.toggle('d-none', entries[0].isIntersecting);
+  });
+  obs.observe(original);
+})();
+</script>
 
 <div class="card mt-4">
   <div class="card-header"><h2 class="h6 mb-0">Länkar</h2></div>
