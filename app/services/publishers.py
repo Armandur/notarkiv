@@ -193,4 +193,66 @@ def enrich_publisher_from_mb(
     if wikipedia_url:
         _add_link_if_new(session, publisher, wikipedia_url, PublisherLinkKind.WIKIPEDIA)
 
+    # Explicit Wikidata-länk om vi har Q-id (även om MB inte hade wikidata-rel)
+    if publisher.wikidata_id:
+        wd_link = f"https://www.wikidata.org/wiki/{publisher.wikidata_id}"
+        _add_link_if_new(session, publisher, wd_link, PublisherLinkKind.WIKIDATA)
+
+    # MusicBrainz-länk till själva label-sidan
+    if publisher.musicbrainz_label_id:
+        mb_link = f"https://musicbrainz.org/label/{publisher.musicbrainz_label_id}"
+        _add_link_if_new(session, publisher, mb_link, PublisherLinkKind.MUSICBRAINZ)
+
     return changes
+
+
+def sync_links_from_mb(
+    session: Session,
+    publisher: Publisher,
+    mb_label: dict,
+    wikipedia_url: str | None = None,
+) -> int:
+    """Auto-lägg länkar från MB-data utan att röra namn/beskrivning.
+    Används av refresh-flödet så användaren inte behöver bekräfta länkarna
+    separat (de är ren extern data). Returnerar antal nya länkar."""
+    from app.services.musicbrainz import extract_wikidata_url
+
+    before = session.exec(
+        select(PublisherLink).where(PublisherLink.publisher_id == publisher.id)
+    ).all()
+    before_count = len(before)
+
+    for rel in mb_label.get("relations", []):
+        url = (rel.get("url") or {}).get("resource") or ""
+        if not url:
+            continue
+        rel_type = rel.get("type", "")
+        if rel_type == "official homepage":
+            kind = PublisherLinkKind.OFFICIAL
+        elif rel_type == "wikidata":
+            kind = PublisherLinkKind.WIKIDATA
+        elif rel_type == "wikipedia":
+            kind = PublisherLinkKind.WIKIPEDIA
+        elif rel_type == "IMSLP":
+            kind = PublisherLinkKind.IMSLP
+        else:
+            kind = _classify_link(url)
+        _add_link_if_new(session, publisher, url, kind, label=rel_type or None)
+
+    if wikipedia_url:
+        _add_link_if_new(session, publisher, wikipedia_url, PublisherLinkKind.WIKIPEDIA)
+
+    # Wikidata Q-id → URL (även om Q-id sätts från denna refresh)
+    wd_url = extract_wikidata_url(mb_label)
+    if wd_url:
+        _add_link_if_new(session, publisher, wd_url, PublisherLinkKind.WIKIDATA)
+
+    if publisher.musicbrainz_label_id:
+        mb_link = f"https://musicbrainz.org/label/{publisher.musicbrainz_label_id}"
+        _add_link_if_new(session, publisher, mb_link, PublisherLinkKind.MUSICBRAINZ)
+
+    session.flush()
+    after = session.exec(
+        select(PublisherLink).where(PublisherLink.publisher_id == publisher.id)
+    ).all()
+    return len(after) - before_count

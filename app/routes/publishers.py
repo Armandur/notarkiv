@@ -85,6 +85,7 @@ async def edit_publisher(
             get_client,
             get_wikipedia_url,
         )
+        from app.services.publishers import sync_links_from_mb
 
         try:
             client = get_client()
@@ -97,6 +98,33 @@ async def edit_publisher(
                 await fetch_wikipedia_summary(wiki_url) if wiki_url else None
             )
             wd_url = extract_wikidata_url(label_data)
+
+            # Auto-uppdatera Wikidata-Q-id om saknas
+            if not pub.wikidata_id and wd_url:
+                qid = wd_url.rstrip("/").rsplit("/", 1)[-1]
+                if qid.startswith("Q"):
+                    pub.wikidata_id = qid
+
+            # Auto-skapa länkar utan att kräva bekräftelse - rena externa
+            # data som inte behöver namn/beskrivnings-godkännande
+            added = sync_links_from_mb(session, pub, label_data, wiki_url)
+            session.commit()
+
+            # Refresha länk-listan efter sync
+            links = list(
+                session.exec(
+                    select(PublisherLink)
+                    .where(PublisherLink.publisher_id == publisher_id)
+                    .order_by(PublisherLink.sort_order, PublisherLink.id)
+                ).all()
+            )
+            if added:
+                flash(
+                    request,
+                    f"{added} länk(ar) tillagda från MusicBrainz",
+                    "success",
+                )
+
             existing_urls = {l.url for l in links}
             mb_preview = {
                 "name": (label_data.get("name") or "").strip(),
