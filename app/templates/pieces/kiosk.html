@@ -328,10 +328,21 @@
   const form = document.getElementById('kiosk-form');
 
   function refocusIfIdle() {
-    if (document.querySelector('.modal.show')) return;
-    if (document.activeElement !== input) input.focus();
+    if (document.querySelector('.modal.show, .dropdown-menu.show')) return;
+    // Behåll fokus om något interaktivt element är aktivt (select öppen,
+    // text-input skrivs i, knapp är fokuserad efter klick m.m.)
+    const ae = document.activeElement;
+    if (ae && ae !== document.body && ae !== input
+        && ae.matches('input, select, textarea, button, a, [contenteditable]')) {
+      return;
+    }
+    if (ae !== input) input.focus();
   }
-  document.addEventListener('click', refocusIfIdle);
+  document.addEventListener('click', (e) => {
+    // Ignorera klick på interaktiva element - användaren håller på med dem
+    if (e.target.closest('input, select, textarea, button, a, label, .dropdown-menu, .modal')) return;
+    refocusIfIdle();
+  });
   setInterval(refocusIfIdle, 2000);
 
   // Enter: om input är ett 32-hex (handskanner-mönster) navigera direkt.

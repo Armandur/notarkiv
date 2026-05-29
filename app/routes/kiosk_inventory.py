@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse, Response
 from sqlmodel import Session, select
 
-from app.deps import get_session, require_editor, require_kiosk_session, verify_csrf
+from app.deps import get_session, require_kiosk_editor, require_kiosk_session, verify_csrf
 from app.models import (
     InventoryCheck,
     InventorySession,
@@ -28,7 +28,7 @@ async def start_inventory(
     request: Request,
     inventory_session_id: int = Form(...),
     kiosk: Kiosk = Depends(require_kiosk_session),
-    user: User = Depends(require_editor),
+    user: User = Depends(require_kiosk_editor),
     session: Session = Depends(get_session),
 ) -> Response:
     """Aktivera en pågående InventorySession i kiosken. Efterföljande
@@ -51,7 +51,7 @@ async def start_inventory(
 async def stop_inventory(
     request: Request,
     kiosk: Kiosk = Depends(require_kiosk_session),
-    user: User = Depends(require_editor),
+    user: User = Depends(require_kiosk_editor),
     session: Session = Depends(get_session),
 ) -> Response:
     """Stäng av inventeringsläget. Pågående session påverkas inte - bara

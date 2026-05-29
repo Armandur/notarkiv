@@ -96,6 +96,29 @@ def require_cart_actor(
     return user
 
 
+def require_kiosk_editor(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> User:
+    """Editor som agerar i en kiosk-session. Antingen browser-inloggad
+    user eller PIN-autentiserad kiosk_borrower. Båda måste ha can_edit."""
+    user_id = request.session.get("user_id") or request.session.get("kiosk_borrower_id")
+    if not user_id:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "Inloggning eller PIN-autentisering krävs",
+            headers={"Location": "/login"},
+        )
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Ogiltig session")
+    if not user.can_edit:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Saknar redigeringsbehörighet"
+        )
+    return user
+
+
 def require_kiosk_session(
     request: Request,
     session: Session = Depends(get_session),
