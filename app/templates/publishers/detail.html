@@ -10,26 +10,12 @@
   <div class="d-flex gap-2 flex-wrap">
     <a href="/publishers" class="btn btn-sm btn-outline-secondary">← Alla förlag</a>
     {% if user.can_edit %}
-    {% if not pub.musicbrainz_label_id %}
-    <button class="btn btn-sm btn-outline-primary"
-            hx-get="/publishers/{{ pub.id }}/musicbrainz"
-            hx-target="#mb-modal-target"
-            hx-swap="innerHTML">
-      Sök i MusicBrainz
-    </button>
-    {% endif %}
     {% if other_pubs %}
     <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#mergeModal">
       Slå ihop
     </button>
     {% endif %}
     <a href="/publishers/{{ pub.id }}/edit" class="btn btn-sm btn-outline-secondary">Redigera</a>
-    {% endif %}
-    {% if user.is_admin %}
-    <button class="btn btn-sm btn-outline-danger"
-            onclick="confirmAction('/publishers/{{ pub.id }}/delete', 'Radera {{ pub.name|e }}? Tillåtet bara om inga noter refererar till förlaget.')">
-      Radera
-    </button>
     {% endif %}
   </div>
 </div>
@@ -49,11 +35,6 @@
     <a href="https://musicbrainz.org/label/{{ pub.musicbrainz_label_id }}" target="_blank" rel="noopener">
       {{ pub.musicbrainz_label_id }}
     </a>
-    {% if user.can_edit %}
-    <button type="button" class="btn-close btn-close-sm ms-1"
-            onclick="confirmAction('/publishers/{{ pub.id }}/musicbrainz-id/clear', 'Rensa MB-koppling?', {submitLabel: 'Rensa'})"
-            title="Rensa MBID"></button>
-    {% endif %}
   </dd>
   {% endif %}
   {% if pub.wikidata_id %}
@@ -86,21 +67,12 @@
   {% else %}
   <div class="d-flex flex-wrap gap-1 mb-2">
     {% for l in links %}
-    <span class="badge bg-light text-dark border d-flex align-items-center gap-1">
-      <a href="{{ l.url }}" target="_blank" rel="noopener" class="text-decoration-none">
-        <span class="badge bg-secondary me-1">{{ l.kind }}</span>{{ l.label or l.url }}
-      </a>
-      {% if user.can_edit %}
-      <button type="button" class="btn-close btn-close-sm" aria-label="Ta bort"
-              onclick="confirmAction('/publishers/{{ pub.id }}/links/{{ l.id }}/delete', 'Ta bort länken?')"></button>
-      {% endif %}
-    </span>
+    <a href="{{ l.url }}" target="_blank" rel="noopener"
+       class="badge bg-light text-dark border text-decoration-none">
+      <span class="badge bg-secondary me-1">{{ l.kind }}</span>{{ l.label or l.url }}
+    </a>
     {% endfor %}
   </div>
-  {% endif %}
-
-  {% if user.can_edit and not links %}
-  <p class="small text-muted">Lägg till länkar via <a href="/publishers/{{ pub.id }}/edit">Redigera</a>.</p>
   {% endif %}
 </div>
 
@@ -120,8 +92,6 @@
   {% endfor %}
 </div>
 {% endif %}
-
-<div id="mb-modal-target"></div>
 
 {% if user.can_edit and other_pubs %}
 <div class="modal fade" id="mergeModal" tabindex="-1">
