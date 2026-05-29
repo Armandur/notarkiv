@@ -33,10 +33,23 @@ async def list_publishers(
         counts[p.id] = len(
             session.exec(select(Piece).where(Piece.publisher_id == p.id)).all()
         )
+    # Pieces med fritext-publisher men inte kopplade - kandidater för bulk-match
+    unmatched_count = len(
+        session.exec(
+            select(Piece)
+            .where(Piece.publisher.is_not(None))
+            .where(Piece.publisher_id.is_(None))
+        ).all()
+    )
     return render(
         request,
         "publishers/list.html",
-        {"publishers": pubs, "counts": counts, "q": q},
+        {
+            "publishers": pubs,
+            "counts": counts,
+            "q": q,
+            "unmatched_count": unmatched_count,
+        },
         user=user,
     )
 
@@ -143,6 +156,51 @@ async def update_publisher(
     session.commit()
     flash(request, "Förlag uppdaterat", "success")
     return RedirectResponse(f"/publishers/{publisher_id}", status.HTTP_302_FOUND)
+
+
+@router.post("/match-existing", dependencies=[Depends(verify_csrf)])
+async def match_existing(
+    request: Request,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Bulk-koppla pieces.publisher (fritext) mot Publisher-entiteten.
+
+    Loopar alla pieces som har publisher-text men inte publisher_id satt
+    och kör find_or_create_publisher per stycke. Returnerar statistik
+    om matchade vs nyskapade."""
+    from app.services.publishers import find_or_create_publisher
+
+    unmatched = list(
+        session.exec(
+            select(Piece)
+            .where(Piece.publisher.is_not(None))
+            .where(Piece.publisher_id.is_(None))
+        ).all()
+    )
+    if not unmatched:
+        flash(request, "Alla noter med förlag är redan kopplade", "info")
+        return RedirectResponse("/publishers", status.HTTP_302_FOUND)
+
+    existing_before = {p.id for p in session.exec(select(Publisher)).all()}
+    pieces_updated = 0
+    publishers_created = 0
+    for piece in unmatched:
+        pub = find_or_create_publisher(session, piece.publisher)
+        if pub:
+            piece.publisher_id = pub.id
+            session.add(piece)
+            pieces_updated += 1
+            if pub.id not in existing_before:
+                publishers_created += 1
+                existing_before.add(pub.id)
+    session.commit()
+
+    parts = [f"{pieces_updated} not(er) kopplade"]
+    if publishers_created:
+        parts.append(f"{publishers_created} nytt/nya förlag skapade")
+    flash(request, " · ".join(parts), "success")
+    return RedirectResponse("/publishers", status.HTTP_302_FOUND)
 
 
 @router.get("/{publisher_id}/musicbrainz")

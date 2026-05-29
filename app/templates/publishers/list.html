@@ -20,6 +20,23 @@
   </div>
 </form>
 
+{% if unmatched_count and user.can_edit %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <strong>{{ unmatched_count }} not{% if unmatched_count != 1 %}er{% endif %}</strong>
+    har förlag som fritext men är inte kopplade till en Publisher-entitet.
+    <div class="small text-muted">
+      Bulk-matchning dedupar suffix-tolerant (Verbum / Verbum AB / Verbum Förlag → samma).
+      Nya förlag skapas automatiskt vid behov.
+    </div>
+  </div>
+  <form method="post" action="/publishers/match-existing" class="mb-0">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="btn btn-sm btn-warning">Matcha alla nu</button>
+  </form>
+</div>
+{% endif %}
+
 {% if not publishers %}
 <p class="text-muted fst-italic">
   {% if q %}Inga träffar med valda filter.{% else %}Inga förlag ännu - de skapas automatiskt när du sparar noter med utgivare angivet.{% endif %}
