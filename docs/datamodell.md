@@ -297,8 +297,16 @@ en till rad.
 CREATE TABLE tags (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
-    kind TEXT NOT NULL,                    -- liturgical, occasion, free
+    kind TEXT NOT NULL,                    -- occasion, voicing, accompaniment, free
+    parent_id INTEGER REFERENCES tags(id),  -- för grupphierarki
+    description TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE tag_aliases (
+    id INTEGER PRIMARY KEY,
+    tag_id INTEGER NOT NULL REFERENCES tags(id),
+    name TEXT NOT NULL
 );
 
 CREATE TABLE piece_tags (
@@ -310,13 +318,23 @@ CREATE TABLE piece_tags (
 CREATE INDEX idx_piece_tags_tag ON piece_tags(tag_id);
 ```
 
-`kind` skiljer på tre typer:
-- `liturgical`: kyrkoåret - advent, jul, fasta, påsk, pingst, trinitatistid, allmän
-- `occasion`: tillfällen - begravning, bröllop, dop, konfirmation, allmän_gudstjanst
+`kind` skiljer på fyra typer:
+- `occasion`: tillfällen - kyrkoåret, kyrkliga handlingar, övriga tillfällen.
+  Hierarki via `parent_id`: t.ex. `Kyrkoåret` (root) → `Advent`, `Jul`, ...;
+  `Kyrklig handling` (root) → `Begravning`, `Dop`, `Vigsel`, `Minnesgudstjänst`;
+  `Övriga tillfällen` (root) → `Allmän gudstjänst`, `Skördegudstjänst`,
+  `Skoljul`, `Konsert`, ...
+- `voicing`: besättning - SATB, SAB, SSAA, Unison, Solo + kör, Barnkör, ...
+- `accompaniment`: ackompanjemang - A cappella, Piano, Orgel, Stråkkvartett, ...
 - `free`: fria taggar användare hittar på - barnkör, luciatåg, julbordskonsert
 
-Seedas vid första startup med en standarduppsättning för `liturgical`
-och `occasion`. `free` är tomt initialt.
+`tag_aliases` ger synonym-matchning vid filter: t.ex. alias `Bröllop` pekar
+på `Vigsel` så att filterurl `?tag=Bröllop` träffar pieces taggade `Vigsel`.
+
+Seedas vid första startup med en standarduppsättning för `occasion`,
+`voicing` och `accompaniment`. `free` är tomt initialt. Användaren kan
+skapa nya `voicing`/`accompaniment`-taggar direkt från scan/review via
+POST `/tags/inline` (inline-create i Tom Select).
 
 ### `pieces_fts` - Fulltextsökning
 

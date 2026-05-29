@@ -187,13 +187,15 @@ notarkiv/
       auth/                 # login.html, change_password.html
       pages/                # index.html (översikt + senaste noter)
       pieces/
-        list.html           # Kort/list/träd-vy via ?view=, multi-select-filter
+        list.html           # Header + script, inkluderar _list_content
+        _list_content.html  # Filter (chips + TS-pickers) + lista, HTMX-swap-fragment
         detail.html         # Read-orienterad: metadata, galleri, placeringar, taggar
         edit.html           # Metadata + bilder + MB-sökning (allt redigerbart, EasyMDE för anteckningar)
         new.html            # Manuell skapelse med valfri placering
         pdf.html            # WeasyPrint-mall för utskrift av notkatalogen
         _musicbrainz_modal.html  # HTMX-modal med söksformulär + förslag
         _tag_area.html, _tag_search_results.html  # HTMX-driven tagghantering
+        _piece_list.html    # Korthik/lista-vy som återanvänds av list + unit_detail
       scan/
         capture.html        # Vanlig (dator) skanningssida
         quick.html          # Mobil snabbskanning, multi-bild + rotation
@@ -202,7 +204,7 @@ notarkiv/
         queue.html          # Granskningskö (kort/list-toggle, avvisa/återställ)
         _status.html        # HTMX-fragment
         _musicbrainz_modal.html  # Manuell MB-sökning från granskning
-      people/               # list.html, detail.html (biografi-markdown + lightbox-portrait)
+      people/               # list.html (+ _list_content.html), detail.html, edit.html
       storage/
         manage.html, _tree.html, _unit_form.html, _kind_results.html
       inventory/
@@ -366,8 +368,15 @@ textsträng som indexeras av FTS5 för snabb sökning.
 
 `replace_contributors`-helpern i `services/people.py` är det enda
 stället där bidragslistorna sätts om - används av både scan-save,
-piece-edit och nytt-piece-flödet. Den parsar `"X; Y & Z"`-strängar
-och kör find-or-create per namn.
+piece-edit och nytt-piece-flödet. UI-formerna skickar in en `list[str]`
+av namn (från Tom Select-multi) och helpern kör find-or-create per namn.
+Sort_name genereras automatiskt via `derive_sort_name()` ("Förnamn
+Efternamn" → "Efternamn, Förnamn") för nya personer - kan justeras
+senare på Person-detalj. Inga separata sort-fält i formulären.
+
+Förlag följer samma mönster: `Publisher`-entitet, Tom Select-single,
+fritextfältet `Piece.publisher` finns kvar för bakåtkompatibilitet men
+`Piece.publisher_id` är den strukturerade källan.
 
 ### 11. Dubblettkoll vid skanning
 
@@ -426,17 +435,59 @@ driver livscykeln: `cart → picking → active → returned`.
 `Loan.batch_id = null` betyder enskilt lån (gamla flödet) - de räknas
 direkt som hämtade (`picked_up_at` sätts vid registrering).
 
+### 16. Tom Select överallt - tre klasser
+
+All autocomplete och flerval ska gå via Tom Select. Native `<datalist>`
+används inte längre. Init sker centralt i `base.html` via
+`_initTomSelects(root)`-funktionen som körs både vid `DOMContentLoaded`
+och vid `htmx:afterSettle` (så HTMX-fragment som modaler också får TS).
+Tre klasser styr beteende:
+
+- `tomselect`: vanligt val/multival utan möjlighet att skapa nytt.
+- `tomselect-creatable-local`: tillåt fritext-skapande. Värdet skickas
+  som-är till backend som kör find-or-create vid spara. Används för
+  Person- och Publisher-tags (composer/arranger/lyricist + förlag).
+- `tomselect-creatable-remote`: skapa-nytt POST:ar till `/tags/inline`
+  som returnerar `{id, name}` direkt. Används för voicing och
+  ackompanjemang där taggen behöver finnas innan piecen sparas.
+  `data-create-kind="voicing"|"accompaniment"` styr kind.
+
+Behåll native `<select>` bara för korta fasta listor (2-5 alternativ
+utan sökbehov) som `role`, `TagKind`, `physical/digital`, `ocr_provider`.
+
+### 17. Listsidor: chips + Tom Select-pickers + HTMX-swap
+
+`/pieces`, `/people` och `/publishers` följer samma filtermönster:
+
+- Aktiva filtervärden visas som klickbara **chips** med × för att ta
+  bort enskilt värde. Borttagning sker via en delegated click-handler
+  som muterar URLSearchParams och kallar `htmx.ajax`.
+- "+ X..."-rutorna är Tom Select-pickers som auto-submitar formuläret
+  vid `change`. Hidden inputs i picker-formerna bevarar övriga aktiva
+  filter, så ett val lägger till på (istället för att ersätta).
+- Routen returnerar bara fragmentet `_list_content.html` vid
+  `HX-Request: true` och sätter `HX-Push-Url`-header så URL-fältet,
+  bookmarks och back/forward fungerar trots HTMX-swap.
+- Wrappande `<div id="X-content">` är HTMX-target, swap = `outerHTML`.
+
+Konventionen `_list_content.html` är den partial som både listsidan
+och HTMX-fragmenten delar - lägg den i samma katalog som listmallen.
+
 ### 5. Sökning byggs runt körledarens mentalmodell
 
 Körledaren söker typiskt efter *tillfälle*, inte titel. UI:t designas
 för att stödja det:
 
-- Primärfilter: liturgisk kategori (advent, jul, fasta, etc.)
-- Sekundärfilter: besättning (SATB, SAB, SSA, unison, etc.)
-- Tertiärfilter: svårighet, språk, tillfälle (begravning, bröllop, dop)
-- Fritextsökning över titel, kompositör, anteckningar via FTS5
+- Primärfilter: occasion-tagg (Kyrkoåret → Advent, Jul, ...; Kyrklig
+  handling → Begravning, Dop, Vigsel, ...; Övriga tillfällen → Konsert,
+  Skoljul, ...).
+- Sekundärfilter: besättning (SATB, SAB, SSA, Unison, ...).
+- Tertiärfilter: ackompanjemang (A cappella, Piano, Orgel, ...) och språk.
+- Fritextsökning över titel, kompositör, anteckningar via FTS5.
 
-Liturgisk kategori är en tagg (många-till-många), inte ett kolumnvärde
+Alla filter visas som chips + Tom Select-pickers (se designbeslut 17).
+
+Occasion är en tagg (många-till-många), inte ett kolumnvärde
 - en not kan användas både i advent och i allmänna gudstjänster.
 
 Sökningen är abstraherad bakom `services/search.py` med en
@@ -548,8 +599,14 @@ LITESTREAM_SECRET_KEY=...
   behövs - tabellen skapas automatiskt vid nästa start.
 - **Ny OCR-provider**: skapa fil i `app/services/ocr/`, implementera
   `OCRProvider`-protocol, registrera i `routes/scan.py`.
-- **Ny taggtyp**: utöka `kind`-enum i `tags`-tabellen, lägg till i
-  taggvalsdropdown.
+- **Ny taggtyp**: utöka `TagKind`-enum i `app/models/tag.py`, lägg till
+  i seed-yaml. För inline-create via Tom Select från scan/review:
+  utöka `_INLINE_KINDS` i `app/routes/tags.py`.
+- **Nytt filter på listsida**: lägg till query-param i routen,
+  utöka `_apply_filters()` (för pieces) eller motsvarande, lägg
+  in `{% call chips_picker(...) %}` i `_list_content.html`. Glöm
+  inte hidden-input för det nya fältet i övriga formulär i samma
+  fragment så det bevaras vid auto-submit.
 - **Ny seed-data**: lägg yaml-fil i `seed_data/`, lägg en `_seed_X()`-
   funktion i `app/seed.py` och anropa från `seed_all()`. Idempotent
   via SELECT-före-INSERT.

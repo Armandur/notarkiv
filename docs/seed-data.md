@@ -94,16 +94,29 @@ stödjer kommentarer. JSON funkar också om det visar sig krångligare.
 ### Exempel: `tags.yaml`
 
 ```yaml
-- name: advent
-  kind: liturgical
-  sort_order: 10
-- name: jul
-  kind: liturgical
-  sort_order: 20
-- name: begravning
+- name: Kyrkoåret
   kind: occasion
-  sort_order: 100
+  description: Tider och söndagar i kyrkoåret
+  sort_order: 0
+- { name: Advent, kind: occasion, sort_order: 10, parent: Kyrkoåret }
+- { name: Jul, kind: occasion, sort_order: 20, parent: Kyrkoåret }
+
+- name: Kyrklig handling
+  kind: occasion
+  sort_order: 300
+- { name: Begravning, kind: occasion, sort_order: 310, parent: Kyrklig handling }
+- name: Vigsel
+  kind: occasion
+  sort_order: 350
+  parent: Kyrklig handling
+  aliases: [Bröllop]
+
+- { name: SATB, kind: voicing, sort_order: 10 }
+- { name: Piano, kind: accompaniment, sort_order: 20 }
 ```
+
+`parent`-fältet pekar via taggnamn och kopplas i ett andra pass. `aliases`
+lägger till synonymer i `tag_aliases`-tabellen som matchas i filterurlerna.
 
 ### Exempel: `unit_kinds.yaml`
 
