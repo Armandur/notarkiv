@@ -1006,10 +1006,14 @@ async def save_piece(
         if not piece:
             flash(request, "Målpiecen för omkörning finns inte längre", "danger")
             return RedirectResponse("/scan/queue", status.HTTP_302_FOUND)
+        from app.services.publishers import find_or_create_publisher
+
         piece.title = title
         piece.original_title = original_title or None
         piece.language = language or None
         piece.publisher = publisher or None
+        pub_entity = find_or_create_publisher(session, piece.publisher)
+        piece.publisher_id = pub_entity.id if pub_entity else None
         piece.edition_number = edition_number or None
         piece.notes = notes or None
         piece.musicbrainz_work_id = musicbrainz_work_id or None

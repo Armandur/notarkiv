@@ -45,6 +45,7 @@ from app.services.musicbrainz import (
     get_wikipedia_url,
     to_suggestions,
 )
+from app.services.publishers import all_publishers_for_autocomplete
 from app.services.people import (
     all_people_for_autocomplete,
     all_people_names,
@@ -1374,6 +1375,7 @@ async def new_piece_form(
             "unit_options": _unit_path_options(session),
             "people_names": all_people_names(session),
             "people_options": all_people_for_autocomplete(session),
+            "publisher_options": all_publishers_for_autocomplete(session),
             "language_options": all_languages(),
             "voicing_tags": session.exec(
                 select(Tag).where(Tag.kind == "voicing")
@@ -1413,11 +1415,16 @@ async def new_piece_save(
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
+    from app.services.publishers import find_or_create_publisher
+
+    pub_clean = (publisher or "").strip() or None
+    pub_entity = find_or_create_publisher(session, pub_clean)
     piece = Piece(
         title=title.strip(),
         original_title=(original_title or "").strip() or None,
         language=(language or "").strip() or None,
-        publisher=(publisher or "").strip() or None,
+        publisher=pub_clean,
+        publisher_id=pub_entity.id if pub_entity else None,
         edition_number=(edition_number or "").strip() or None,
         notes=(notes or "").strip() or None,
         musicbrainz_work_id=(musicbrainz_work_id or "").strip() or None,
@@ -1756,6 +1763,7 @@ async def edit_piece_form(
             "image_kinds": [k.value for k in PieceImageKind],
             "people_names": all_people_names(session),
             "people_options": all_people_for_autocomplete(session),
+            "publisher_options": all_publishers_for_autocomplete(session),
             "placements": placement_views,
             "unit_options": _unit_path_options(session),
             "unit_tree": _unit_picker_tree(session),
@@ -1857,10 +1865,14 @@ async def edit_piece_save(
     if not piece:
         raise HTTPException(404)
 
+    from app.services.publishers import find_or_create_publisher
+
     piece.title = title.strip()
     piece.original_title = (original_title or "").strip() or None
     piece.language = (language or "").strip() or None
     piece.publisher = (publisher or "").strip() or None
+    pub_entity = find_or_create_publisher(session, piece.publisher)
+    piece.publisher_id = pub_entity.id if pub_entity else None
     piece.edition_number = (edition_number or "").strip() or None
     piece.notes = (notes or "").strip() or None
     piece.musicbrainz_work_id = (musicbrainz_work_id or "").strip() or None

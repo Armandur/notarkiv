@@ -353,17 +353,23 @@ granska -> spara -> hitta igen.
       (telefon skannar piece → registreras som check på kiosken) och för
       **utlåning** (telefon skannar piece → läggs i kioskens kundvagn).
       Frikopplas när användaren är klar eller när timeout slår till.
-- [ ] **Förlag som strukturerad entitet** (liknande Person-modellen):
-      `Publisher`-tabell med name + sort_name + ev. country, IMSLP-länk,
-      hemsida, beskrivning. `Piece.publisher` (fritext) ersätts med
-      FK till Publisher (eller PieceContributor-stil länktabell om en
-      not kan ha flera utgivare). UI: autocomplete-fält som matchar
-      befintliga förlag eller skapar nytt. Vid OCR/Claude Vision: matcha
-      extraherad förlagstext mot befintliga Publisher-namn med fuzz-score
-      innan ny post skapas - hjälper mot stavningsvarianter ("Verbum",
-      "Verbum Förlag", "Verbum AB"). Migration kräver dedup av befintliga
-      fritext-värden. Tar an `MUSIC PUBLISHER`-MBID-länkningen från
-      MusicBrainz om relevant så Wikipedia-länk + logotyp kan följa med.
+- [x] **Förlag som strukturerad entitet (MVP)**: Publisher-modell
+      (name, sort_name, country, website, description) med fält för
+      framtida koppling till MusicBrainz Labels (`musicbrainz_label_id`)
+      och Wikidata (`wikidata_id`). Piece behåller `publisher` fritext
+      som legacy + ny `publisher_id` FK. `find_or_create_publisher`-
+      helper i `services/publishers` normaliserar namn (suffix-tolerant:
+      "Verbum" = "Verbum AB" = "Verbum Förlag") och dedupar. Routes
+      under `/publishers` för list, detalj, skapa, redigera (editor)
+      och radera (admin, bara om inga noter refererar). Datalist-
+      autocomplete på piece-new och piece-edit. Förlag visas som länk
+      på piece-detalj.
+- [ ] **Berikning av Publisher från MusicBrainz/Wikidata**: motsvarande
+      `enrich_person_job` för Publisher. Använda MB Labels-katalogen
+      (har stor täckning av notutgivare som Verbum, Gehrmans, Carus,
+      Bärenreiter, Hal Leonard) + Wikidata för beskrivning, hemsida,
+      grundningsår, parent label (för subsidiärer). UI: "Sök i MB
+      Labels"-modal på publisher-detail likt Person-flödet.
 
 ### UX-konsekvens
 

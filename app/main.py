@@ -18,6 +18,7 @@ from app.routes import loans as loans_routes
 from app.routes import pages as pages_routes
 from app.routes import people as people_routes
 from app.routes import pieces as pieces_routes
+from app.routes import publishers as publishers_routes
 from app.routes.pieces import kiosk_router, public_router
 from app.routes import scan as scan_routes
 from app.routes import storage as storage_routes
@@ -66,6 +67,7 @@ app.include_router(pieces_routes.router)
 app.include_router(public_router)
 app.include_router(kiosk_router)
 app.include_router(people_routes.router)
+app.include_router(publishers_routes.router)
 app.include_router(inventory_routes.router)
 app.include_router(loans_routes.router)
 app.include_router(lists_routes.router)

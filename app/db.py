@@ -131,6 +131,7 @@ def _ensure_column_guards() -> None:
         "pieces": [
             ("spotify_url", "VARCHAR"),
             ("public_id", "VARCHAR"),
+            ("publisher_id", "INTEGER REFERENCES publishers(id)"),
         ],
         "people": [
             ("wikidata_id", "VARCHAR"),

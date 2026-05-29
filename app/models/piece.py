@@ -33,7 +33,8 @@ class Piece(SQLModel, table=True):
     # Format: "Felix Mendelssohn (composer); Bob Smith (arranger)"
     contributors_cache: str | None = None
     language: str | None = None
-    publisher: str | None = None
+    publisher: str | None = None  # legacy fritext, ersatt av publisher_id
+    publisher_id: int | None = Field(default=None, foreign_key="publishers.id", index=True)
     edition_number: str | None = None
     difficulty: int | None = None
     duration_seconds: int | None = None

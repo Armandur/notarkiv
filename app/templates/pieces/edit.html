@@ -108,7 +108,7 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Förlag</label>
-          <input type="text" name="publisher" class="form-control" value="{{ piece.publisher or '' }}">
+          <input type="text" name="publisher" class="form-control" value="{{ piece.publisher or '' }}" list="publisher-options" autocomplete="off">
         </div>
         <div class="col-md-6">
           <label class="form-label">Förlagsnummer</label>
@@ -475,6 +475,9 @@ document.addEventListener('click', (e) => {
 
 <datalist id="people-options">
   {% for p in people_options %}<option value="{{ p.name }}" label="{{ p.label }}">{% endfor %}
+</datalist>
+<datalist id="publisher-options">
+  {% for pub in publisher_options %}<option value="{{ pub.name }}"{% if pub.country %} label="{{ pub.country }}"{% endif %}>{% endfor %}
 </datalist>
 
 <div id="mb-modal-target"></div>

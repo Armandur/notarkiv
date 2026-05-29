@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}{{ pub.name }} - Förlag{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="h3 mb-0">{{ pub.name }}</h1>
+    {% if pub.country %}<span class="badge bg-light text-muted border">{{ pub.country }}</span>{% endif %}
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="/publishers" class="btn btn-sm btn-outline-secondary">← Alla förlag</a>
+    {% if user.can_edit %}
+    <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editPubModal">
+      Redigera
+    </button>
+    {% endif %}
+    {% if user.is_admin %}
+    <button class="btn btn-sm btn-outline-danger"
+            onclick="confirmAction('/publishers/{{ pub.id }}/delete', 'Radera {{ pub.name|e }}? Tillåtet bara om inga noter refererar till förlaget.')">
+      Radera
+    </button>
+    {% endif %}
+  </div>
+</div>
+
+<dl class="row mb-4 small">
+  {% if pub.sort_name and pub.sort_name != pub.name %}
+  <dt class="col-sm-3">Sorteringsnamn</dt>
+  <dd class="col-sm-9">{{ pub.sort_name }}</dd>
+  {% endif %}
+  {% if pub.website_url %}
+  <dt class="col-sm-3">Hemsida</dt>
+  <dd class="col-sm-9"><a href="{{ pub.website_url }}" target="_blank" rel="noopener">{{ pub.website_url }}</a></dd>
+  {% endif %}
+  {% if pub.musicbrainz_label_id %}
+  <dt class="col-sm-3">MusicBrainz</dt>
+  <dd class="col-sm-9">
+    <a href="https://musicbrainz.org/label/{{ pub.musicbrainz_label_id }}" target="_blank" rel="noopener">
+      {{ pub.musicbrainz_label_id }}
+    </a>
+  </dd>
+  {% endif %}
+  {% if pub.wikidata_id %}
+  <dt class="col-sm-3">Wikidata</dt>
+  <dd class="col-sm-9">
+    <a href="https://www.wikidata.org/wiki/{{ pub.wikidata_id }}" target="_blank" rel="noopener">
+      {{ pub.wikidata_id }}
+    </a>
+  </dd>
+  {% endif %}
+  {% if pub.description %}
+  <dt class="col-sm-3">Beskrivning</dt>
+  <dd class="col-sm-9">{{ pub.description }}</dd>
+  {% endif %}
+</dl>
+
+<h2 class="h5 mb-2">Noter ({{ pieces|length }})</h2>
+{% if not pieces %}
+<p class="text-muted fst-italic">Inga noter registrerade på det här förlaget ännu.</p>
+{% else %}
+<div class="list-group">
+  {% for piece in pieces %}
+  <a href="/pieces/{{ piece.id }}" class="list-group-item list-group-item-action">
+    <strong>{{ piece.title }}</strong>
+    {% if piece.contributors_cache %}
+    <span class="text-muted small">· {{ piece.contributors_cache }}</span>
+    {% endif %}
+    {% if piece.edition_number %}<span class="badge bg-light text-muted border ms-1">{{ piece.edition_number }}</span>{% endif %}
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if user.can_edit %}
+<div class="modal fade" id="editPubModal" tabindex="-1">
+  <div class="modal-dialog modal-fullscreen-sm-down">
+    <form class="modal-content" method="post" action="/publishers/{{ pub.id }}/update">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Redigera förlag</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Namn</label>
+          <input type="text" name="name" class="form-control" value="{{ pub.name }}" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Sorteringsnamn</label>
+          <input type="text" name="sort_name" class="form-control" value="{{ pub.sort_name }}">
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-md-4">
+            <label class="form-label">Land</label>
+            <input type="text" name="country" class="form-control" value="{{ pub.country or '' }}">
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">Hemsida</label>
+            <input type="url" name="website_url" class="form-control" value="{{ pub.website_url or '' }}">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">MusicBrainz Label-MBID</label>
+          <input type="text" name="musicbrainz_label_id" class="form-control"
+                 value="{{ pub.musicbrainz_label_id or '' }}"
+                 placeholder="UUID från MB Labels-katalogen">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Wikidata Q-id</label>
+          <input type="text" name="wikidata_id" class="form-control"
+                 value="{{ pub.wikidata_id or '' }}" placeholder="Qxxxxx">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Beskrivning</label>
+          <textarea name="description" class="form-control" rows="3">{{ pub.description or '' }}</textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" data-bs-dismiss="modal">Avbryt</button>
+        <button type="submit" class="btn btn-primary">Spara</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

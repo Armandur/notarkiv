@@ -111,7 +111,10 @@
         {% endfor %}
       </dd>
       {% endif %}
-      {% if piece.publisher %}<dt class="col-sm-3">Förlag</dt><dd class="col-sm-9">{{ piece.publisher }}{% if piece.edition_number %} / {{ piece.edition_number }}{% endif %}</dd>{% endif %}
+      {% if piece.publisher %}<dt class="col-sm-3">Förlag</dt><dd class="col-sm-9">
+        {% if piece.publisher_id %}<a href="/publishers/{{ piece.publisher_id }}">{{ piece.publisher }}</a>{% else %}{{ piece.publisher }}{% endif %}
+        {% if piece.edition_number %} / {{ piece.edition_number }}{% endif %}
+      </dd>{% endif %}
       {% if piece.musicbrainz_work_id %}
       <dt class="col-sm-3">MusicBrainz</dt>
       <dd class="col-sm-9"><a href="https://musicbrainz.org/work/{{ piece.musicbrainz_work_id }}" target="_blank">{{ piece.musicbrainz_work_id }}</a></dd>
