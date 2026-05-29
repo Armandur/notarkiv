@@ -154,6 +154,11 @@ def _ensure_column_guards() -> None:
         "kiosks": [
             ("active_inventory_session_id", "INTEGER REFERENCES inventory_sessions(id)"),
         ],
+        "publishers": [
+            ("musicbrainz_label_id", "VARCHAR"),
+            ("wikidata_id", "VARCHAR"),
+            ("enriched_at", "DATETIME"),
+        ],
     }
 
     with engine.begin() as conn:
