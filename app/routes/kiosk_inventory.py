@@ -72,26 +72,54 @@ async def stop_inventory(
     return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
 
 
+def _status_for_actual(actual: int, expected: int | None) -> CheckStatus:
+    """Räkna ut check-status baserat på hittat antal vs förväntat."""
+    exp = expected or 0
+    if actual <= 0:
+        return CheckStatus.MISSING
+    if exp == 0:
+        # Digital placering eller okänt antal - bara registrera att den
+        # hittats (FOUND)
+        return CheckStatus.FOUND
+    if actual < exp:
+        return CheckStatus.PARTIAL
+    if actual > exp:
+        return CheckStatus.EXTRA
+    return CheckStatus.FOUND
+
+
+def _latest_actual(session: Session, inv_id: int, placement_id: int) -> int:
+    """Senaste actual_copies för en placement i denna session - 0 om
+    aldrig kvitterad."""
+    last = session.exec(
+        select(InventoryCheck)
+        .where(InventoryCheck.inventory_session_id == inv_id)
+        .where(InventoryCheck.placement_id == placement_id)
+        .order_by(InventoryCheck.checked_at.desc())
+    ).first()
+    return last.actual_copies or 0 if last else 0
+
+
 def check_piece_for_kiosk(
     session: Session,
     kiosk: Kiosk,
     piece_id: int,
     checked_by: int | None,
+    delta: int = 1,
 ) -> dict:
-    """Kvittera alla placeringar för en piece som ligger inom kioskens
-    lagringsplats som FOUND. Returnerar en dict med statistik.
+    """Kvittera piece i aktivt inventeringsläge. Räknar upp varje
+    placering inom kioskens plats med `delta` (default +1 per skanning).
 
-    Returnerar { "checked": int, "outside_location": int,
-    "no_placement": bool }. checked = placeringar som markerats found,
-    outside_location = placeringar som ligger utanför kioskens plats."""
+    Returnerar { "checks": [{placement_id, actual, expected, status,
+    path}], "outside_location": int, "no_placement": bool }."""
     if not kiosk.active_inventory_session_id:
-        return {"checked": 0, "outside_location": 0, "no_placement": True}
+        return {"checks": [], "outside_location": 0, "no_placement": True}
     inv = session.get(InventorySession, kiosk.active_inventory_session_id)
     if not inv or inv.ended_at:
-        return {"checked": 0, "outside_location": 0, "no_placement": True}
+        return {"checks": [], "outside_location": 0, "no_placement": True}
 
-    # Kioskens lagringsplats (None = alla)
     from app.routes.pieces import _kiosk_location_unit_ids
+    from app.services.storage import unit_path as _path
 
     allowed_unit_ids = _kiosk_location_unit_ids(session, kiosk.location_id)
 
@@ -99,32 +127,65 @@ def check_piece_for_kiosk(
         select(PiecePlacement).where(PiecePlacement.piece_id == piece_id)
     ).all()
     if not placements:
-        return {"checked": 0, "outside_location": 0, "no_placement": True}
+        return {"checks": [], "outside_location": 0, "no_placement": True}
 
-    checked = 0
+    from app.models import StorageUnit
+
+    checks_info = []
     outside = 0
     for pl in placements:
         if allowed_unit_ids is not None and pl.storage_unit_id not in allowed_unit_ids:
             outside += 1
             continue
-        check = InventoryCheck(
+        previous = _latest_actual(session, inv.id, pl.id)
+        new_actual = max(0, previous + delta)
+        status = _status_for_actual(new_actual, pl.copies)
+        session.add(InventoryCheck(
             inventory_session_id=inv.id,
             placement_id=pl.id,
-            status=CheckStatus.FOUND,
-            actual_copies=pl.copies,
+            status=status,
+            actual_copies=new_actual,
             checked_by=checked_by,
-        )
-        session.add(check)
-        checked += 1
-    if checked:
+        ))
+        unit = session.get(StorageUnit, pl.storage_unit_id)
+        checks_info.append({
+            "placement_id": pl.id,
+            "actual": new_actual,
+            "expected": pl.copies,
+            "status": status.value,
+            "path": _path(session, unit) if unit else "Okänd plats",
+        })
+    if checks_info:
+        delta_label = f"+{delta}" if delta >= 0 else str(delta)
         append_log(
             inv,
-            f"Piece #{piece_id} kvitterad via kiosk ({checked} placering(ar))",
+            f"Piece #{piece_id} kvitterad via kiosk ({delta_label} på {len(checks_info)} placering(ar))",
             f"user:{checked_by}" if checked_by else "kiosk",
         )
         session.add(inv)
     session.commit()
-    return {"checked": checked, "outside_location": outside, "no_placement": False}
+    return {"checks": checks_info, "outside_location": outside, "no_placement": False}
+
+
+@router.post("/adjust/{piece_public_id}", dependencies=[Depends(verify_csrf)])
+async def adjust_piece(
+    request: Request,
+    piece_public_id: str,
+    delta: int = Form(0),
+    kiosk: Kiosk = Depends(require_kiosk_session),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Manuell +/- på piecens kvittering. Används från knapparna i
+    kiosk_piece-vyn för att rätta efter automatiska +1."""
+    from app.models import Piece
+
+    piece = session.exec(select(Piece).where(Piece.public_id == piece_public_id)).first()
+    if not piece:
+        raise HTTPException(404)
+    # Använd kioskens nuvarande borrower som "checked_by"
+    borrower_id = request.session.get("kiosk_borrower_id")
+    check_piece_for_kiosk(session, kiosk, piece.id, borrower_id, delta=delta)
+    return RedirectResponse(f"/kiosk/{piece_public_id}", status.HTTP_302_FOUND)
 
 
 def get_inventory_progress(session: Session, kiosk: Kiosk) -> dict | None:

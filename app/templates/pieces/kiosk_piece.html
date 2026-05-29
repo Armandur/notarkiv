@@ -14,9 +14,39 @@
 </div>
 
 {% if inventory_result %}
-  {% if inventory_result.checked %}
-  <div class="alert alert-success py-2 small mb-2">
-    📋 <strong>Kvitterad som hittad</strong> ({{ inventory_result.checked }} placering{% if inventory_result.checked != 1 %}ar{% endif %} på {{ kiosk_location.name if kiosk_location else 'denna plats' }})
+  {% if inventory_result.checks %}
+  <div class="alert alert-success py-2 mb-2">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <strong>📋 Kvitterad i inventeringen</strong>
+      <span class="small text-muted">Blippa igen för +1 ex, eller justera med knapparna</span>
+    </div>
+    {% for c in inventory_result.checks %}
+    <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2">
+      <div class="small">
+        <strong>
+          {% if c.expected %}
+            {{ c.actual }}/{{ c.expected }} ex hittade
+          {% else %}
+            Hittad ({{ c.actual }} ex)
+          {% endif %}
+        </strong>
+        {% if c.status == 'found' %}<span class="badge bg-success">✓ stämmer</span>
+        {% elif c.status == 'partial' %}<span class="badge bg-warning text-dark">⚠ saknar {{ c.expected - c.actual }}</span>
+        {% elif c.status == 'extra' %}<span class="badge bg-warning text-dark">+ {{ c.actual - c.expected }} extra</span>
+        {% elif c.status == 'missing' %}<span class="badge bg-danger">✗ inga hittade</span>
+        {% endif %}
+        <span class="text-muted ms-2">{{ c.path }}</span>
+      </div>
+      <form method="post" action="/kiosk/inventory/adjust/{{ piece.public_id }}" class="d-flex gap-1 mb-0">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" name="delta" value="-1"
+                class="btn btn-sm btn-outline-secondary"
+                {% if c.actual <= 0 %}disabled{% endif %}>−1</button>
+        <button type="submit" name="delta" value="1"
+                class="btn btn-sm btn-outline-success">+1</button>
+      </form>
+    </div>
+    {% endfor %}
   </div>
   {% elif inventory_result.outside_location %}
   <div class="alert alert-warning py-2 small mb-2">
