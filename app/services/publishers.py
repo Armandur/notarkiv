@@ -80,45 +80,59 @@ def enrich_publisher_from_mb(
     mb_label: dict,
     wikipedia_url: str | None = None,
     description: str | None = None,
-) -> None:
-    """Applicera fält från en MB Label-träff på en publisher. Skriver
-    bara över tomma fält - användarens redigeringar bevaras."""
+) -> dict:
+    """Applicera fält från en MB Label-träff på en publisher. Användaren
+    har aktivt valt träffen, så MB:s namn + sort-name appliceras som
+    default. Returnerar en dict med 'old_name' och 'old_sort_name' om
+    de bytts ut - så caller kan visa det för användaren."""
     from app.services.musicbrainz import extract_wikidata_url
 
-    changed = False
-    if not publisher.musicbrainz_label_id:
-        publisher.musicbrainz_label_id = mb_label.get("id")
-        changed = True
-    if not publisher.country and mb_label.get("country"):
+    changes = {}
+    publisher.musicbrainz_label_id = mb_label.get("id") or publisher.musicbrainz_label_id
+
+    mb_name = (mb_label.get("name") or "").strip()
+    mb_sort = (mb_label.get("sort-name") or "").strip()
+
+    # Spara gamla värden om de ändras (för flash-meddelande)
+    if mb_name and mb_name != publisher.name:
+        # Kolla att namnet inte redan används av annan publisher
+        from sqlmodel import select
+        clash = session.exec(
+            select(Publisher)
+            .where(Publisher.name == mb_name)
+            .where(Publisher.id != publisher.id)
+        ).first()
+        if not clash:
+            changes["old_name"] = publisher.name
+            publisher.name = mb_name
+    if mb_sort and mb_sort != publisher.sort_name:
+        changes["old_sort_name"] = publisher.sort_name
+        publisher.sort_name = mb_sort
+
+    if mb_label.get("country"):
         publisher.country = mb_label["country"]
-        changed = True
-    # MB:s "name" och "sort-name"
-    if mb_label.get("sort-name") and publisher.sort_name == publisher.name:
-        publisher.sort_name = mb_label["sort-name"]
-        changed = True
+
     # Wikidata-ID från URL-rels
-    if not publisher.wikidata_id:
-        wd_url = extract_wikidata_url(mb_label)
-        if wd_url:
-            # https://www.wikidata.org/wiki/Q12345 → Q12345
-            qid = wd_url.rstrip("/").rsplit("/", 1)[-1]
-            if qid.startswith("Q"):
-                publisher.wikidata_id = qid
-                changed = True
-    # Hemsida från officiella URL-rels
+    wd_url = extract_wikidata_url(mb_label)
+    if wd_url:
+        qid = wd_url.rstrip("/").rsplit("/", 1)[-1]
+        if qid.startswith("Q"):
+            publisher.wikidata_id = qid
+
+    # Hemsida från officiella URL-rels (skriv över bara om vi inte har)
     if not publisher.website_url:
         for rel in mb_label.get("relations", []):
             if rel.get("type") == "official homepage":
                 url = (rel.get("url") or {}).get("resource") or ""
                 if url:
                     publisher.website_url = url
-                    changed = True
                     break
-    # Beskrivning från Wikipedia om vi inte har egen
+
+    # Beskrivning från Wikipedia - skriv över bara om vi inte har
     if not publisher.description and description:
         publisher.description = description
-        changed = True
-    if changed:
-        publisher.enriched_at = datetime.utcnow()
-        publisher.updated_at = datetime.utcnow()
-        session.add(publisher)
+
+    publisher.enriched_at = datetime.utcnow()
+    publisher.updated_at = datetime.utcnow()
+    session.add(publisher)
+    return changes

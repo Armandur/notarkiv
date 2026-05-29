@@ -321,12 +321,15 @@ async def apply_musicbrainz(
     wiki_url = await get_wikipedia_url(label_data)
     wiki_summary = await fetch_wikipedia_summary(wiki_url) if wiki_url else None
 
-    enrich_publisher_from_mb(
+    changes = enrich_publisher_from_mb(
         session, pub, mb_label=label_data, wikipedia_url=wiki_url,
         description=wiki_summary,
     )
     session.commit()
-    flash(request, f'Kopplad till MusicBrainz: {label_data.get("name")}', "success")
+    msg_parts = [f'Kopplad till MusicBrainz: {label_data.get("name")}']
+    if "old_name" in changes:
+        msg_parts.append(f'Namn ändrat från "{changes["old_name"]}"')
+    flash(request, " · ".join(msg_parts), "success")
     return RedirectResponse(f"/publishers/{publisher_id}", status.HTTP_302_FOUND)
 
 
