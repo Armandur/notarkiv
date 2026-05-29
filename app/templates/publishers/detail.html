@@ -20,78 +20,76 @@
   </div>
 </div>
 
-<dl class="row mb-4 small">
-  {% if pub.sort_name and pub.sort_name != pub.name %}
-  <dt class="col-sm-3">Sorteringsnamn</dt>
-  <dd class="col-sm-9">{{ pub.sort_name }}</dd>
-  {% endif %}
-  {% if pub.website_url %}
-  <dt class="col-sm-3">Hemsida</dt>
-  <dd class="col-sm-9"><a href="{{ pub.website_url }}" target="_blank" rel="noopener">{{ pub.website_url }}</a></dd>
-  {% endif %}
-  {% if pub.musicbrainz_label_id %}
-  <dt class="col-sm-3">MusicBrainz</dt>
-  <dd class="col-sm-9">
-    <a href="https://musicbrainz.org/label/{{ pub.musicbrainz_label_id }}" target="_blank" rel="noopener">
-      {{ pub.musicbrainz_label_id }}
-    </a>
-  </dd>
-  {% endif %}
-  {% if pub.wikidata_id %}
-  <dt class="col-sm-3">Wikidata</dt>
-  <dd class="col-sm-9">
-    <a href="https://www.wikidata.org/wiki/{{ pub.wikidata_id }}" target="_blank" rel="noopener">
-      {{ pub.wikidata_id }}
-    </a>
-  </dd>
-  {% endif %}
-  {% if pub.description %}
-  <dt class="col-sm-3">Beskrivning</dt>
-  <dd class="col-sm-9">
-    {{ pub.description | markdown | safe }}
+<div class="row g-4">
+  <div class="col-md-8">
+    <dl class="row small">
+      {% if pub.sort_name and pub.sort_name != pub.name %}
+      <dt class="col-sm-3">Sorteringsnamn</dt>
+      <dd class="col-sm-9">{{ pub.sort_name }}</dd>
+      {% endif %}
+      {% if pub.website_url %}
+      <dt class="col-sm-3">Hemsida</dt>
+      <dd class="col-sm-9"><a href="{{ pub.website_url }}" target="_blank" rel="noopener">{{ pub.website_url }}</a></dd>
+      {% endif %}
+    </dl>
+
+    {% if pub.description %}
+    <h2 class="h6 mb-2">Beskrivning</h2>
+    <div class="mb-2">{{ pub.description | markdown | safe }}</div>
     {% if pub.description_source_url %}
-    <div class="small text-muted mt-1">
-      Källa: <a href="{{ pub.description_source_url }}" target="_blank" rel="noopener">{{ pub.description_source_url }}</a>
-      <span class="ms-1">(CC BY-SA)</span>
+    <p class="small text-muted">
+      Beskrivning från
+      <a href="{{ pub.description_source_url }}" target="_blank">Wikipedia</a>,
+      tillgänglig under
+      <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank">CC BY-SA 4.0</a>.
+    </p>
+    {% endif %}
+    {% endif %}
+
+    <h2 class="h5 mt-4 mb-2">Noter ({{ pieces|length }})</h2>
+    {% if not pieces %}
+    <p class="text-muted fst-italic">Inga noter registrerade på det här förlaget ännu.</p>
+    {% else %}
+    <div class="list-group">
+      {% for piece in pieces %}
+      <a href="/pieces/{{ piece.id }}" class="list-group-item list-group-item-action">
+        <strong>{{ piece.title }}</strong>
+        {% if piece.contributors_cache %}
+        <span class="text-muted small">· {{ piece.contributors_cache }}</span>
+        {% endif %}
+        {% if piece.edition_number %}<span class="badge bg-light text-muted border ms-1">{{ piece.edition_number }}</span>{% endif %}
+      </a>
+      {% endfor %}
     </div>
     {% endif %}
-  </dd>
-  {% endif %}
-</dl>
-
-{# Externa länkar #}
-<div class="mb-4">
-  <h2 class="h6 mb-2">Externa länkar</h2>
-  {% if not links %}
-  <p class="text-muted small fst-italic">Inga länkar än - lägg till manuellt eller koppla mot MusicBrainz för att hämta automatiskt.</p>
-  {% else %}
-  <div class="d-flex flex-wrap gap-1 mb-2">
-    {% for l in links %}
-    <a href="{{ l.url }}" target="_blank" rel="noopener"
-       class="badge bg-light text-dark border text-decoration-none">
-      <span class="badge bg-secondary me-1">{{ l.kind }}</span>{{ l.label or l.url }}
-    </a>
-    {% endfor %}
   </div>
-  {% endif %}
-</div>
 
-<h2 class="h5 mb-2">Noter ({{ pieces|length }})</h2>
-{% if not pieces %}
-<p class="text-muted fst-italic">Inga noter registrerade på det här förlaget ännu.</p>
-{% else %}
-<div class="list-group">
-  {% for piece in pieces %}
-  <a href="/pieces/{{ piece.id }}" class="list-group-item list-group-item-action">
-    <strong>{{ piece.title }}</strong>
-    {% if piece.contributors_cache %}
-    <span class="text-muted small">· {{ piece.contributors_cache }}</span>
-    {% endif %}
-    {% if piece.edition_number %}<span class="badge bg-light text-muted border ms-1">{{ piece.edition_number }}</span>{% endif %}
-  </a>
-  {% endfor %}
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><h2 class="h6 mb-0">Externa länkar</h2></div>
+      <div class="list-group list-group-flush">
+        {% if pub.musicbrainz_label_id %}
+        <a href="https://musicbrainz.org/label/{{ pub.musicbrainz_label_id }}" target="_blank"
+           class="list-group-item list-group-item-action">
+          <span class="badge bg-light text-muted">musicbrainz</span>
+          MusicBrainz
+        </a>
+        {% endif %}
+        {# Filtrera bort MB-länken här - visas redan ovanför #}
+        {% for l in links if l.kind != 'musicbrainz' %}
+        <a href="{{ l.url }}" target="_blank" class="list-group-item list-group-item-action">
+          <span class="badge bg-light text-muted">{{ l.kind }}</span>
+          {{ l.label or l.url }}
+        </a>
+        {% endfor %}
+        {% set _non_mb = links | rejectattr('kind', 'equalto', 'musicbrainz') | list %}
+        {% if not _non_mb and not pub.musicbrainz_label_id %}
+        <div class="list-group-item text-muted small fst-italic">Inga länkar ännu</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 </div>
-{% endif %}
 
 {% if user.can_edit and other_pubs %}
 <div class="modal fade" id="mergeModal" tabindex="-1">
