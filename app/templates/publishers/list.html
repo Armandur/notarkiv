@@ -48,6 +48,12 @@
     <div class="flex-grow-1" style="min-width: 0">
       <strong>{{ p.name }}</strong>
       {% if p.country %}<span class="ms-1 small">{{ country_display(p.country) }}</span>{% endif %}
+      {% if p.musicbrainz_label_id %}
+      <span class="badge bg-light text-muted border ms-2" title="Kopplad till MusicBrainz">MB 🔗</span>
+      {% endif %}
+      {% if p.wikidata_id %}
+      <span class="badge bg-light text-muted border ms-1" title="Kopplad till Wikidata">WD 🔗</span>
+      {% endif %}
       {% if p.description %}
       <div class="text-muted small text-truncate" title="{{ p.description }}">
         {{ p.description }}
