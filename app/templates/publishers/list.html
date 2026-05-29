@@ -44,17 +44,17 @@
 {% else %}
 <div class="list-group">
   {% for p in publishers %}
-  <a href="/publishers/{{ p.id }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-    <div>
+  <a href="/publishers/{{ p.id }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-2">
+    <div class="flex-grow-1" style="min-width: 0">
       <strong>{{ p.name }}</strong>
-      {% if p.country %}<span class="badge bg-light text-muted border ms-1">{{ p.country }}</span>{% endif %}
+      {% if p.country %}<span class="ms-1 small">{{ country_display(p.country) }}</span>{% endif %}
       {% if p.description %}
-      <div class="text-muted small text-truncate" style="max-width: 60ch" title="{{ p.description }}">
+      <div class="text-muted small text-truncate" title="{{ p.description }}">
         {{ p.description }}
       </div>
       {% endif %}
     </div>
-    <span class="badge bg-secondary">{{ counts.get(p.id, 0) }} not{% if counts.get(p.id, 0) != 1 %}er{% endif %}</span>
+    <span class="badge bg-secondary flex-shrink-0">{{ counts.get(p.id, 0) }} not{% if counts.get(p.id, 0) != 1 %}er{% endif %}</span>
   </a>
   {% endfor %}
 </div>

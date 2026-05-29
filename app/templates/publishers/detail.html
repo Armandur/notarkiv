@@ -5,7 +5,7 @@
 <div class="d-flex justify-content-between align-items-baseline mb-3 flex-wrap gap-2">
   <div>
     <h1 class="h3 mb-0">{{ pub.name }}</h1>
-    {% if pub.country %}<span class="badge bg-light text-muted border">{{ pub.country }}</span>{% endif %}
+    {% if pub.country %}<span class="text-muted small">{{ country_display(pub.country) }}</span>{% endif %}
   </div>
   <div class="d-flex gap-2 flex-wrap">
     <a href="/publishers" class="btn btn-sm btn-outline-secondary">← Alla förlag</a>
