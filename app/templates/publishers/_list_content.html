@@ -1,0 +1,64 @@
+{# Sök + lista som HTMX-fragment. Wrappande #publisher-content gör att
+   hx-swap="outerHTML" byter ut hela blocket. #}
+<div id="publisher-content">
+
+<form method="get" action="/publishers" class="mb-3"
+      hx-get="/publishers" hx-target="#publisher-content" hx-swap="outerHTML">
+  <div class="d-flex gap-2 flex-wrap">
+    <input type="search" name="q" class="form-control form-control-sm"
+           placeholder="Sök på namn..." value="{{ q }}" style="max-width: 24em">
+    <button class="btn btn-sm btn-outline-secondary" type="submit">Filtrera</button>
+    {% if q %}
+    <a href="/publishers" class="btn btn-sm btn-outline-secondary"
+       hx-get="/publishers" hx-target="#publisher-content" hx-swap="outerHTML">Rensa</a>
+    {% endif %}
+  </div>
+</form>
+
+{% if unmatched_count and user.can_edit %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div>
+    <strong>{{ unmatched_count }} not{% if unmatched_count != 1 %}er{% endif %}</strong>
+    har förlag som fritext men är inte kopplade till en Publisher-entitet.
+    <div class="small text-muted">
+      Bulk-matchning dedupar suffix-tolerant (Verbum / Verbum AB / Verbum Förlag → samma).
+      Nya förlag skapas automatiskt vid behov.
+    </div>
+  </div>
+  <form method="post" action="/publishers/match-existing" class="mb-0">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="btn btn-sm btn-warning">Matcha alla nu</button>
+  </form>
+</div>
+{% endif %}
+
+{% if not publishers %}
+<p class="text-muted fst-italic">
+  {% if q %}Inga träffar med valda filter.{% else %}Inga förlag ännu - de skapas automatiskt när du sparar noter med utgivare angivet.{% endif %}
+</p>
+{% else %}
+<div class="list-group">
+  {% for p in publishers %}
+  <a href="/publishers/{{ p.id }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-2">
+    <div class="flex-grow-1" style="min-width: 0">
+      <strong>{{ p.name }}</strong>
+      {% if p.country %}<span class="ms-1 small">{{ country_display(p.country) }}</span>{% endif %}
+      {% if p.musicbrainz_label_id %}
+      <span class="badge bg-light text-muted border ms-2" title="Kopplad till MusicBrainz">MB 🔗</span>
+      {% endif %}
+      {% if p.wikidata_id %}
+      <span class="badge bg-light text-muted border ms-1" title="Kopplad till Wikidata">WD 🔗</span>
+      {% endif %}
+      {% if p.description %}
+      <div class="text-muted small text-truncate" title="{{ p.description }}">
+        {{ p.description }}
+      </div>
+      {% endif %}
+    </div>
+    <span class="badge bg-secondary flex-shrink-0">{{ counts.get(p.id, 0) }} not{% if counts.get(p.id, 0) != 1 %}er{% endif %}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+</div>{# /publisher-content #}

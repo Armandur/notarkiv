@@ -4,98 +4,23 @@
 {% block content %}
 <h1 class="h3 mb-3">Personer</h1>
 
-<form method="get" action="/people" class="mb-3">
-  <div class="row g-2 align-items-end">
-    <div class="col-md-4">
-      <input type="search" name="q" class="form-control" placeholder="Sök på namn..." value="{{ q }}">
-    </div>
+{% include "people/_list_content.html" %}
 
-    {# Roll: multi-select via checkboxar i dropdown. Skickas som upprepad ?role=... #}
-    <div class="col-md-3">
-      <div class="dropdown">
-        <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
-                data-bs-toggle="dropdown" data-bs-auto-close="outside">
-          Roll: {% if active_roles %}{{ active_roles|length }} valda{% else %}alla{% endif %}
-        </button>
-        <ul class="dropdown-menu w-100 px-3">
-          {% for r in roles %}
-          <li>
-            <label class="form-check">
-              <input class="form-check-input me-1" type="checkbox" name="role" value="{{ r }}"
-                     {% if r in active_roles %}checked{% endif %}>
-              {{ r }}
-            </label>
-          </li>
-          {% endfor %}
-        </ul>
-      </div>
-    </div>
-
-    <div class="col-md-3">
-      <div class="dropdown">
-        <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
-                data-bs-toggle="dropdown" data-bs-auto-close="outside">
-          Land: {% if active_countries %}{{ active_countries|length }} valda{% else %}alla{% endif %}
-        </button>
-        <div class="dropdown-menu w-100 p-2" style="max-height: 360px; overflow-y: auto">
-          <input type="search" class="form-control form-control-sm mb-2"
-                 placeholder="Filtrera..."
-                 oninput="(function(el){var q=el.value.toLowerCase();el.parentElement.querySelectorAll('label.country-item').forEach(function(l){l.style.display=l.textContent.toLowerCase().indexOf(q)>=0?'':'none';});})(this)"
-                 onkeydown="if(event.key==='Enter'){event.preventDefault();}">
-          {% if not country_options %}
-          <div class="text-muted small fst-italic">Inga länder ännu</div>
-          {% endif %}
-          {% for c in country_options %}
-          <label class="form-check country-item d-block">
-            <input class="form-check-input me-1" type="checkbox" name="country" value="{{ c.code }}"
-                   {% if c.code in active_countries %}checked{% endif %}>
-            {{ c.label }}
-          </label>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-
-  </div>
-  <div class="d-flex gap-2 mt-2">
-    <button class="btn btn-sm btn-outline-secondary" type="submit">Filtrera</button>
-    {% if q or active_roles or active_countries %}
-    <a href="/people" class="btn btn-sm btn-outline-secondary">Rensa</a>
-    {% endif %}
-  </div>
-</form>
-
-{% if not people %}
-<p class="text-muted fst-italic">
-  {% if q or active_roles or active_countries %}Inga träffar med valda filter.{% else %}Inga personer ännu - de skapas när du sparar noter med kompositör/arrangör/textförfattare.{% endif %}
-</p>
-{% else %}
-<div class="list-group">
-  {% for p in people %}
-  <a href="/people/{{ p.id }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-    <div>
-      <strong>{{ p.sort_name }}</strong>
-      {% if p.birth_year or p.death_year %}
-      <span class="text-muted small">
-        ({{ p.birth_year or '?' }}{% if p.death_year %} - {{ p.death_year }}{% endif %})
-      </span>
-      {% endif %}
-      {% if p.country %}
-      <span class="ms-2 small">{{ country_display(p.country) }}</span>
-      {% endif %}
-      {% if p.musicbrainz_artist_id %}
-      <span class="badge bg-light text-muted border ms-2" title="Kopplad till MusicBrainz">MB 🔗</span>
-      {% endif %}
-      {% if p.wikidata_id %}
-      <span class="badge bg-light text-muted border ms-1" title="Kopplad till Wikidata">WD 🔗</span>
-      {% endif %}
-    </div>
-    <div class="text-muted small">
-      {% set count = counts.get(p.id, 0) %}
-      {{ count }} {% if count == 1 %}not{% else %}noter{% endif %}
-    </div>
-  </a>
-  {% endfor %}
-</div>
-{% endif %}
+<script>
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('.filter-chip-remove');
+  if (!a) return;
+  e.preventDefault();
+  const params = new URLSearchParams(window.location.search);
+  const remaining = params.getAll(a.dataset.name).filter(v => v !== a.dataset.value);
+  params.delete(a.dataset.name);
+  remaining.forEach(v => params.append(a.dataset.name, v));
+  const url = '/people?' + params.toString();
+  if (window.htmx) {
+    htmx.ajax('GET', url, { target: '#people-content', swap: 'outerHTML' });
+  } else {
+    window.location.search = params.toString();
+  }
+});
+</script>
 {% endblock %}

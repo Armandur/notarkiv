@@ -43,9 +43,11 @@ async def list_publishers(
             .where(Piece.publisher_id.is_(None))
         ).all()
     )
-    return render(
+    is_htmx = request.headers.get("HX-Request") == "true"
+    template = "publishers/_list_content.html" if is_htmx else "publishers/list.html"
+    response = render(
         request,
-        "publishers/list.html",
+        template,
         {
             "publishers": pubs,
             "counts": counts,
@@ -54,6 +56,9 @@ async def list_publishers(
         },
         user=user,
     )
+    if is_htmx:
+        response.headers["HX-Push-Url"] = str(request.url)
+    return response
 
 
 @router.get("/{publisher_id}/edit")

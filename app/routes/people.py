@@ -93,9 +93,11 @@ async def list_people(
 
     roles = [r.value for r in ContributorRole]
 
-    return render(
+    is_htmx = request.headers.get("HX-Request") == "true"
+    template = "people/_list_content.html" if is_htmx else "people/list.html"
+    response = render(
         request,
-        "people/list.html",
+        template,
         {
             "people": people,
             "counts": counts,
@@ -108,6 +110,9 @@ async def list_people(
         },
         user=user,
     )
+    if is_htmx:
+        response.headers["HX-Push-Url"] = str(request.url)
+    return response
 
 
 @router.get("/search/json")

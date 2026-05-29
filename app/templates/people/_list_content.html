@@ -1,0 +1,94 @@
+{# Filter + lista som HTMX-fragment. Wrappande #people-content gör att
+   hx-swap="outerHTML" byter ut hela blocket. Samma mönster som
+   pieces/_list_content.html. #}
+<div id="people-content">
+
+<form method="get" action="/people" class="mb-3"
+      hx-get="/people" hx-target="#people-content" hx-swap="outerHTML">
+  {% for r in active_roles %}<input type="hidden" name="role" value="{{ r }}">{% endfor %}
+  {% for c in active_countries %}<input type="hidden" name="country" value="{{ c }}">{% endfor %}
+  <div class="row g-2 align-items-end">
+    <div class="col-md-8">
+      <input type="search" name="q" class="form-control" placeholder="Sök på namn..." value="{{ q }}">
+    </div>
+    <div class="col-md-4 d-flex gap-1">
+      <button class="btn btn-outline-secondary flex-grow-1" type="submit">Filtrera</button>
+      {% if q or active_roles or active_countries %}
+      <a href="/people" class="btn btn-outline-secondary"
+         hx-get="/people" hx-target="#people-content" hx-swap="outerHTML">×</a>
+      {% endif %}
+    </div>
+  </div>
+</form>
+
+{% macro chips_picker(label, name, active_values, label_for_value=None) %}
+<div class="mb-2 d-flex flex-wrap gap-2 align-items-center">
+  <span class="text-muted small" style="min-width: 8em">{{ label }}:</span>
+  {% for v in active_values %}
+  <a href="#" class="btn btn-sm btn-primary filter-chip-remove"
+     data-name="{{ name }}" data-value="{{ v }}">
+    {{ label_for_value(v) if label_for_value else v }} <span class="ms-1">×</span>
+  </a>
+  {% endfor %}
+  <form method="get" action="/people" class="d-flex gap-1 align-items-center"
+        hx-get="/people" hx-target="#people-content" hx-swap="outerHTML"
+        hx-trigger="change from:select[name='{{ name }}']">
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    {% for r in active_roles %}<input type="hidden" name="role" value="{{ r }}">{% endfor %}
+    {% for c in active_countries %}<input type="hidden" name="country" value="{{ c }}">{% endfor %}
+    {{ caller() }}
+  </form>
+</div>
+{% endmacro %}
+
+{% call chips_picker('Roll', 'role', active_roles) %}
+  <select name="role" class="form-select form-select-sm tomselect tag-filter">
+    <option value="">+ roll...</option>
+    {% for r in roles %}{% if r not in active_roles %}<option value="{{ r }}">{{ r }}</option>{% endif %}{% endfor %}
+  </select>
+{% endcall %}
+
+{% set country_label = {} %}
+{% for c in country_options %}{% set _ = country_label.update({c.code: c.label}) %}{% endfor %}
+{% call chips_picker('Land', 'country', active_countries, label_for_value=country_label.get) %}
+  <select name="country" class="form-select form-select-sm tomselect tag-filter">
+    <option value="">+ land...</option>
+    {% for c in country_options %}{% if c.code not in active_countries %}<option value="{{ c.code }}">{{ c.label }}</option>{% endif %}{% endfor %}
+  </select>
+{% endcall %}
+
+{% if not people %}
+<p class="text-muted fst-italic mt-3">
+  {% if q or active_roles or active_countries %}Inga träffar med valda filter.{% else %}Inga personer ännu - de skapas när du sparar noter med kompositör/arrangör/textförfattare.{% endif %}
+</p>
+{% else %}
+<div class="list-group mt-3">
+  {% for p in people %}
+  <a href="/people/{{ p.id }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+    <div>
+      <strong>{{ p.sort_name }}</strong>
+      {% if p.birth_year or p.death_year %}
+      <span class="text-muted small">
+        ({{ p.birth_year or '?' }}{% if p.death_year %} - {{ p.death_year }}{% endif %})
+      </span>
+      {% endif %}
+      {% if p.country %}
+      <span class="ms-2 small">{{ country_display(p.country) }}</span>
+      {% endif %}
+      {% if p.musicbrainz_artist_id %}
+      <span class="badge bg-light text-muted border ms-2" title="Kopplad till MusicBrainz">MB 🔗</span>
+      {% endif %}
+      {% if p.wikidata_id %}
+      <span class="badge bg-light text-muted border ms-1" title="Kopplad till Wikidata">WD 🔗</span>
+      {% endif %}
+    </div>
+    <div class="text-muted small">
+      {% set count = counts.get(p.id, 0) %}
+      {{ count }} {% if count == 1 %}not{% else %}noter{% endif %}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+</div>{# /people-content #}
