@@ -150,6 +150,7 @@ async def session_detail(
             unit_options.append({"id": u.id, "label": _unit_path(session, u)})
         unit_options.sort(key=lambda x: x["label"])
 
+    planned_path = _unit_path(session, unit) if unit else ""
     return render(
         request,
         "inventory/detail.html",
@@ -158,6 +159,7 @@ async def session_detail(
             "scans": scans,
             "location": location,
             "unit": unit,
+            "planned_path": planned_path,
             "unit_options": unit_options,
             "active": inv.ended_at is None,
             "saved_count": sum(1 for s in scans if s.resulting_piece_id),

@@ -100,6 +100,25 @@ def _latest_actual(session: Session, inv_id: int, placement_id: int) -> int:
     return last.actual_copies or 0 if last else 0
 
 
+def _allowed_unit_ids(session: Session, kiosk: Kiosk, inv: InventorySession) -> set[int] | None:
+    """Vilka unit_ids räknas i kiosk-inventeringen?
+
+    Prioriteringsordning:
+    1. Sessionens planned_unit_id + alla underenheter (specifik enhet)
+    2. Sessionens planned_location_id (en hel plats)
+    3. Kioskens lagringsplats (om satt)
+    4. None (alla)
+    """
+    from app.routes.pieces import _kiosk_location_unit_ids
+    from app.services.storage import unit_subtree_ids
+
+    if inv.planned_unit_id:
+        return unit_subtree_ids(session, inv.planned_unit_id)
+    if inv.planned_location_id:
+        return _kiosk_location_unit_ids(session, inv.planned_location_id)
+    return _kiosk_location_unit_ids(session, kiosk.location_id)
+
+
 def check_piece_for_kiosk(
     session: Session,
     kiosk: Kiosk,
@@ -108,7 +127,8 @@ def check_piece_for_kiosk(
     delta: int = 1,
 ) -> dict:
     """Kvittera piece i aktivt inventeringsläge. Räknar upp varje
-    placering inom kioskens plats med `delta` (default +1 per skanning).
+    placering inom inventeringens avgränsning med `delta` (default +1
+    per skanning).
 
     Returnerar { "checks": [{placement_id, actual, expected, status,
     path}], "outside_location": int, "no_placement": bool }."""
@@ -118,10 +138,9 @@ def check_piece_for_kiosk(
     if not inv or inv.ended_at:
         return {"checks": [], "outside_location": 0, "no_placement": True}
 
-    from app.routes.pieces import _kiosk_location_unit_ids
     from app.services.storage import unit_path as _path
 
-    allowed_unit_ids = _kiosk_location_unit_ids(session, kiosk.location_id)
+    allowed_unit_ids = _allowed_unit_ids(session, kiosk, inv)
 
     placements = session.exec(
         select(PiecePlacement).where(PiecePlacement.piece_id == piece_id)
@@ -197,15 +216,29 @@ def get_inventory_progress(session: Session, kiosk: Kiosk) -> dict | None:
     if not inv:
         return None
 
-    from app.models import StorageLocation
-    from app.routes.pieces import _kiosk_location_unit_ids
+    from app.models import StorageLocation, StorageUnit
+    from app.services.storage import unit_path as _path
 
-    location = (
-        session.get(StorageLocation, kiosk.location_id)
-        if kiosk.location_id
-        else None
-    )
-    allowed_unit_ids = _kiosk_location_unit_ids(session, kiosk.location_id)
+    # Vad inventerar vi? Prioritet: sessionens planned_unit > planned_location > kioskens location
+    target_path = ""
+    target_label = ""
+    if inv.planned_unit_id:
+        u = session.get(StorageUnit, inv.planned_unit_id)
+        if u:
+            target_path = _path(session, u)
+            target_label = "Enhet"
+    elif inv.planned_location_id:
+        loc = session.get(StorageLocation, inv.planned_location_id)
+        if loc:
+            target_path = loc.name
+            target_label = "Plats"
+    elif kiosk.location_id:
+        loc = session.get(StorageLocation, kiosk.location_id)
+        if loc:
+            target_path = loc.name
+            target_label = "Kioskens plats"
+
+    allowed_unit_ids = _allowed_unit_ids(session, kiosk, inv)
 
     # Alla placeringar på kioskens plats
     if allowed_unit_ids is None:
@@ -246,7 +279,8 @@ def get_inventory_progress(session: Session, kiosk: Kiosk) -> dict | None:
 
     return {
         "session": inv,
-        "location": location,
+        "target_path": target_path,
+        "target_label": target_label,
         "total_pieces": total_pieces,
         "pieces_checked": len(pieces_checked),
         "total_placements": total_placements_count,

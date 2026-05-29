@@ -25,10 +25,12 @@
   {% endif %}
 
   <dt class="col-sm-3">Aktuell placering</dt>
-  <dd class="col-sm-9">
-    {% if unit %}{{ location.name if location else '' }}{% if location %} › {% endif %}{{ unit.name }}{% else %}<em class="text-muted">ingen vald</em>{% endif %}
+  <dd class="col-sm-9 d-flex align-items-center gap-2 flex-wrap">
+    {% if planned_path %}{{ ui.place_breadcrumb(planned_path) }}
+    {% elif location %}{{ ui.place_breadcrumb(location.name) }}
+    {% else %}<em class="text-muted">ingen vald</em>{% endif %}
     {% if active %}
-    <button type="button" class="btn btn-sm btn-link p-0 ms-2" data-bs-toggle="modal" data-bs-target="#changePlacedModal">byt</button>
+    <button type="button" class="btn btn-sm btn-link p-0" data-bs-toggle="modal" data-bs-target="#changePlacedModal">byt</button>
     {% endif %}
   </dd>
   {% if active and not unit %}

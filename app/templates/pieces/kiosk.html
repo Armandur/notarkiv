@@ -110,15 +110,14 @@
             <div class="text-muted">{{ inventory_progress.session.description }}</div>
             {% endif %}
           </div>
-          {% if inventory_progress.location %}
-          <div class="small">
-            <span class="text-muted">Plats att inventera:</span>
-            <strong>{{ inventory_progress.location.name }}</strong>
-            <span class="text-muted">(noter med placering här räknas)</span>
+          {% if inventory_progress.target_path %}
+          <div class="small mt-1 d-flex align-items-center gap-1 flex-wrap">
+            <span class="text-muted">{{ inventory_progress.target_label }} att inventera:</span>
+            {{ ui.place_breadcrumb(inventory_progress.target_path) }}
           </div>
           {% else %}
           <div class="small text-warning">
-            ⚠ Kiosken är inte knuten till någon plats - alla noter räknas
+            ⚠ Ingen plats avgränsad - alla noter räknas
           </div>
           {% endif %}
         </div>
@@ -154,9 +153,9 @@
         <div>
           <div class="small"><strong>Starta inventeringsläge</strong></div>
           <div class="small text-muted">
-            Skanningar registreras som "hittad" på
-            {% if kiosk_location %}<strong>{{ kiosk_location.name }}</strong>{% else %}alla platser{% endif %}.
-            Blippa fler gånger eller justera manuellt om noten har flera ex.
+            Välj en pågående session. Den planerade plats som sessionen
+            avser bestämmer vilka noter som räknas - blippa fler gånger
+            eller justera manuellt om noten har flera ex.
           </div>
         </div>
         <form method="post" action="/kiosk/inventory/start" class="d-flex gap-2 mb-0">
