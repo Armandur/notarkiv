@@ -402,7 +402,8 @@
         <div class="col-md-4">
           <label class="form-label">Förlag</label>
           <input type="text" name="publisher" id="publisher" class="form-control"
-                 value="{{ (existing.publisher if existing else extracted.publisher) or '' }}">
+                 value="{{ (existing.publisher if existing else extracted.publisher) or '' }}"
+                 list="publisher-options" autocomplete="off">
           {{ ocr_pill('publisher', extracted.publisher, existing.publisher if existing else '') }}
         </div>
         <div class="col-md-4">
@@ -553,6 +554,9 @@ function applyMbSuggestion(mbid, title, composer, btn) {
 </script>
 <datalist id="people-options">
   {% for p in people_options %}<option value="{{ p.name }}" label="{{ p.label }}">{% endfor %}
+</datalist>
+<datalist id="publisher-options">
+  {% for pub in publisher_options %}<option value="{{ pub.name }}"{% if pub.country %} label="{{ pub.country }}"{% endif %}>{% endfor %}
 </datalist>
 
 <div id="mb-applied-banner"

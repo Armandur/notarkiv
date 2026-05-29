@@ -26,6 +26,7 @@ from app.services.musicbrainz import (
     get_wikipedia_url,
     to_suggestions,
 )
+from app.services.publishers import all_publishers_for_autocomplete
 from app.services.people import (
     all_people_for_autocomplete,
     all_people_names,
@@ -591,6 +592,7 @@ async def review_form(
             "prefill_placement_copies": scan.pre_placement_copies,
             "people_names": all_people_names(session),
             "people_options": all_people_for_autocomplete(session),
+            "publisher_options": all_publishers_for_autocomplete(session),
             "voicing_tags": voicing_tags,
             "matched_voicing_ids": matched_voicing_ids,
             "extracted_voicing_raw": extracted_voicing,
