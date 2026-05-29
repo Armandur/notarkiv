@@ -364,12 +364,15 @@ granska -> spara -> hitta igen.
       och radera (admin, bara om inga noter refererar). Datalist-
       autocomplete på piece-new och piece-edit. Förlag visas som länk
       på piece-detalj.
-- [ ] **Berikning av Publisher från MusicBrainz/Wikidata**: motsvarande
-      `enrich_person_job` för Publisher. Använda MB Labels-katalogen
-      (har stor täckning av notutgivare som Verbum, Gehrmans, Carus,
-      Bärenreiter, Hal Leonard) + Wikidata för beskrivning, hemsida,
-      grundningsår, parent label (för subsidiärer). UI: "Sök i MB
-      Labels"-modal på publisher-detail likt Person-flödet.
+- [x] **Berikning av Publisher från MusicBrainz/Wikidata**: manuell
+      sökning via "Sök i MusicBrainz"-knapp på publisher-detalj.
+      Modal listar MB Labels-träffar med score, country, type och
+      disambiguation. Apply-rutten hämtar label-data + URL-rels +
+      Wikipedia-summary och kopplar mbid, country, sort-name, hemsida
+      (från official-homepage-rel), wikidata-Q-id (från wikidata-rel)
+      och beskrivning från Wikipedia. Skriver bara över tomma fält så
+      användarens redigeringar bevaras. Auto-trigger via arq-job lämnad
+      till senare iteration.
 
 ### UX-konsekvens
 

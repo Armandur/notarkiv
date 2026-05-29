@@ -10,6 +10,14 @@
   <div class="d-flex gap-2 flex-wrap">
     <a href="/publishers" class="btn btn-sm btn-outline-secondary">← Alla förlag</a>
     {% if user.can_edit %}
+    {% if not pub.musicbrainz_label_id %}
+    <button class="btn btn-sm btn-outline-primary"
+            hx-get="/publishers/{{ pub.id }}/musicbrainz"
+            hx-target="#mb-modal-target"
+            hx-swap="innerHTML">
+      Sök i MusicBrainz
+    </button>
+    {% endif %}
     <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editPubModal">
       Redigera
     </button>
@@ -38,6 +46,11 @@
     <a href="https://musicbrainz.org/label/{{ pub.musicbrainz_label_id }}" target="_blank" rel="noopener">
       {{ pub.musicbrainz_label_id }}
     </a>
+    {% if user.can_edit %}
+    <button type="button" class="btn-close btn-close-sm ms-1"
+            onclick="confirmAction('/publishers/{{ pub.id }}/musicbrainz-id/clear', 'Rensa MB-koppling?', {submitLabel: 'Rensa'})"
+            title="Rensa MBID"></button>
+    {% endif %}
   </dd>
   {% endif %}
   {% if pub.wikidata_id %}
@@ -70,6 +83,8 @@
   {% endfor %}
 </div>
 {% endif %}
+
+<div id="mb-modal-target"></div>
 
 {% if user.can_edit %}
 <div class="modal fade" id="editPubModal" tabindex="-1">

@@ -110,6 +110,37 @@ class MusicBrainzClient:
             logger.warning("MB get_artist_with_urls misslyckades: {}", exc)
             return None
 
+    async def search_label(self, name: str) -> list[dict]:
+        """Sök labels (skivbolag/notutgivare) efter namn."""
+        await self._wait_for_rate_limit()
+        try:
+            resp = await self._client.get(
+                "/label",
+                params={
+                    "query": f'label:"{_escape(name)}"',
+                    "fmt": "json",
+                    "limit": 8,
+                },
+            )
+            resp.raise_for_status()
+            return resp.json().get("labels", [])
+        except httpx.HTTPError as exc:
+            logger.warning("MB search_label misslyckades: {}", exc)
+            return []
+
+    async def get_label_with_urls(self, mbid: str) -> dict | None:
+        """Hämta en label med URL-rels (Wikipedia, Wikidata, hemsida)."""
+        await self._wait_for_rate_limit()
+        try:
+            resp = await self._client.get(
+                f"/label/{mbid}", params={"fmt": "json", "inc": "url-rels"}
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError as exc:
+            logger.warning("MB get_label_with_urls misslyckades: {}", exc)
+            return None
+
 
 async def fetch_wikipedia_summary(url: str) -> str | None:
     """Hämta hela introduktionen (alla stycken innan första sektionsrubriken)

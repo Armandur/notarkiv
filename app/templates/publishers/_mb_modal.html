@@ -1,0 +1,61 @@
+<div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)" id="mb-modal">
+  <div class="modal-dialog modal-lg modal-fullscreen-sm-down">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5">Sök i MusicBrainz Labels</h2>
+        <button type="button" class="btn-close"
+                onclick="document.getElementById('mb-modal').remove()"></button>
+      </div>
+      <div class="modal-body">
+        <form hx-get="/publishers/{{ pub.id }}/musicbrainz"
+              hx-target="#mb-modal"
+              hx-swap="outerHTML"
+              class="d-flex gap-2 mb-3">
+          <input type="search" name="q" class="form-control"
+                 value="{{ query }}" autofocus
+                 placeholder="Sök på namn...">
+          <button type="submit" class="btn btn-primary">Sök</button>
+        </form>
+
+        {% if not candidates %}
+        <p class="text-muted fst-italic">Inga träffar. Prova en annan stavning eller alternativ namnform.</p>
+        {% else %}
+        <div class="list-group">
+          {% for c in candidates %}
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div class="flex-grow-1" style="min-width: 0">
+                <div>
+                  <strong>{{ c.name }}</strong>
+                  {% if c.country %}<span class="badge bg-light text-muted border ms-1">{{ c.country }}</span>{% endif %}
+                  {% if c.type %}<span class="badge bg-light text-muted border ms-1">{{ c.type }}</span>{% endif %}
+                  {% if c.score %}<span class="badge bg-secondary ms-1">{{ c.score }}%</span>{% endif %}
+                </div>
+                {% if c.sort_name and c.sort_name != c.name %}
+                <div class="text-muted small">{{ c.sort_name }}</div>
+                {% endif %}
+                {% if c.disambiguation %}
+                <div class="text-muted small">{{ c.disambiguation }}</div>
+                {% endif %}
+                <a href="https://musicbrainz.org/label/{{ c.id }}" target="_blank" class="small">
+                  Öppna i MusicBrainz ↗
+                </a>
+              </div>
+              <form method="post" action="/publishers/{{ pub.id }}/apply-musicbrainz" class="mb-0">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="mbid" value="{{ c.id }}">
+                <button type="submit" class="btn btn-sm btn-primary">Använd</button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link"
+                onclick="document.getElementById('mb-modal').remove()">Stäng</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -145,6 +145,108 @@ async def update_publisher(
     return RedirectResponse(f"/publishers/{publisher_id}", status.HTTP_302_FOUND)
 
 
+@router.get("/{publisher_id}/musicbrainz")
+async def search_mb_labels(
+    request: Request,
+    publisher_id: int,
+    q: str = "",
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """HTMX-modal som söker MusicBrainz Labels. q tomt = sök på publisher.name."""
+    pub = session.get(Publisher, publisher_id)
+    if not pub:
+        raise HTTPException(404)
+    query = (q or "").strip() or pub.name
+    candidates: list[dict] = []
+    try:
+        from app.services.musicbrainz import get_client
+
+        client = get_client()
+        results = await client.search_label(query)
+        for r in results[:8]:
+            candidates.append({
+                "id": r.get("id"),
+                "name": r.get("name"),
+                "sort_name": r.get("sort-name"),
+                "country": r.get("country"),
+                "type": r.get("type"),
+                "score": r.get("score"),
+                "disambiguation": r.get("disambiguation"),
+            })
+    except Exception as exc:
+        from loguru import logger
+
+        logger.warning("MB label-sökning misslyckades: {}", exc)
+    return render(
+        request,
+        "publishers/_mb_modal.html",
+        {"pub": pub, "query": query, "candidates": candidates},
+        user=user,
+    )
+
+
+@router.post("/{publisher_id}/apply-musicbrainz", dependencies=[Depends(verify_csrf)])
+async def apply_musicbrainz(
+    request: Request,
+    publisher_id: int,
+    mbid: str = Form(...),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Hämta MB label-detaljer + Wikipedia-beskrivning, applicera på publisher."""
+    pub = session.get(Publisher, publisher_id)
+    if not pub:
+        raise HTTPException(404)
+    from app.services.musicbrainz import (
+        fetch_wikipedia_summary,
+        get_client,
+        get_wikipedia_url,
+    )
+    from app.services.publishers import enrich_publisher_from_mb
+
+    client = get_client()
+    try:
+        label_data = await client.get_label_with_urls(mbid.strip())
+    except Exception as exc:
+        from loguru import logger
+
+        logger.warning("MB get_label misslyckades: {}", exc)
+        label_data = None
+    if not label_data:
+        flash(request, "Kunde inte hämta data från MusicBrainz", "danger")
+        return RedirectResponse(f"/publishers/{publisher_id}", status.HTTP_302_FOUND)
+
+    wiki_url = await get_wikipedia_url(label_data)
+    wiki_summary = await fetch_wikipedia_summary(wiki_url) if wiki_url else None
+
+    enrich_publisher_from_mb(
+        session, pub, mb_label=label_data, wikipedia_url=wiki_url,
+        description=wiki_summary,
+    )
+    session.commit()
+    flash(request, f'Kopplad till MusicBrainz: {label_data.get("name")}', "success")
+    return RedirectResponse(f"/publishers/{publisher_id}", status.HTTP_302_FOUND)
+
+
+@router.post("/{publisher_id}/musicbrainz-id/clear", dependencies=[Depends(verify_csrf)])
+async def clear_musicbrainz(
+    request: Request,
+    publisher_id: int,
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    pub = session.get(Publisher, publisher_id)
+    if not pub:
+        raise HTTPException(404)
+    pub.musicbrainz_label_id = None
+    pub.updated_at = datetime.utcnow()
+    session.add(pub)
+    session.commit()
+    flash(request, "MusicBrainz-koppling rensad", "info")
+    return RedirectResponse(f"/publishers/{publisher_id}", status.HTTP_302_FOUND)
+
+
 @router.post("/{publisher_id}/delete", dependencies=[Depends(verify_csrf)])
 async def delete_publisher(
     request: Request,
