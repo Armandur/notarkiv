@@ -1,0 +1,165 @@
+{# Filter + list-fragment som renderas både i full sidladdning (via
+   pieces/list.html) och som HTMX-swap-target vid filterändring. Wrappande
+   #piece-content gör så hx-swap="outerHTML" byter ut hela fragmentet. #}
+<div id="piece-content">
+
+<form method="get" action="/pieces" class="mb-3"
+      hx-get="/pieces" hx-target="#piece-content" hx-swap="outerHTML">
+  <input type="hidden" name="view" value="{{ view }}">
+  {# Bevara övriga filter via hidden inputs vid Filtrera-knappklick #}
+  {% for v in active_voicings %}<input type="hidden" name="voicing" value="{{ v }}">{% endfor %}
+  {% for a in active_accompaniments %}<input type="hidden" name="accompaniment" value="{{ a }}">{% endfor %}
+  {% for l in active_languages %}<input type="hidden" name="language" value="{{ l }}">{% endfor %}
+  {% for t in active_tags %}<input type="hidden" name="tag" value="{{ t }}">{% endfor %}
+  <div class="row g-2 align-items-end">
+    <div class="col-md-8">
+      <input type="search" name="q" class="form-control" placeholder="Sök titel, kompositör, anteckningar..." value="{{ q }}">
+    </div>
+    <div class="col-md-4 d-flex gap-1">
+      <button class="btn btn-outline-secondary flex-grow-1" type="submit">Filtrera</button>
+      {% if q or active_voicings or active_accompaniments or active_languages or active_tags or period != 'all' or sort != 'created_desc' %}
+      <a href="/pieces?view={{ view }}" class="btn btn-outline-secondary"
+         hx-get="/pieces?view={{ view }}" hx-target="#piece-content" hx-swap="outerHTML">×</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-2 mt-1">
+    <div class="col-md-3">
+      <label class="form-label small text-muted mb-1">Sortera</label>
+      <select name="sort" class="form-select form-select-sm"
+              hx-get="/pieces" hx-target="#piece-content" hx-swap="outerHTML"
+              hx-include="closest form" hx-trigger="change">
+        <option value="created_desc" {% if sort == 'created_desc' %}selected{% endif %}>Nyast först</option>
+        <option value="created_asc"  {% if sort == 'created_asc'  %}selected{% endif %}>Äldst först</option>
+        <option value="title"        {% if sort == 'title'        %}selected{% endif %}>Titel A-Ö</option>
+        <option value="title_desc"   {% if sort == 'title_desc'   %}selected{% endif %}>Titel Ö-A</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small text-muted mb-1">Inlagda</label>
+      <select name="period" class="form-select form-select-sm"
+              hx-get="/pieces" hx-target="#piece-content" hx-swap="outerHTML"
+              hx-include="closest form" hx-trigger="change">
+        <option value="all" {% if period == 'all' %}selected{% endif %}>När som helst</option>
+        <option value="7"   {% if period == '7'   %}selected{% endif %}>Senaste 7 dagarna</option>
+        <option value="30"  {% if period == '30'  %}selected{% endif %}>Senaste 30 dagarna</option>
+        <option value="90"  {% if period == '90'  %}selected{% endif %}>Senaste 90 dagarna</option>
+      </select>
+    </div>
+  </div>
+</form>
+
+{# Multi-värde-filter med chips + Tom Select-picker. Varje picker-form har
+   hx-get → swap:ar #piece-content. Chip-x triggar htmx.ajax via JS. #}
+{% macro chips_picker(label, name, active_values, label_for_value=None) %}
+<div class="mb-2 d-flex flex-wrap gap-2 align-items-center">
+  <span class="text-muted small" style="min-width: 8em">{{ label }}:</span>
+  {% for v in active_values %}
+  <a href="#" class="btn btn-sm btn-primary filter-chip-remove"
+     data-name="{{ name }}" data-value="{{ v }}">
+    {{ label_for_value(v) if label_for_value else v }} <span class="ms-1">×</span>
+  </a>
+  {% endfor %}
+  <form method="get" action="/pieces" class="d-flex gap-1 align-items-center"
+        hx-get="/pieces" hx-target="#piece-content" hx-swap="outerHTML"
+        hx-trigger="change from:select[name='{{ name }}']">
+    <input type="hidden" name="view" value="{{ view }}">
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    {% for v in active_voicings %}<input type="hidden" name="voicing" value="{{ v }}">{% endfor %}
+    {% for a in active_accompaniments %}<input type="hidden" name="accompaniment" value="{{ a }}">{% endfor %}
+    {% for l in active_languages %}<input type="hidden" name="language" value="{{ l }}">{% endfor %}
+    {% for at in active_tags %}<input type="hidden" name="tag" value="{{ at }}">{% endfor %}
+    {% if sort != 'created_desc' %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+    {% if period != 'all' %}<input type="hidden" name="period" value="{{ period }}">{% endif %}
+    {{ caller() }}
+  </form>
+</div>
+{% endmacro %}
+
+{% call chips_picker('Besättning', 'voicing', active_voicings) %}
+  <select name="voicing" class="form-select form-select-sm tomselect tag-filter">
+    <option value="">+ besättning...</option>
+    {% for v in voicings %}{% if v not in active_voicings %}<option value="{{ v }}">{{ v }}</option>{% endif %}{% endfor %}
+  </select>
+{% endcall %}
+
+{% call chips_picker('Ackompanjemang', 'accompaniment', active_accompaniments) %}
+  <select name="accompaniment" class="form-select form-select-sm tomselect tag-filter">
+    <option value="">+ ackompanjemang...</option>
+    {% for a in accompaniments %}{% if a not in active_accompaniments %}<option value="{{ a }}">{{ a }}</option>{% endif %}{% endfor %}
+  </select>
+{% endcall %}
+
+{% set language_label = {} %}
+{% for l in languages %}{% set _ = language_label.update({l.code: l.label}) %}{% endfor %}
+{% call chips_picker('Språk', 'language', active_languages, label_for_value=language_label.get) %}
+  <select name="language" class="form-select form-select-sm tomselect tag-filter">
+    <option value="">+ språk...</option>
+    {% for l in languages %}{% if l.code not in active_languages %}<option value="{{ l.code }}">{{ l.label }}</option>{% endif %}{% endfor %}
+  </select>
+{% endcall %}
+
+{% call chips_picker('Taggar', 'tag', active_tags) %}
+  <select name="tag" class="form-select form-select-sm tomselect tag-filter">
+    <option value="">+ tagg...</option>
+    {% for kind, kind_tags in other_tags_by_kind.items() %}
+    <optgroup label="{{ kind }}">
+      {% for t in kind_tags %}{% if t.name not in active_tags %}<option value="{{ t.name }}">{{ t.name }}</option>{% endif %}{% endfor %}
+    </optgroup>
+    {% endfor %}
+  </select>
+{% endcall %}
+
+<div class="mb-3"><a href="/tags" class="small text-muted">Alla taggar →</a></div>
+
+{% set filter_qs %}view={{ view }}{% if q %}&q={{ q|urlencode }}{% endif %}{% for v in active_voicings %}&voicing={{ v|urlencode }}{% endfor %}{% for a in active_accompaniments %}&accompaniment={{ a|urlencode }}{% endfor %}{% for l in active_languages %}&language={{ l|urlencode }}{% endfor %}{% for t in active_tags %}&tag={{ t|urlencode }}{% endfor %}{% if sort != 'created_desc' %}&sort={{ sort }}{% endif %}{% if period != 'all' %}&period={{ period }}{% endif %}{% endset %}
+
+{# Plats-filter: pickerknapp + ev. aktivt val + checkbox för underenheter #}
+<div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
+  <span class="text-muted small">Plats:</span>
+  {% if active_unit %}
+    <span class="badge bg-info text-dark">
+      {{ active_unit.path }}
+      <a href="?{{ filter_qs }}{% for at in active_tags %}&tag={{ at|urlencode }}{% endfor %}"
+         class="text-reset text-decoration-none ms-1">×</a>
+    </span>
+    <form method="get" class="d-flex gap-1 align-items-center mb-0" id="subunits-form"
+          hx-get="/pieces" hx-target="#piece-content" hx-swap="outerHTML"
+          hx-trigger="change from:input[name='include_subunits']">
+      <input type="hidden" name="view" value="{{ view }}">
+      {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+      {% for v in active_voicings %}<input type="hidden" name="voicing" value="{{ v }}">{% endfor %}
+      {% for a in active_accompaniments %}<input type="hidden" name="accompaniment" value="{{ a }}">{% endfor %}
+      {% for l in active_languages %}<input type="hidden" name="language" value="{{ l }}">{% endfor %}
+      {% for at in active_tags %}<input type="hidden" name="tag" value="{{ at }}">{% endfor %}
+      {% if sort != 'created_desc' %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+      {% if period != 'all' %}<input type="hidden" name="period" value="{{ period }}">{% endif %}
+      <input type="hidden" name="unit" value="{{ active_unit.id }}">
+      <div class="form-check form-check-inline mb-0">
+        <input type="checkbox" name="include_subunits" value="1" id="include-subunits-cb"
+               class="form-check-input" {% if include_subunits %}checked{% endif %}>
+        <label for="include-subunits-cb" class="form-check-label small">inkludera underenheter</label>
+      </div>
+    </form>
+  {% else %}
+    <button type="button" class="btn btn-sm btn-outline-secondary"
+            data-bs-toggle="modal" data-bs-target="#piecesUnitPicker">
+      Välj plats...
+    </button>
+  {% endif %}
+</div>
+
+{% with picker_id="piecesUnitPicker", nav_url="/pieces?view=" ~ view ~ "&unit={unit_id}", tree=unit_tree %}
+  {% include "pieces/_unit_picker.html" %}
+{% endwith %}
+
+{% if not pieces and (q or active_tags or active_voicings or active_accompaniments or active_languages or active_unit) %}
+<p class="text-muted fst-italic">Inga träffar med valda filter.</p>
+{% elif not pieces %}
+<p class="text-muted fst-italic">Inga noter ännu.</p>
+{% else %}
+{% include "pieces/_piece_list.html" %}
+{% endif %}
+
+</div>{# /piece-content #}

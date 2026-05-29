@@ -33,174 +33,23 @@
   </div>
 </div>
 
-<form method="get" action="/pieces" class="mb-3">
-  <input type="hidden" name="view" value="{{ view }}">
-  <div class="row g-2 align-items-end">
-    <div class="col-md-5">
-      <input type="search" name="q" class="form-control" placeholder="Sök titel, kompositör, anteckningar..." value="{{ q }}">
-    </div>
+{% include "pieces/_list_content.html" %}
 
-    {# Besättning: multi-select via checkboxar i dropdown. Skickas som upprepad ?voicing=... #}
-    <div class="col-md-3">
-      <div class="dropdown">
-        <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
-                data-bs-toggle="dropdown" data-bs-auto-close="outside">
-          Besättning: {% if active_voicings %}{{ active_voicings|length }} valda{% else %}alla{% endif %}
-        </button>
-        <ul class="dropdown-menu w-100 px-3" style="max-height: 360px; overflow-y: auto">
-          {% if not voicings %}
-          <li><div class="text-muted small fst-italic">Inga besättningar ännu</div></li>
-          {% endif %}
-          {% for v in voicings %}
-          <li>
-            <label class="form-check">
-              <input class="form-check-input me-1" type="checkbox" name="voicing" value="{{ v }}"
-                     {% if v in active_voicings %}checked{% endif %}>
-              {{ v }}
-            </label>
-          </li>
-          {% endfor %}
-        </ul>
-      </div>
-    </div>
-
-    {# Språk: multi-select med svensk namn-display. Skickas som upprepad ?language=... #}
-    <div class="col-md-2">
-      <div class="dropdown">
-        <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start"
-                data-bs-toggle="dropdown" data-bs-auto-close="outside">
-          Språk: {% if active_languages %}{{ active_languages|length }} valda{% else %}alla{% endif %}
-        </button>
-        <div class="dropdown-menu w-100 p-2" style="max-height: 360px; overflow-y: auto">
-          {% if languages|length > 8 %}
-          <input type="search" class="form-control form-control-sm mb-2"
-                 placeholder="Filtrera..."
-                 oninput="(function(el){var q=el.value.toLowerCase();el.parentElement.querySelectorAll('label.lang-item').forEach(function(l){l.style.display=l.textContent.toLowerCase().indexOf(q)>=0?'':'none';});})(this)"
-                 onkeydown="if(event.key==='Enter'){event.preventDefault();}">
-          {% endif %}
-          {% if not languages %}
-          <div class="text-muted small fst-italic">Inga språk ännu</div>
-          {% endif %}
-          {% for l in languages %}
-          <label class="form-check lang-item d-block">
-            <input class="form-check-input me-1" type="checkbox" name="language" value="{{ l.code }}"
-                   {% if l.code in active_languages %}checked{% endif %}>
-            {{ l.label }}
-          </label>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-2 d-flex gap-1">
-      {# Bevara taggar via dolda inputs så de inte tappas vid submit #}
-      {% for t in active_tags %}<input type="hidden" name="tag" value="{{ t }}">{% endfor %}
-      <button class="btn btn-outline-secondary flex-grow-1" type="submit">Filtrera</button>
-      {% if q or active_voicings or active_languages or active_tags or period != 'all' or sort != 'created_desc' %}
-      <a href="/pieces?view={{ view }}" class="btn btn-outline-secondary">×</a>
-      {% endif %}
-    </div>
-  </div>
-
-  <div class="row g-2 mt-1">
-    <div class="col-md-3">
-      <label class="form-label small text-muted mb-1">Sortera</label>
-      <select name="sort" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="created_desc" {% if sort == 'created_desc' %}selected{% endif %}>Nyast först</option>
-        <option value="created_asc"  {% if sort == 'created_asc'  %}selected{% endif %}>Äldst först</option>
-        <option value="title"        {% if sort == 'title'        %}selected{% endif %}>Titel A-Ö</option>
-        <option value="title_desc"   {% if sort == 'title_desc'   %}selected{% endif %}>Titel Ö-A</option>
-      </select>
-    </div>
-    <div class="col-md-3">
-      <label class="form-label small text-muted mb-1">Inlagda</label>
-      <select name="period" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="all" {% if period == 'all' %}selected{% endif %}>När som helst</option>
-        <option value="7"   {% if period == '7'   %}selected{% endif %}>Senaste 7 dagarna</option>
-        <option value="30"  {% if period == '30'  %}selected{% endif %}>Senaste 30 dagarna</option>
-        <option value="90"  {% if period == '90'  %}selected{% endif %}>Senaste 90 dagarna</option>
-      </select>
-    </div>
-  </div>
-</form>
-
-{# Tag-filter: aktiva som chips + autocomplete för att lägga till. /tags för översikt.
-   Bygg URL-suffix med voicing/language-listorna en gång och återanvänd. #}
-{% set filter_qs %}view={{ view }}{% if q %}&q={{ q|urlencode }}{% endif %}{% for v in active_voicings %}&voicing={{ v|urlencode }}{% endfor %}{% for l in active_languages %}&language={{ l|urlencode }}{% endfor %}{% if sort != 'created_desc' %}&sort={{ sort }}{% endif %}{% if period != 'all' %}&period={{ period }}{% endif %}{% endset %}
-<div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
-  <span class="text-muted small">Taggar:</span>
-  {% for at in active_tags %}
-    {% set remaining = active_tags|reject('equalto', at)|list %}
-    <a href="?{{ filter_qs }}{% for nt in remaining %}&tag={{ nt|urlencode }}{% endfor %}"
-       class="btn btn-sm btn-primary">
-      {{ at }} <span class="ms-1">×</span>
-    </a>
-  {% endfor %}
-
-  <form method="get" action="/pieces" class="d-flex gap-1 align-items-center">
-    <input type="hidden" name="view" value="{{ view }}">
-    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
-    {% for v in active_voicings %}<input type="hidden" name="voicing" value="{{ v }}">{% endfor %}
-    {% for l in active_languages %}<input type="hidden" name="language" value="{{ l }}">{% endfor %}
-    {% for at in active_tags %}<input type="hidden" name="tag" value="{{ at }}">{% endfor %}
-    {% if sort != 'created_desc' %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
-    {% if period != 'all' %}<input type="hidden" name="period" value="{{ period }}">{% endif %}
-    <input type="text" name="tag" list="all-tags-options" class="form-control form-control-sm"
-           placeholder="+ tagg..." style="width: 12em">
-    <button type="submit" class="btn btn-sm btn-outline-secondary">Lägg till</button>
-  </form>
-
-  <a href="/tags" class="small text-muted ms-auto">Alla taggar →</a>
-</div>
-
-<datalist id="all-tags-options">
-  {% for kind, kind_tags in tags_by_kind.items() %}
-    {% for t in kind_tags %}<option value="{{ t.name }}">{% endfor %}
-  {% endfor %}
-</datalist>
-
-{# Plats-filter: pickerknapp + ev. aktivt val + checkbox för underenheter #}
-<div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
-  <span class="text-muted small">Plats:</span>
-  {% if active_unit %}
-    <span class="badge bg-info text-dark">
-      {{ active_unit.path }}
-      <a href="?{{ filter_qs }}{% for at in active_tags %}&tag={{ at|urlencode }}{% endfor %}"
-         class="text-reset text-decoration-none ms-1">×</a>
-    </span>
-    <form method="get" class="d-flex gap-1 align-items-center mb-0" id="subunits-form">
-      <input type="hidden" name="view" value="{{ view }}">
-      {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
-      {% for v in active_voicings %}<input type="hidden" name="voicing" value="{{ v }}">{% endfor %}
-      {% for l in active_languages %}<input type="hidden" name="language" value="{{ l }}">{% endfor %}
-      {% for at in active_tags %}<input type="hidden" name="tag" value="{{ at }}">{% endfor %}
-      {% if sort != 'created_desc' %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
-      {% if period != 'all' %}<input type="hidden" name="period" value="{{ period }}">{% endif %}
-      <input type="hidden" name="unit" value="{{ active_unit.id }}">
-      <div class="form-check form-check-inline mb-0">
-        <input type="checkbox" name="include_subunits" value="1" id="include-subunits-cb"
-               class="form-check-input" {% if include_subunits %}checked{% endif %}
-               onchange="document.getElementById('subunits-form').submit()">
-        <label for="include-subunits-cb" class="form-check-label small">inkludera underenheter</label>
-      </div>
-    </form>
-  {% else %}
-    <button type="button" class="btn btn-sm btn-outline-secondary"
-            data-bs-toggle="modal" data-bs-target="#piecesUnitPicker">
-      Välj plats...
-    </button>
-  {% endif %}
-</div>
-
-{% with picker_id="piecesUnitPicker", nav_url="/pieces?view=" ~ view ~ "&unit={unit_id}", tree=unit_tree %}
-  {% include "pieces/_unit_picker.html" %}
-{% endwith %}
-
-{% if not pieces and (q or active_tags or active_voicings or active_languages or active_unit) %}
-<p class="text-muted fst-italic">Inga träffar med valda filter.</p>
-{% elif not pieces %}
-<p class="text-muted fst-italic">Inga noter ännu.</p>
-{% else %}
-{% include "pieces/_piece_list.html" %}
-{% endif %}
+<script>
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('.filter-chip-remove');
+  if (!a) return;
+  e.preventDefault();
+  const params = new URLSearchParams(window.location.search);
+  const remaining = params.getAll(a.dataset.name).filter(v => v !== a.dataset.value);
+  params.delete(a.dataset.name);
+  remaining.forEach(v => params.append(a.dataset.name, v));
+  const url = '/pieces?' + params.toString();
+  if (window.htmx) {
+    htmx.ajax('GET', url, { target: '#piece-content', swap: 'outerHTML' });
+  } else {
+    window.location.search = params.toString();
+  }
+});
+</script>
 {% endblock %}
