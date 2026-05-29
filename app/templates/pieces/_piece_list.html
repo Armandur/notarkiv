@@ -25,6 +25,7 @@
               {% if p.contributors_cache %}<div class="small text-muted text-truncate">{{ p.contributors_cache }}</div>{% endif %}
               <div class="small">
                 {% for v in voicings_by_piece.get(p.id, []) %}<span class="badge bg-secondary me-1">{{ v }}</span>{% endfor %}
+                {% for a in accompaniments_by_piece.get(p.id, []) %}<span class="badge bg-info text-dark me-1">{{ a }}</span>{% endfor %}
                 {% if p.language %}<span class="badge bg-light text-muted" title="{{ p.language }}">{{ language_display(p.language) }}</span>{% endif %}
               </div>
             </div>
@@ -44,6 +45,7 @@
         <th>Titel</th>
         <th>Kompositör / arrangör</th>
         <th>Besättning</th>
+        <th>Ackompanjemang</th>
         <th>Språk</th>
         <th>Förlag</th>
         <th class="text-end">Placeringar</th>
@@ -67,6 +69,7 @@
         </td>
         <td class="small">{{ p.contributors_cache or '' }}</td>
         <td class="small">{% for v in voicings_by_piece.get(p.id, []) %}<span class="badge bg-secondary me-1">{{ v }}</span>{% endfor %}</td>
+        <td class="small">{% for a in accompaniments_by_piece.get(p.id, []) %}<span class="badge bg-info text-dark me-1">{{ a }}</span>{% endfor %}</td>
         <td class="small">{% if p.language %}<span title="{{ p.language }}">{{ language_display(p.language) }}</span>{% endif %}</td>
         <td class="small">{{ p.publisher or '' }}{% if p.edition_number %} <span class="text-muted">/ {{ p.edition_number }}</span>{% endif %}</td>
         <td class="text-end small">

@@ -19,7 +19,7 @@
 
     <div class="mb-3">
       <label class="form-label">Förälder (valfritt)</label>
-      <select name="parent_id" class="form-select">
+      <select name="parent_id" class="form-select tomselect">
         <option value="">(toppnivå under {{ location.name }})</option>
         {% for p in valid_parents %}
         <option value="{{ p.id }}" {% if unit.parent_id == p.id %}selected{% endif %}>{{ p.name }}</option>

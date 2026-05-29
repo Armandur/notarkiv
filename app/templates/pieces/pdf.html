@@ -48,11 +48,12 @@ thead { display: table-header-group; }
 <table>
   <thead>
     <tr>
-      <th style="width: 28%">Titel</th>
-      <th style="width: 22%">Kompositör/arr.</th>
-      <th style="width: 10%">Besättning</th>
-      <th style="width: 8%">Språk</th>
-      <th style="width: 14%">Förlag</th>
+      <th style="width: 24%">Titel</th>
+      <th style="width: 20%">Kompositör/arr.</th>
+      <th style="width: 9%">Besättning</th>
+      <th style="width: 9%">Ackomp.</th>
+      <th style="width: 7%">Språk</th>
+      <th style="width: 13%">Förlag</th>
       <th style="width: 18%">Placering</th>
     </tr>
   </thead>
@@ -65,6 +66,7 @@ thead { display: table-header-group; }
       </td>
       <td class="small">{{ p.contributors_cache or '' }}</td>
       <td class="small">{{ voicings_by_piece.get(p.id, [])|join(', ') }}</td>
+      <td class="small">{{ accompaniments_by_piece.get(p.id, [])|join(', ') }}</td>
       <td class="small">{{ language_name_sv(p.language) if p.language else '' }}</td>
       <td class="small">{{ p.publisher or '' }}{% if p.edition_number %} / {{ p.edition_number }}{% endif %}</td>
       <td class="small">

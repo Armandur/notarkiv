@@ -53,7 +53,6 @@ from app.services.people import (
     enrich_person_from_mb,
     find_or_create_person,
     parse_names_field,
-    parse_sort_field,
     replace_contributors,
 )
 from app import templates_setup
@@ -780,6 +779,7 @@ async def list_pieces(
     view: str = "list",
     tag: list[str] | None = Query(default=None),
     voicing: list[str] | None = Query(default=None),
+    accompaniment: list[str] | None = Query(default=None),
     language: list[str] | None = Query(default=None),
     unit: int | None = None,
     include_subunits: bool = False,
@@ -822,14 +822,14 @@ async def list_pieces(
             pieces = []
         else:
             stmt = select(Piece).where(Piece.id.in_(candidate_ids))
-            stmt = _apply_filters(stmt, session, tag, voicing, language, unit, include_subunits)
+            stmt = _apply_filters(stmt, session, tag, voicing, accompaniment, language, unit, include_subunits)
             if period_cutoff is not None:
                 stmt = stmt.where(Piece.created_at >= period_cutoff)
             stmt = apply_sort(stmt)
             pieces = list(session.exec(stmt).all())
     else:
         stmt = select(Piece)
-        stmt = _apply_filters(stmt, session, tag, voicing, language, unit, include_subunits)
+        stmt = _apply_filters(stmt, session, tag, voicing, accompaniment, language, unit, include_subunits)
         if period_cutoff is not None:
             stmt = stmt.where(Piece.created_at >= period_cutoff)
         stmt = apply_sort(stmt)
@@ -839,6 +839,7 @@ async def list_pieces(
 
     placement_summary = _placement_summaries(session, [p.id for p in pieces])
     voicings_by_piece = _voicings_by_piece(session, [p.id for p in pieces])
+    accompaniments_by_piece = _accompaniments_by_piece(session, [p.id for p in pieces])
 
     def cover_thumb(piece_id: int) -> str | None:
         cover = covers.get(piece_id)
@@ -852,12 +853,23 @@ async def list_pieces(
     for t in all_tags:
         tags_by_kind.setdefault(t.kind, []).append(t)
 
-    # Voicings = taggar med kind=voicing (sorterade på sort_order)
+    # Voicings/ackompanjemang har egna filter; resterande kinds blandas i
+    # det generella tag-filtret längre ner.
     voicings = [
         t.name for t in session.exec(
             select(Tag).where(Tag.kind == "voicing").order_by(Tag.sort_order, Tag.name)
         ).all()
     ]
+    accompaniments = [
+        t.name for t in session.exec(
+            select(Tag).where(Tag.kind == "accompaniment").order_by(Tag.sort_order, Tag.name)
+        ).all()
+    ]
+    # tags_by_kind utan voicing/accompaniment - för tagg-filtret
+    other_tags_by_kind = {
+        k: v for k, v in tags_by_kind.items()
+        if k not in ("voicing", "accompaniment")
+    }
     languages = [
         lang for lang in session.exec(
             select(Piece.language).where(Piece.language.is_not(None)).distinct()
@@ -881,9 +893,11 @@ async def list_pieces(
                 parts.append(loc.name)
             unit_info = {"id": unit, "path": " › ".join(reversed(parts))}
 
-    return render(
+    is_htmx = request.headers.get("HX-Request") == "true"
+    template = "pieces/_list_content.html" if is_htmx else "pieces/list.html"
+    response = render(
         request,
-        "pieces/list.html",
+        template,
         {
             "pieces": pieces,
             "q": q or "",
@@ -891,10 +905,14 @@ async def list_pieces(
             "cover_thumb": cover_thumb,
             "placement_summary": placement_summary,
             "voicings_by_piece": voicings_by_piece,
+            "accompaniments_by_piece": accompaniments_by_piece,
             "tags_by_kind": tags_by_kind,
+            "other_tags_by_kind": other_tags_by_kind,
             "active_tags": set(tag or []),
             "voicings": sorted(voicings),
             "active_voicings": set(voicing or []),
+            "accompaniments": sorted(accompaniments),
+            "active_accompaniments": set(accompaniment or []),
             "languages": _language_options(sorted(languages)),
             "active_languages": set(language or []),
             "active_unit": unit_info,
@@ -905,6 +923,10 @@ async def list_pieces(
         },
         user=user,
     )
+    if is_htmx:
+        # Uppdatera URL-fältet och tillåt back/forward-knappen att fungera
+        response.headers["HX-Push-Url"] = str(request.url)
+    return response
 
 
 async def _list_tree(request: Request, user: User, session: Session) -> Response:
@@ -958,6 +980,7 @@ async def print_list(
     q: str | None = None,
     tag: list[str] | None = Query(default=None),
     voicing: list[str] | None = Query(default=None),
+    accompaniment: list[str] | None = Query(default=None),
     language: list[str] | None = Query(default=None),
     unit: int | None = None,
     include_subunits: bool = False,
@@ -983,7 +1006,7 @@ async def print_list(
     if stmt is None:
         pieces = []
     else:
-        stmt = _apply_filters(stmt, session, tag, voicing, language, unit, include_subunits)
+        stmt = _apply_filters(stmt, session, tag, voicing, accompaniment, language, unit, include_subunits)
         pieces = list(session.exec(stmt.limit(2000)).all())
 
     # Hämta placeringar grupperade
@@ -1033,6 +1056,7 @@ async def print_pdf(
     q: str | None = None,
     tag: list[str] | None = Query(default=None),
     voicing: list[str] | None = Query(default=None),
+    accompaniment: list[str] | None = Query(default=None),
     language: list[str] | None = Query(default=None),
     unit: int | None = None,
     include_subunits: bool = False,
@@ -1063,7 +1087,7 @@ async def print_pdf(
     if stmt is None:
         pieces = []
     else:
-        stmt = _apply_filters(stmt, session, tag, voicing, language, unit, include_subunits)
+        stmt = _apply_filters(stmt, session, tag, voicing, accompaniment, language, unit, include_subunits)
         pieces = list(session.exec(stmt.limit(2000)).all())
 
     placement_views: dict[int, list[str]] = {}
@@ -1092,17 +1116,20 @@ async def print_pdf(
             placement_views.setdefault(pl.piece_id, []).append(path + copies)
 
     voicings_by_piece = _voicings_by_piece(session, [p.id for p in pieces])
+    accompaniments_by_piece = _accompaniments_by_piece(session, [p.id for p in pieces])
 
     html_str = templates_setup.templates.get_template("pieces/pdf.html").render(
         request=request,
         pieces=pieces,
         placements_by_piece=placement_views,
         voicings_by_piece=voicings_by_piece,
+        accompaniments_by_piece=accompaniments_by_piece,
         language_name_sv=templates_setup.templates.env.globals["language_name_sv"],
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
         q=q or "",
         active_tags=tag or [],
         active_voicings=voicing or [],
+        active_accompaniments=accompaniment or [],
         active_languages=language or [],
     )
     pdf_bytes = HTML(string=html_str).write_pdf()
@@ -1143,7 +1170,30 @@ def _language_options(codes: list[str]) -> list[dict]:
     return out
 
 
-def _apply_filters(stmt, session, tags, voicings, languages, unit=None, include_subunits=False):
+def _filter_by_kind_tag_names(stmt, session, names, kind):
+    valid = [n for n in names if n]
+    if not valid:
+        return stmt
+    tag_ids = list(
+        session.exec(
+            select(Tag.id).where(Tag.kind == kind).where(Tag.name.in_(valid))
+        ).all()
+    )
+    if not tag_ids:
+        return stmt.where(Piece.id == -1)
+    piece_ids = list(
+        session.exec(
+            select(PieceTag.piece_id)
+            .where(PieceTag.tag_id.in_(tag_ids))
+            .distinct()
+        ).all()
+    )
+    if not piece_ids:
+        return stmt.where(Piece.id == -1)
+    return stmt.where(Piece.id.in_(piece_ids))
+
+
+def _apply_filters(stmt, session, tags, voicings, accompaniments, languages, unit=None, include_subunits=False):
     if tags:
         from app.models import TagAlias
 
@@ -1168,29 +1218,9 @@ def _apply_filters(stmt, session, tags, voicings, languages, unit=None, include_
         else:
             stmt = stmt.where(Piece.id == -1)
     if voicings:
-        valid = [v for v in voicings if v]
-        if valid:
-            voicing_tag_ids = list(
-                session.exec(
-                    select(Tag.id)
-                    .where(Tag.kind == "voicing")
-                    .where(Tag.name.in_(valid))
-                ).all()
-            )
-            if voicing_tag_ids:
-                piece_ids_with_voicing = list(
-                    session.exec(
-                        select(PieceTag.piece_id)
-                        .where(PieceTag.tag_id.in_(voicing_tag_ids))
-                        .distinct()
-                    ).all()
-                )
-                if piece_ids_with_voicing:
-                    stmt = stmt.where(Piece.id.in_(piece_ids_with_voicing))
-                else:
-                    stmt = stmt.where(Piece.id == -1)
-            else:
-                stmt = stmt.where(Piece.id == -1)
+        stmt = _filter_by_kind_tag_names(stmt, session, voicings, "voicing")
+    if accompaniments:
+        stmt = _filter_by_kind_tag_names(stmt, session, accompaniments, "accompaniment")
     if languages:
         valid = [l for l in languages if l]
         if valid:
@@ -1395,12 +1425,9 @@ async def new_piece_save(
     request: Request,
     title: str = Form(...),
     original_title: str | None = Form(None),
-    composer: str | None = Form(None),
-    arranger: str | None = Form(None),
-    lyricist: str | None = Form(None),
-    composer_sort: str | None = Form(None),
-    arranger_sort: str | None = Form(None),
-    lyricist_sort: str | None = Form(None),
+    composer: list[str] = Form(default=[]),
+    arranger: list[str] = Form(default=[]),
+    lyricist: list[str] = Form(default=[]),
     language: str | None = Form(None),
     publisher: str | None = Form(None),
     edition_number: str | None = Form(None),
@@ -1438,12 +1465,9 @@ async def new_piece_save(
     cache = replace_contributors(
         session,
         piece.id,
-        composers=parse_names_field(composer),
-        arrangers=parse_names_field(arranger),
-        lyricists=parse_names_field(lyricist),
-        composer_sorts=parse_sort_field(composer_sort),
-        arranger_sorts=parse_sort_field(arranger_sort),
-        lyricist_sorts=parse_sort_field(lyricist_sort),
+        composers=composer,
+        arrangers=arranger,
+        lyricists=lyricist,
     )
     piece.contributors_cache = cache or None
     session.add(piece)
@@ -1645,18 +1669,6 @@ async def piece_detail(
     )
 
 
-def _format_contributor_list(contributors: dict[ContributorRole, list[Person]], role: ContributorRole) -> str:
-    """Bygg tillbaka en sträng som kan editeras: 'Felix Mendelssohn; Hugo Distler'."""
-    people = contributors.get(role, [])
-    return "; ".join(p.name for p in people)
-
-
-def _format_contributor_sorts(contributors: dict[ContributorRole, list[Person]], role: ContributorRole) -> str:
-    """Bygg motsvarande sort_name-sträng - används för förifyllning i edit-form."""
-    people = contributors.get(role, [])
-    return "; ".join(p.sort_name or "" for p in people)
-
-
 @router.get("/{piece_id}/edit")
 async def edit_piece_form(
     request: Request,
@@ -1753,12 +1765,9 @@ async def edit_piece_form(
         "pieces/edit.html",
         {
             "piece": piece,
-            "composers_str": _format_contributor_list(contributors, ContributorRole.COMPOSER),
-            "arrangers_str": _format_contributor_list(contributors, ContributorRole.ARRANGER),
-            "lyricists_str": _format_contributor_list(contributors, ContributorRole.LYRICIST),
-            "composer_sorts_str": _format_contributor_sorts(contributors, ContributorRole.COMPOSER),
-            "arranger_sorts_str": _format_contributor_sorts(contributors, ContributorRole.ARRANGER),
-            "lyricist_sorts_str": _format_contributor_sorts(contributors, ContributorRole.LYRICIST),
+            "selected_composers": [p.name for p in contributors.get(ContributorRole.COMPOSER, [])],
+            "selected_arrangers": [p.name for p in contributors.get(ContributorRole.ARRANGER, [])],
+            "selected_lyricists": [p.name for p in contributors.get(ContributorRole.LYRICIST, [])],
             "images": images,
             "image_kinds": [k.value for k in PieceImageKind],
             "people_names": all_people_names(session),
@@ -1844,12 +1853,9 @@ async def edit_piece_save(
     piece_id: int,
     title: str = Form(...),
     original_title: str | None = Form(None),
-    composer: str | None = Form(None),
-    arranger: str | None = Form(None),
-    lyricist: str | None = Form(None),
-    composer_sort: str | None = Form(None),
-    arranger_sort: str | None = Form(None),
-    lyricist_sort: str | None = Form(None),
+    composer: list[str] = Form(default=[]),
+    arranger: list[str] = Form(default=[]),
+    lyricist: list[str] = Form(default=[]),
     language: str | None = Form(None),
     publisher: str | None = Form(None),
     edition_number: str | None = Form(None),
@@ -1882,12 +1888,9 @@ async def edit_piece_save(
     cache = replace_contributors(
         session,
         piece_id,
-        composers=parse_names_field(composer),
-        arrangers=parse_names_field(arranger),
-        lyricists=parse_names_field(lyricist),
-        composer_sorts=parse_sort_field(composer_sort),
-        arranger_sorts=parse_sort_field(arranger_sort),
-        lyricist_sorts=parse_sort_field(lyricist_sort),
+        composers=composer,
+        arrangers=arranger,
+        lyricists=lyricist,
     )
     piece.contributors_cache = cache or None
     session.add(piece)
@@ -2345,22 +2348,32 @@ def _set_kind_tags(
             session.add(PieceTag(piece_id=piece_id, tag_id=t.id))
 
 
-def _voicings_by_piece(session: Session, piece_ids: list[int]) -> dict[int, list[str]]:
-    """Returnera dict piece_id -> lista av voicing-tag-namn, sorterade på
-    Tag.sort_order. Tom dict om inga pieces."""
+def _kind_tags_by_piece(
+    session: Session, piece_ids: list[int], kind: str
+) -> dict[int, list[str]]:
+    """Returnera dict piece_id -> lista av tag-namn för given kind,
+    sorterade på Tag.sort_order. Tom dict om inga pieces."""
     if not piece_ids:
         return {}
     rows = session.exec(
         select(PieceTag.piece_id, Tag.name)
         .join(Tag, Tag.id == PieceTag.tag_id)
         .where(PieceTag.piece_id.in_(piece_ids))
-        .where(Tag.kind == "voicing")
+        .where(Tag.kind == kind)
         .order_by(Tag.sort_order, Tag.name)
     ).all()
     out: dict[int, list[str]] = {}
     for piece_id, name in rows:
         out.setdefault(piece_id, []).append(name)
     return out
+
+
+def _voicings_by_piece(session: Session, piece_ids: list[int]) -> dict[int, list[str]]:
+    return _kind_tags_by_piece(session, piece_ids, "voicing")
+
+
+def _accompaniments_by_piece(session: Session, piece_ids: list[int]) -> dict[int, list[str]]:
+    return _kind_tags_by_piece(session, piece_ids, "accompaniment")
 
 
 def _placement_summaries(session: Session, piece_ids: list[int]) -> dict[int, dict]:

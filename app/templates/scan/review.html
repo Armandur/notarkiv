@@ -80,7 +80,7 @@
           <div class="row g-2 align-items-end">
             <div class="col-md-6">
               <label class="form-label small mb-1">Placering</label>
-              <select name="placement_unit_id" class="form-select form-select-sm">
+              <select name="placement_unit_id" class="form-select form-select-sm tomselect">
                 <option value="">(ingen placering)</option>
                 {% for opt in unit_options %}
                 <option value="{{ opt.id }}" {% if opt.id == prefill_placement_unit_id %}selected{% endif %}>
@@ -332,33 +332,36 @@
                  value="{{ (existing.original_title if existing else extracted.original_title) or '' }}">
           {{ ocr_pill('original_title', extracted.original_title, existing.original_title if existing else '') }}
         </div>
+        {% macro person_select(field, label, selected, extracted_list, ocr_raw) %}
         <div class="col-md-6">
-          <label class="form-label">Kompositör</label>
-          <input type="text" name="composer" id="composer" class="form-control sort-name-source" data-sort-target="composer_sort"
-                 value="{{ (existing.composer if existing else extracted.composer) or '' }}" list="people-options">
-          <input type="text" name="composer_sort" id="composer_sort" class="form-control form-control-sm mt-1 sort-name-target" data-sort-source="composer"
-                 value="{{ existing.composer_sort if existing else '' }}"
-                 placeholder="Sort-namn (auto, klicka för att ändra)">
-          {{ ocr_pill('composer', extracted.composer, existing.composer if existing else '') }}
+          <label class="form-label">
+            {{ label }}
+            {% if existing and ocr_raw %}<small class="text-muted">(OCR: <em>{{ ocr_raw }}</em>)</small>{% endif %}
+          </label>
+          <select name="{{ field }}" id="{{ field }}" class="form-select tomselect-creatable-local" multiple
+                  placeholder="Välj eller skriv namn...">
+            {% set _seen = [] %}
+            {% for name in selected %}
+            <option value="{{ name }}" selected>{{ name }}</option>
+            {% set _ = _seen.append(name) %}
+            {% endfor %}
+            {% for name in extracted_list %}
+            {% if name not in _seen %}
+            <option value="{{ name }}">{{ name }}</option>
+            {% set _ = _seen.append(name) %}
+            {% endif %}
+            {% endfor %}
+            {% for p in people_options %}
+            {% if p.name not in _seen %}
+            <option value="{{ p.name }}">{{ p.name }}</option>
+            {% endif %}
+            {% endfor %}
+          </select>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Arrangör</label>
-          <input type="text" name="arranger" id="arranger" class="form-control sort-name-source" data-sort-target="arranger_sort"
-                 value="{{ (existing.arranger if existing else extracted.arranger) or '' }}" list="people-options">
-          <input type="text" name="arranger_sort" id="arranger_sort" class="form-control form-control-sm mt-1 sort-name-target" data-sort-source="arranger"
-                 value="{{ existing.arranger_sort if existing else '' }}"
-                 placeholder="Sort-namn (auto, klicka för att ändra)">
-          {{ ocr_pill('arranger', extracted.arranger, existing.arranger if existing else '') }}
-        </div>
-        <div class="col-md-6">
-          <label class="form-label">Textförfattare</label>
-          <input type="text" name="lyricist" id="lyricist" class="form-control sort-name-source" data-sort-target="lyricist_sort"
-                 value="{{ (existing.lyricist if existing else extracted.lyricist) or '' }}" list="people-options">
-          <input type="text" name="lyricist_sort" id="lyricist_sort" class="form-control form-control-sm mt-1 sort-name-target" data-sort-source="lyricist"
-                 value="{{ existing.lyricist_sort if existing else '' }}"
-                 placeholder="Sort-namn (auto, klicka för att ändra)">
-          {{ ocr_pill('lyricist', extracted.lyricist, existing.lyricist if existing else '') }}
-        </div>
+        {% endmacro %}
+        {{ person_select('composer', 'Kompositör', selected_composers, extracted_composers, extracted.composer) }}
+        {{ person_select('arranger', 'Arrangör', selected_arrangers, extracted_arrangers, extracted.arranger) }}
+        {{ person_select('lyricist', 'Textförfattare', selected_lyricists, extracted_lyricists, extracted.lyricist) }}
         <div class="col-md-3">
           <label class="form-label">Språk</label>
           {% set lang_selected = existing.language if existing else extracted.language %}
@@ -380,31 +383,52 @@
             Besättning
             {% if extracted_voicing_raw %}<small class="text-muted">(OCR: <em>{{ extracted_voicing_raw }}</em>)</small>{% endif %}
           </label>
-          <select name="voicing_tag_id" class="form-select tomselect" multiple
+          <select name="voicing_tag_id" class="form-select tomselect-creatable-remote" multiple
+                  data-create-kind="voicing"
                   placeholder="Välj besättning...">
             {% for t in voicing_tags %}
             <option value="{{ t.id }}" {% if t.id in matched_voicing_ids %}selected{% endif %}>{{ t.name }}</option>
             {% endfor %}
           </select>
+          <small class="form-text text-muted">Skriv och tryck Enter för att skapa ny.</small>
         </div>
         <div class="col-md-4">
           <label class="form-label">
             Ackompanjemang
             {% if extracted_accompaniment_raw %}<small class="text-muted">(OCR: <em>{{ extracted_accompaniment_raw }}</em>)</small>{% endif %}
           </label>
-          <select name="accompaniment_tag_id" class="form-select tomselect" multiple
+          <select name="accompaniment_tag_id" class="form-select tomselect-creatable-remote" multiple
+                  data-create-kind="accompaniment"
                   placeholder="Välj ackompanjemang...">
             {% for t in accompaniment_tags %}
             <option value="{{ t.id }}" {% if t.id in matched_accompaniment_ids %}selected{% endif %}>{{ t.name }}</option>
             {% endfor %}
           </select>
+          <small class="form-text text-muted">Skriv och tryck Enter för att skapa ny.</small>
         </div>
         <div class="col-md-4">
-          <label class="form-label">Förlag</label>
-          <input type="text" name="publisher" id="publisher" class="form-control"
-                 value="{{ (existing.publisher if existing else extracted.publisher) or '' }}"
-                 list="publisher-options" autocomplete="off">
-          {{ ocr_pill('publisher', extracted.publisher, existing.publisher if existing else '') }}
+          <label class="form-label">
+            Förlag
+            {% if existing and extracted.publisher %}<small class="text-muted">(OCR: <em>{{ extracted.publisher }}</em>)</small>{% endif %}
+          </label>
+          <select name="publisher" id="publisher" class="form-select tomselect-creatable-local"
+                  placeholder="Välj eller skriv förlag...">
+            <option value=""></option>
+            {% set _pseen = [] %}
+            {% if selected_publisher %}
+            <option value="{{ selected_publisher }}" selected>{{ selected_publisher }}</option>
+            {% set _ = _pseen.append(selected_publisher) %}
+            {% endif %}
+            {% if extracted_publisher and extracted_publisher not in _pseen %}
+            <option value="{{ extracted_publisher }}">{{ extracted_publisher }}</option>
+            {% set _ = _pseen.append(extracted_publisher) %}
+            {% endif %}
+            {% for p in publisher_options %}
+            {% if p.name not in _pseen %}
+            <option value="{{ p.name }}">{{ p.name }}{% if p.country %} ({{ p.country }}){% endif %}</option>
+            {% endif %}
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-4">
           <label class="form-label">Förlagsnummer</label>
@@ -424,7 +448,7 @@
       <div class="row g-3">
         <div class="col-md-8">
           <label class="form-label">Var ligger noten?</label>
-          <select name="placement_unit_id" id="placement_unit" class="form-select">
+          <select name="placement_unit_id" id="placement_unit" class="form-select tomselect">
             <option value="">(ingen placering än)</option>
             {% for opt in unit_options %}
             <option value="{{ opt.id }}" data-location-kind="{{ opt.location_kind }}" {% if opt.id == prefill_placement_unit_id %}selected{% endif %}>
@@ -520,10 +544,20 @@ function applyMbSuggestion(mbid, title, composer, btn) {
   function setIfChanged(id, val, label) {
     const el = document.getElementById(id);
     if (!el || !val) return;
+    // Tom Select-fält: lägg till värdet som tag (icke-destruktivt)
+    if (el.tomselect) {
+      const ts = el.tomselect;
+      if (!ts.getValue() || !ts.getValue().includes(val)) {
+        if (!ts.options[val]) ts.addOption({ value: val, text: val });
+        ts.addItem(val);
+        changes.push(label);
+      }
+      return;
+    }
     if (el.value !== val) {
       el.value = val;
       el.classList.remove('mb-applied');
-      void el.offsetWidth;  // tvinga reflow så animationen kan triggas på nytt
+      void el.offsetWidth;
       el.classList.add('mb-applied');
       changes.push(label);
     }
@@ -552,12 +586,6 @@ function applyMbSuggestion(mbid, title, composer, btn) {
 }
 
 </script>
-<datalist id="people-options">
-  {% for p in people_options %}<option value="{{ p.name }}" label="{{ p.label }}">{% endfor %}
-</datalist>
-<datalist id="publisher-options">
-  {% for pub in publisher_options %}<option value="{{ pub.name }}"{% if pub.country %} label="{{ pub.country }}"{% endif %}>{% endfor %}
-</datalist>
 
 <div id="mb-applied-banner"
      class="position-fixed top-0 start-50 translate-middle-x mt-3 alert alert-success shadow d-none"

@@ -60,25 +60,28 @@
           <label class="form-label">Originaltitel</label>
           <input type="text" name="original_title" class="form-control" value="{{ piece.original_title or '' }}">
         </div>
+        {% macro person_select_edit(field, label, selected, mb_value) %}
         <div class="col-md-6">
-          <label class="form-label">Kompositör</label>
-          <input type="text" name="composer" id="composer" class="form-control" value="{{ composers_str }}" list="people-options">
-          <input type="text" name="composer_sort" id="composer_sort" class="form-control form-control-sm mt-1" value="{{ composer_sorts_str }}" placeholder="Sort-namn (auto, klicka för att ändra)">
-          {{ mb_pill('composer', mb_composer_str, composers_str) }}
-          <div class="form-text">Flera separeras med <code>;</code> eller <code>&amp;</code></div>
+          <label class="form-label">{{ label }}</label>
+          <select name="{{ field }}" id="{{ field }}" class="form-select tomselect-creatable-local" multiple
+                  placeholder="Välj eller skriv namn...">
+            {% set _seen = [] %}
+            {% for name in selected %}
+            <option value="{{ name }}" selected>{{ name }}</option>
+            {% set _ = _seen.append(name) %}
+            {% endfor %}
+            {% for p in people_options %}
+            {% if p.name not in _seen %}
+            <option value="{{ p.name }}">{{ p.name }}</option>
+            {% endif %}
+            {% endfor %}
+          </select>
+          {{ mb_pill(field, mb_value, selected|join('; ')) }}
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Arrangör</label>
-          <input type="text" name="arranger" id="arranger" class="form-control" value="{{ arrangers_str }}" list="people-options">
-          <input type="text" name="arranger_sort" id="arranger_sort" class="form-control form-control-sm mt-1" value="{{ arranger_sorts_str }}" placeholder="Sort-namn (auto, klicka för att ändra)">
-          {{ mb_pill('arranger', mb_arranger_str, arrangers_str) }}
-        </div>
-        <div class="col-md-6">
-          <label class="form-label">Textförfattare</label>
-          <input type="text" name="lyricist" id="lyricist" class="form-control" value="{{ lyricists_str }}" list="people-options">
-          <input type="text" name="lyricist_sort" id="lyricist_sort" class="form-control form-control-sm mt-1" value="{{ lyricist_sorts_str }}" placeholder="Sort-namn (auto, klicka för att ändra)">
-          {{ mb_pill('lyricist', mb_lyricist_str, lyricists_str) }}
-        </div>
+        {% endmacro %}
+        {{ person_select_edit('composer', 'Kompositör', selected_composers, mb_composer_str) }}
+        {{ person_select_edit('arranger', 'Arrangör', selected_arrangers, mb_arranger_str) }}
+        {{ person_select_edit('lyricist', 'Textförfattare', selected_lyricists, mb_lyricist_str) }}
         <div class="col-md-3">
           <label class="form-label">Språk</label>
           <select name="language" class="form-select tomselect">
@@ -90,7 +93,8 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Besättning</label>
-          <select name="voicing_tag_id" class="form-select tomselect" multiple
+          <select name="voicing_tag_id" class="form-select tomselect-creatable-remote" multiple
+                  data-create-kind="voicing"
                   placeholder="Välj besättning...">
             {% for t in voicing_tags %}
             <option value="{{ t.id }}" {% if t.id in selected_voicing_ids %}selected{% endif %}>{{ t.name }}</option>
@@ -99,7 +103,8 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Ackompanjemang</label>
-          <select name="accompaniment_tag_id" class="form-select tomselect" multiple
+          <select name="accompaniment_tag_id" class="form-select tomselect-creatable-remote" multiple
+                  data-create-kind="accompaniment"
                   placeholder="Välj ackompanjemang...">
             {% for t in accompaniment_tags %}
             <option value="{{ t.id }}" {% if t.id in selected_accompaniment_ids %}selected{% endif %}>{{ t.name }}</option>
@@ -108,7 +113,20 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Förlag</label>
-          <input type="text" name="publisher" class="form-control" value="{{ piece.publisher or '' }}" list="publisher-options" autocomplete="off">
+          <select name="publisher" class="form-select tomselect-creatable-local"
+                  placeholder="Välj eller skriv förlag...">
+            <option value=""></option>
+            {% set _pseen = [] %}
+            {% if piece.publisher %}
+            <option value="{{ piece.publisher }}" selected>{{ piece.publisher }}</option>
+            {% set _ = _pseen.append(piece.publisher) %}
+            {% endif %}
+            {% for p in publisher_options %}
+            {% if p.name not in _pseen %}
+            <option value="{{ p.name }}">{{ p.name }}{% if p.country %} ({{ p.country }}){% endif %}</option>
+            {% endif %}
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-6">
           <label class="form-label">Förlagsnummer</label>
@@ -460,25 +478,29 @@ document.addEventListener('hidden.bs.modal', function(evt) {
   }
 });
 
-// MB-förslags-pill: applicera värde på input-fält via data-attribut
+// MB-förslags-pill: applicera värde på input/select via data-attribut.
+// Tom Select-fält: splittra på "; " och addera varje del som tag.
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('.mb-apply');
   if (!btn) return;
   const el = document.getElementById(btn.dataset.target);
   if (!el) return;
-  el.value = btn.dataset.value;
-  el.dispatchEvent(new Event('input', { bubbles: true }));
+  const val = btn.dataset.value;
+  if (el.tomselect) {
+    const ts = el.tomselect;
+    const parts = val.split(/\s*;\s*/).filter(Boolean);
+    parts.forEach((p) => {
+      if (!ts.options[p]) ts.addOption({ value: p, text: p });
+      ts.addItem(p);
+    });
+  } else {
+    el.value = val;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
   btn.classList.add('btn-success');
   btn.classList.remove('btn-outline-primary');
 });
 </script>
-
-<datalist id="people-options">
-  {% for p in people_options %}<option value="{{ p.name }}" label="{{ p.label }}">{% endfor %}
-</datalist>
-<datalist id="publisher-options">
-  {% for pub in publisher_options %}<option value="{{ pub.name }}"{% if pub.country %} label="{{ pub.country }}"{% endif %}>{% endfor %}
-</datalist>
 
 <div id="mb-modal-target"></div>
 {% endblock %}

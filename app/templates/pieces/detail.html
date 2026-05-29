@@ -282,7 +282,7 @@
             <div class="mb-3">
               <label class="form-label">Låntagare *</label>
               <div class="loan-borrower-picker">
-                <select name="borrower_user_id" class="form-select user-picker">
+                <select name="borrower_user_id" class="form-select tomselect user-picker">
                   {% for u in loan_users %}
                   <option value="{{ u.id }}" {% if u.id == user.id %}selected{% endif %}>{{ u.username }}</option>
                   {% endfor %}
@@ -332,16 +332,19 @@ document.querySelectorAll('.loan-borrower-picker').forEach((box) => {
   const select = box.querySelector('.user-picker');
   const free = box.querySelector('.external-name');
   const toggle = box.querySelector('.external-toggle');
+  function setSelectVisible(visible) {
+    const target = select.tomselect ? select.tomselect.wrapper : select;
+    target.classList.toggle('d-none', !visible);
+    select.disabled = !visible;
+  }
   toggle.addEventListener('change', () => {
     if (toggle.checked) {
-      select.classList.add('d-none');
-      select.disabled = true;
+      setSelectVisible(false);
       free.classList.remove('d-none');
       free.required = true;
       free.focus();
     } else {
-      select.classList.remove('d-none');
-      select.disabled = false;
+      setSelectVisible(true);
       free.classList.add('d-none');
       free.required = false;
       free.value = '';

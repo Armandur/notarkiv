@@ -35,7 +35,6 @@ from app.services.people import (
     enrich_person_from_mb,
     find_or_create_person,
     parse_names_field,
-    parse_sort_field,
     replace_contributors,
 )
 from app.models import (
@@ -543,12 +542,9 @@ async def review_form(
                 "piece": target_piece,
                 "title": target_piece.title or "",
                 "original_title": target_piece.original_title or "",
-                "composer": "; ".join(p.name for p in contribs.get(ContributorRole.COMPOSER, [])),
-                "arranger": "; ".join(p.name for p in contribs.get(ContributorRole.ARRANGER, [])),
-                "lyricist": "; ".join(p.name for p in contribs.get(ContributorRole.LYRICIST, [])),
-                "composer_sort": "; ".join(p.sort_name or "" for p in contribs.get(ContributorRole.COMPOSER, [])),
-                "arranger_sort": "; ".join(p.sort_name or "" for p in contribs.get(ContributorRole.ARRANGER, [])),
-                "lyricist_sort": "; ".join(p.sort_name or "" for p in contribs.get(ContributorRole.LYRICIST, [])),
+                "composers": [p.name for p in contribs.get(ContributorRole.COMPOSER, [])],
+                "arrangers": [p.name for p in contribs.get(ContributorRole.ARRANGER, [])],
+                "lyricists": [p.name for p in contribs.get(ContributorRole.LYRICIST, [])],
                 "language": target_piece.language or "",
                 "publisher": target_piece.publisher or "",
                 "edition_number": target_piece.edition_number or "",
@@ -577,6 +573,22 @@ async def review_form(
     title_for_psalm = ((existing or {}).get("title") if existing else extracted.get("title")) or ""
     psalm_title_matches = _find_psalm_title_matches(session, title_for_psalm)
 
+    extracted_composers = parse_names_field(extracted.get("composer"))
+    extracted_arrangers = parse_names_field(extracted.get("arranger"))
+    extracted_lyricists = parse_names_field(extracted.get("lyricist"))
+    extracted_publisher = (extracted.get("publisher") or "").strip() or None
+
+    if existing:
+        selected_composers = existing["composers"]
+        selected_arrangers = existing["arrangers"]
+        selected_lyricists = existing["lyricists"]
+        selected_publisher = existing["publisher"] or None
+    else:
+        selected_composers = extracted_composers
+        selected_arrangers = extracted_arrangers
+        selected_lyricists = extracted_lyricists
+        selected_publisher = extracted_publisher
+
     return render(
         request,
         "scan/review.html",
@@ -593,6 +605,14 @@ async def review_form(
             "people_names": all_people_names(session),
             "people_options": all_people_for_autocomplete(session),
             "publisher_options": all_publishers_for_autocomplete(session),
+            "selected_composers": selected_composers,
+            "selected_arrangers": selected_arrangers,
+            "selected_lyricists": selected_lyricists,
+            "selected_publisher": selected_publisher,
+            "extracted_composers": extracted_composers,
+            "extracted_arrangers": extracted_arrangers,
+            "extracted_lyricists": extracted_lyricists,
+            "extracted_publisher": extracted_publisher,
             "voicing_tags": voicing_tags,
             "matched_voicing_ids": matched_voicing_ids,
             "extracted_voicing_raw": extracted_voicing,
@@ -977,12 +997,9 @@ async def save_piece(
     scan_id: int,
     title: str = Form(...),
     original_title: str | None = Form(None),
-    composer: str | None = Form(None),
-    arranger: str | None = Form(None),
-    lyricist: str | None = Form(None),
-    composer_sort: str | None = Form(None),
-    arranger_sort: str | None = Form(None),
-    lyricist_sort: str | None = Form(None),
+    composer: list[str] = Form(default=[]),
+    arranger: list[str] = Form(default=[]),
+    lyricist: list[str] = Form(default=[]),
     language: str | None = Form(None),
     publisher: str | None = Form(None),
     edition_number: str | None = Form(None),
@@ -1040,12 +1057,9 @@ async def save_piece(
     cache = replace_contributors(
         session,
         piece.id,
-        composers=parse_names_field(composer),
-        arrangers=parse_names_field(arranger),
-        lyricists=parse_names_field(lyricist),
-        composer_sorts=parse_sort_field(composer_sort),
-        arranger_sorts=parse_sort_field(arranger_sort),
-        lyricist_sorts=parse_sort_field(lyricist_sort),
+        composers=composer,
+        arrangers=arranger,
+        lyricists=lyricist,
     )
     piece.contributors_cache = cache or None
     session.add(piece)

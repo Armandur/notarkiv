@@ -17,7 +17,11 @@ from app.models import (
     User,
 )
 from app.models.storage import LocationKind
-from app.routes.pieces import _placement_summaries, _voicings_by_piece
+from app.routes.pieces import (
+    _accompaniments_by_piece,
+    _placement_summaries,
+    _voicings_by_piece,
+)
 from app.services.storage import unit_path as _unit_full_path
 from app.templates_setup import flash, render
 
@@ -454,6 +458,7 @@ async def unit_detail(
 
     placement_summary = _placement_summaries(session, [p.id for p in pieces])
     voicings_by_piece = _voicings_by_piece(session, [p.id for p in pieces])
+    accompaniments_by_piece = _accompaniments_by_piece(session, [p.id for p in pieces])
 
     children = session.exec(
         select(StorageUnit)
@@ -481,6 +486,7 @@ async def unit_detail(
             "cover_thumb": cover_thumb,
             "placement_summary": placement_summary,
             "voicings_by_piece": voicings_by_piece,
+            "accompaniments_by_piece": accompaniments_by_piece,
             "children": children,
             "images": images,
         },

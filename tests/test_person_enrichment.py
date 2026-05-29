@@ -65,6 +65,41 @@ def test_new_piece_triggers_person_enrichment(
     ), f"enrich_person_job kö:ades inte: {mock_arq_pool.jobs}"
 
 
+def test_pieces_new_multi_composer_tags(
+    logged_in_client, session: Session, mock_arq_pool
+):
+    """POST /pieces/new med flera composer-värden (Tom Select-multi) ska
+    skapa en Person per tag och länka via PieceContributor."""
+    from app.models import ContributorRole, Person, Piece, PieceContributor
+
+    csrf = get_csrf(logged_in_client, "/pieces/new")
+    r = logged_in_client.post(
+        "/pieces/new",
+        data={
+            "csrf_token": csrf,
+            "title": "Duo-stycket",
+            "composer": ["Felix Mendelssohn", "Hugo Distler"],
+            "publisher": "Verbum",
+        },
+    )
+    assert r.status_code in (302, 303), r.text[:300]
+
+    piece = session.exec(select(Piece).where(Piece.title == "Duo-stycket")).first()
+    assert piece is not None
+    contribs = session.exec(
+        select(PieceContributor).where(PieceContributor.piece_id == piece.id)
+    ).all()
+    composer_ids = [pc.person_id for pc in contribs if pc.role == ContributorRole.COMPOSER]
+    assert len(composer_ids) == 2
+    names = sorted(p.name for p in session.exec(
+        select(Person).where(Person.id.in_(composer_ids))
+    ).all())
+    assert names == ["Felix Mendelssohn", "Hugo Distler"]
+    # publisher: registrerad både som fritextfält och som FK
+    assert piece.publisher == "Verbum"
+    assert piece.publisher_id is not None
+
+
 def test_person_with_mbid_not_re_enriched(
     logged_in_client, session: Session, mock_arq_pool
 ):

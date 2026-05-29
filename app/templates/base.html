@@ -289,14 +289,85 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Tom Select på alla <select class="tomselect"> - söker live i options.
-document.addEventListener('DOMContentLoaded', function() {
+//
+// Stöd för create:
+//   class="tomselect-creatable-local"  → frihandsskapa direkt (för Person/Publisher
+//                                        som hittas/skapas vid spara i backend)
+//   class="tomselect-creatable-remote" → POST /tags/inline för att skapa Tag
+//                                        (för besättning/ackompanjemang)
+//                                        data-create-kind="voicing"|"accompaniment"
+function _initTomSelects(root) {
   if (typeof TomSelect === 'undefined') return;
-  document.querySelectorAll('select.tomselect').forEach(function(el) {
+  root = root || document;
+
+  const renderLabels = {
+    option_create: function(data, escape) {
+      return '<div class="create">Lägg till <strong>' + escape(data.input) + '</strong>…</div>';
+    },
+    no_results: function(data, escape) {
+      return '<div class="no-results">Ingen matchning för "' + escape(data.input) + '"</div>';
+    },
+  };
+
+  function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content
+      || document.querySelector('input[name="csrf_token"]')?.value;
+  }
+
+  root.querySelectorAll('select.tomselect').forEach(function(el) {
+    if (el.tomselect) return;
     new TomSelect(el, {
       maxOptions: null,
       allowEmptyOption: true,
     });
   });
+
+  root.querySelectorAll('select.tomselect-creatable-local').forEach(function(el) {
+    if (el.tomselect) return;
+    new TomSelect(el, {
+      maxOptions: null,
+      allowEmptyOption: true,
+      create: true,
+      render: renderLabels,
+    });
+  });
+
+  root.querySelectorAll('select.tomselect-creatable-remote').forEach(function(el) {
+    if (el.tomselect) return;
+    const kind = el.dataset.createKind;
+    new TomSelect(el, {
+      maxOptions: null,
+      allowEmptyOption: true,
+      render: renderLabels,
+      create: async function(input, callback) {
+        const name = input.trim();
+        if (!name) { callback(); return; }
+        try {
+          const fd = new FormData();
+          fd.append('name', name);
+          fd.append('kind', kind);
+          const tok = csrfToken();
+          if (tok) fd.append('csrf_token', tok);
+          const res = await fetch('/tags/inline', { method: 'POST', body: fd });
+          const data = await res.json();
+          if (!res.ok) {
+            alert(data.error || 'Kunde inte skapa tagg');
+            callback();
+            return;
+          }
+          callback({ value: String(data.id), text: data.name });
+        } catch (err) {
+          alert('Fel vid skapande av tagg: ' + err);
+          callback();
+        }
+      },
+    });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() { _initTomSelects(document); });
+document.body.addEventListener('htmx:afterSettle', function(e) {
+  _initTomSelects(e.target);
 });
 </script>
 

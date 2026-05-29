@@ -55,7 +55,7 @@
       <div class="row g-2">
         <div class="col-8">
           <label class="form-label small mb-1">Placering (valfri)</label>
-          <select name="placement_unit_id" class="form-select">
+          <select name="placement_unit_id" class="form-select tomselect">
             <option value="">(inget val nu)</option>
             {% for opt in unit_options %}
             <option value="{{ opt.id }}">{{ opt.label }}{% if opt.kind %} ({{ opt.kind }}){% endif %}</option>

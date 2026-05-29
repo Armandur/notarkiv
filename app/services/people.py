@@ -121,13 +121,10 @@ def replace_contributors(
     composers: list[str] | None = None,
     arrangers: list[str] | None = None,
     lyricists: list[str] | None = None,
-    composer_sorts: list[str] | None = None,
-    arranger_sorts: list[str] | None = None,
-    lyricist_sorts: list[str] | None = None,
 ) -> str:
     """Sätt om alla bidragsgivare för en not. Returnerar contributors_cache.
-    sort-listorna är parallella med namn-listorna och anger sort_name-override
-    (tom sträng = använd derive)."""
+    Namnen kommer från Tom Select tag-fält. Nya personer får sort_name via
+    derive_sort_name; befintliga behåller sitt sort_name."""
     existing_links = session.exec(
         select(PieceContributor).where(PieceContributor.piece_id == piece_id)
     ).all()
@@ -136,21 +133,18 @@ def replace_contributors(
     session.flush()
 
     role_lists = [
-        (ContributorRole.COMPOSER, composers or [], composer_sorts or []),
-        (ContributorRole.ARRANGER, arrangers or [], arranger_sorts or []),
-        (ContributorRole.LYRICIST, lyricists or [], lyricist_sorts or []),
+        (ContributorRole.COMPOSER, composers or []),
+        (ContributorRole.ARRANGER, arrangers or []),
+        (ContributorRole.LYRICIST, lyricists or []),
     ]
 
     cache_parts: list[str] = []
-    for role, names, sorts in role_lists:
+    for role, names in role_lists:
         for i, raw in enumerate(names):
             name = raw.strip()
             if not name:
                 continue
-            sort_override = sorts[i] if i < len(sorts) else None
-            person = find_or_create_person(
-                session, name, sort_name_override=sort_override
-            )
+            person = find_or_create_person(session, name)
             if not person:
                 continue
             session.add(
@@ -341,11 +335,3 @@ def parse_names_field(value: str | None) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
-def parse_sort_field(value: str | None) -> list[str]:
-    """Parsa sort_name-override-fält. Format: 'A, X; B, Y' - semikolon separerar
-    namn, komma är del av enskilt sort_name ('Efternamn, Förnamn'). Tomma
-    poster behålls som tom sträng så de matchar index-ordningen i namn-listan."""
-    if not value:
-        return []
-    parts = [p.strip() for p in value.split(";")]
-    return parts

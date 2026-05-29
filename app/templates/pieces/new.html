@@ -30,22 +30,20 @@
           <label class="form-label">Originaltitel</label>
           <input type="text" name="original_title" class="form-control">
         </div>
+        {% macro person_select_new(field, label) %}
         <div class="col-md-6">
-          <label class="form-label">Kompositör</label>
-          <input type="text" name="composer" id="composer" class="form-control" list="people-options">
-          <input type="text" name="composer_sort" id="composer_sort" class="form-control form-control-sm mt-1" placeholder="Sort-namn (auto, klicka för att ändra)">
-          <div class="form-text">Flera separeras med <code>;</code> eller <code>&amp;</code></div>
+          <label class="form-label">{{ label }}</label>
+          <select name="{{ field }}" id="{{ field }}" class="form-select tomselect-creatable-local" multiple
+                  placeholder="Välj eller skriv namn...">
+            {% for p in people_options %}
+            <option value="{{ p.name }}">{{ p.name }}</option>
+            {% endfor %}
+          </select>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Arrangör</label>
-          <input type="text" name="arranger" id="arranger" class="form-control" list="people-options">
-          <input type="text" name="arranger_sort" id="arranger_sort" class="form-control form-control-sm mt-1" placeholder="Sort-namn (auto, klicka för att ändra)">
-        </div>
-        <div class="col-md-6">
-          <label class="form-label">Textförfattare</label>
-          <input type="text" name="lyricist" id="lyricist" class="form-control" list="people-options">
-          <input type="text" name="lyricist_sort" id="lyricist_sort" class="form-control form-control-sm mt-1" placeholder="Sort-namn (auto, klicka för att ändra)">
-        </div>
+        {% endmacro %}
+        {{ person_select_new('composer', 'Kompositör') }}
+        {{ person_select_new('arranger', 'Arrangör') }}
+        {{ person_select_new('lyricist', 'Textförfattare') }}
         <div class="col-md-3">
           <label class="form-label">Språk</label>
           <select name="language" class="form-select tomselect">
@@ -57,7 +55,8 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Besättning</label>
-          <select name="voicing_tag_id" class="form-select tomselect" multiple
+          <select name="voicing_tag_id" class="form-select tomselect-creatable-remote" multiple
+                  data-create-kind="voicing"
                   placeholder="Välj besättning...">
             {% for t in voicing_tags %}
             <option value="{{ t.id }}">{{ t.name }}</option>
@@ -66,7 +65,8 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Ackompanjemang</label>
-          <select name="accompaniment_tag_id" class="form-select tomselect" multiple
+          <select name="accompaniment_tag_id" class="form-select tomselect-creatable-remote" multiple
+                  data-create-kind="accompaniment"
                   placeholder="Välj ackompanjemang...">
             {% for t in accompaniment_tags %}
             <option value="{{ t.id }}">{{ t.name }}</option>
@@ -75,7 +75,13 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Förlag</label>
-          <input type="text" name="publisher" class="form-control" list="publisher-options" autocomplete="off">
+          <select name="publisher" class="form-select tomselect-creatable-local"
+                  placeholder="Välj eller skriv förlag...">
+            <option value=""></option>
+            {% for p in publisher_options %}
+            <option value="{{ p.name }}">{{ p.name }}{% if p.country %} ({{ p.country }}){% endif %}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-6">
           <label class="form-label">Förlagsnummer</label>
@@ -99,7 +105,7 @@
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label">Lagringsplats</label>
-          <select name="placement_unit_id" class="form-select">
+          <select name="placement_unit_id" class="form-select tomselect">
             <option value="">(ingen placering nu)</option>
             {% for opt in unit_options %}
             <option value="{{ opt.id }}">{{ opt.label }}{% if opt.location_kind == "digital" %} (digital){% endif %}</option>
@@ -126,11 +132,4 @@
     <a href="/pieces" class="btn btn-link">Avbryt</a>
   </div>
 </form>
-
-<datalist id="people-options">
-  {% for p in people_options %}<option value="{{ p.name }}" label="{{ p.label }}">{% endfor %}
-</datalist>
-<datalist id="publisher-options">
-  {% for pub in publisher_options %}<option value="{{ pub.name }}"{% if pub.country %} label="{{ pub.country }}"{% endif %}>{% endfor %}
-</datalist>
 {% endblock %}

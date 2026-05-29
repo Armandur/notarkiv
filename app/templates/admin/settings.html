@@ -40,12 +40,15 @@
 
         <div class="mb-3">
           <label class="form-label">Claude-modell</label>
-          <input type="text" name="claude_model" class="form-control" value="{{ settings.claude_model }}" list="model-options">
-          <datalist id="model-options">
-            <option value="claude-haiku-4-5">
-            <option value="claude-sonnet-4-6">
-            <option value="claude-opus-4-7">
-          </datalist>
+          <select name="claude_model" class="form-select tomselect-creatable-local">
+            {% set _models = ['claude-haiku-4-5', 'claude-sonnet-4-6', 'claude-opus-4-7'] %}
+            {% if settings.claude_model and settings.claude_model not in _models %}
+            <option value="{{ settings.claude_model }}" selected>{{ settings.claude_model }}</option>
+            {% endif %}
+            {% for m in _models %}
+            <option value="{{ m }}" {% if settings.claude_model == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
           <div class="form-text">Haiku räcker för notomslag och är billigast.</div>
         </div>
       </div>
