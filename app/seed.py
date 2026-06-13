@@ -74,7 +74,10 @@ def _seed_tags(session: Session) -> None:
     skapa alla taggar först, sedan koppla parent och alias."""
     from app.models import TagAlias
 
-    data = _load_yaml("tags.yaml")
+    # tags.yaml (handkurerad) + kyrkoaret.yaml (genererad från svk-API:t).
+    # Båda går genom samma två-pass så parent-länkning fungerar över filgräns
+    # (helgdag -> kyrkoårstid -> Kyrkoåret-roten).
+    data = (_load_yaml("tags.yaml") or []) + (_load_yaml("kyrkoaret.yaml") or [])
     if not data:
         return
 

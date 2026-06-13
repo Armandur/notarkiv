@@ -82,6 +82,55 @@ def test_alias_creation_and_filter(
     assert "Helgonens dag" in r.text
 
 
+def test_occasion_filter_rolls_up_to_descendants(
+    logged_in_client, session: Session, admin_user_setup
+):
+    """Filter på en parent-occasion ska fånga noter taggade med dess ättlingar.
+
+    Körledaren filtrerar på kyrkoårstid ("Advent") och ska då hitta noter som
+    bara är taggade med en enskild helgdag ("Första söndagen i advent")."""
+    from app.models import Piece, PieceTag, Tag
+    from app.models.tag import TagKind
+
+    root = Tag(name="Kyrkoåret", kind=TagKind.OCCASION)
+    session.add(root)
+    session.flush()
+    advent = Tag(name="Advent", kind=TagKind.OCCASION, parent_id=root.id)
+    jul = Tag(name="Jul", kind=TagKind.OCCASION, parent_id=root.id)
+    session.add(advent)
+    session.add(jul)
+    session.flush()
+    feast = Tag(name="Första söndagen i advent", kind=TagKind.OCCASION, parent_id=advent.id)
+    session.add(feast)
+    session.flush()
+
+    piece = Piece(title="Hosianna Davids son", created_by=1)
+    session.add(piece)
+    session.flush()
+    session.add(PieceTag(piece_id=piece.id, tag_id=feast.id))
+    session.commit()
+
+    # Exakt taggnamn (nivå 3)
+    r = logged_in_client.get("/pieces?tag=Första söndagen i advent")
+    assert r.status_code == 200
+    assert "Hosianna Davids son" in r.text
+
+    # Kyrkoårstid (nivå 2, rollup)
+    r = logged_in_client.get("/pieces?tag=Advent")
+    assert r.status_code == 200
+    assert "Hosianna Davids son" in r.text
+
+    # Roten (nivå 1, rollup)
+    r = logged_in_client.get("/pieces?tag=Kyrkoåret")
+    assert r.status_code == 200
+    assert "Hosianna Davids son" in r.text
+
+    # Syskon-kyrkoårstid ska INTE matcha
+    r = logged_in_client.get("/pieces?tag=Jul")
+    assert r.status_code == 200
+    assert "Hosianna Davids son" not in r.text
+
+
 def test_alias_unique(logged_in_client, session: Session, admin_user_setup):
     """Alias-namn får inte kollidera med taggnamn eller annat alias."""
     from app.models import Tag

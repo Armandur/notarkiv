@@ -1,0 +1,376 @@
+# Kyrkoårets helgdagar - GENERERAD av scripts/fetch_kyrkoaret.py
+# Källa: http://svk-api.pettersson-vik.se/ (year=2025)
+# Tre nivåer: Kyrkoåret > kyrkoårstid > helgdag. Alla kind: occasion.
+# Redigera inte för hand - kör om scriptet. Justeringar görs i admin.
+- name: Kyrkoåret
+  kind: occasion
+  description: Tider och söndagar i kyrkoåret
+  sort_order: 0
+- name: Advent
+  kind: occasion
+  parent: Kyrkoåret
+  sort_order: 1
+  description: Ordet advent betyder ankomst, Jesu ankomst. Under advent minns och
+    tänker vi på Jesu födelse, Jesu återkomst och Jesus som finns hos oss idag.
+- name: Första söndagen i advent
+  kind: occasion
+  parent: Advent
+  sort_order: 101
+- name: Andra söndagen i advent
+  kind: occasion
+  parent: Advent
+  sort_order: 102
+- name: Tredje söndagen i advent
+  kind: occasion
+  parent: Advent
+  sort_order: 103
+- name: Fjärde söndagen i advent
+  kind: occasion
+  parent: Advent
+  sort_order: 104
+- name: Jul
+  kind: occasion
+  parent: Kyrkoåret
+  sort_order: 2
+  description: Under julen firar vi att Gud blev människa – inkarnationen. Från julnatt
+    till kyndelsmäss tänker och talar vi särskilt om Jesu födelse – om Gud som barn
+    och Jesus som Gud.
+- name: Julnatten
+  kind: occasion
+  parent: Jul
+  sort_order: 201
+- name: Juldagen
+  kind: occasion
+  parent: Jul
+  sort_order: 202
+  aliases:
+  - Nativitas
+- name: Annandag jul eller Den helige Stefanos dag
+  kind: occasion
+  parent: Jul
+  sort_order: 203
+- name: Söndagen efter jul
+  kind: occasion
+  parent: Jul
+  sort_order: 204
+- name: Nyårsdagen
+  kind: occasion
+  parent: Jul
+  sort_order: 205
+  aliases:
+  - Circumcisio domini
+- name: Söndagen efter nyår
+  kind: occasion
+  parent: Jul
+  sort_order: 206
+- name: Trettondedag jul
+  kind: occasion
+  parent: Jul
+  sort_order: 207
+  aliases:
+  - Epifania
+- name: Första söndagen efter trettondedagen
+  kind: occasion
+  parent: Jul
+  sort_order: 208
+- name: Andra söndagen efter trettondedagen
+  kind: occasion
+  parent: Jul
+  sort_order: 209
+- name: Tredje söndagen efter trettondedagen
+  kind: occasion
+  parent: Jul
+  sort_order: 210
+- name: Kyndelsmässodagen eller jungfru Marie kyrkogångsdag
+  kind: occasion
+  parent: Jul
+  sort_order: 211
+- name: Fasta
+  kind: occasion
+  parent: Kyrkoåret
+  sort_order: 3
+  description: Fastan är en tid för att tänka på andra, och avstå för dem. Bot, inte
+    som böter, utan för att bli botad. Vi är döpta för att leva i Jesu efterföljd.
+    I fastan förbereder vi påskens dopfirande.
+- name: Fastlagssöndagen - söndagen före fastan
+  kind: occasion
+  parent: Fasta
+  sort_order: 301
+  aliases:
+  - Esto mihi
+- name: Askonsdagen
+  kind: occasion
+  parent: Fasta
+  sort_order: 302
+  aliases:
+  - Dies cinerum
+- name: Första söndagen i fastan
+  kind: occasion
+  parent: Fasta
+  sort_order: 303
+  aliases:
+  - Invocavit
+- name: Andra söndagen i fastan
+  kind: occasion
+  parent: Fasta
+  sort_order: 304
+  aliases:
+  - Reminiscere
+- name: Tredje söndagen i fastan
+  kind: occasion
+  parent: Fasta
+  sort_order: 305
+  aliases:
+  - Oculi
+- name: Midfastosöndagen
+  kind: occasion
+  parent: Fasta
+  sort_order: 306
+  aliases:
+  - Laetare
+- name: Palmsöndagen
+  kind: occasion
+  parent: Fasta
+  sort_order: 307
+  aliases:
+  - Palmarum
+- name: Skärtorsdagen
+  kind: occasion
+  parent: Fasta
+  sort_order: 308
+  aliases:
+  - Viridium
+- name: Långfredagen
+  kind: occasion
+  parent: Fasta
+  sort_order: 309
+- name: Påsk
+  kind: occasion
+  parent: Kyrkoåret
+  sort_order: 4
+  description: Ikoner är kyrkans heliga bilder. Påskens ikon visar Jesus som efter
+    segern över dödsriket räcker sina händer till Eva och Adam. Döden har besegrats.
+    Genom dopet får vi ta emot det liv som aldrig dör. Vi firar det i femtio dagar.
+- name: Påsknatten
+  kind: occasion
+  parent: Påsk
+  sort_order: 401
+- name: Påskdagen
+  kind: occasion
+  parent: Påsk
+  sort_order: 402
+  aliases:
+  - Pascha
+- name: Annandag påsk
+  kind: occasion
+  parent: Påsk
+  sort_order: 403
+- name: Andra söndagen i påsktiden
+  kind: occasion
+  parent: Påsk
+  sort_order: 404
+  aliases:
+  - Quasimodogeniti
+- name: Tredje söndagen i påsktiden
+  kind: occasion
+  parent: Påsk
+  sort_order: 405
+  aliases:
+  - Misericordias Domini
+- name: Fjärde söndagen i påsktiden
+  kind: occasion
+  parent: Påsk
+  sort_order: 406
+  aliases:
+  - Jubilate
+- name: Femte söndagen i påsktiden
+  kind: occasion
+  parent: Påsk
+  sort_order: 407
+  aliases:
+  - Cantate
+- name: Bönsöndagen
+  kind: occasion
+  parent: Påsk
+  sort_order: 408
+  aliases:
+  - Rogate
+- name: Söndagen före pingst
+  kind: occasion
+  parent: Påsk
+  sort_order: 409
+  aliases:
+  - Exaudi
+- name: Kristi Himmelsfärd
+  kind: occasion
+  parent: Kyrkoåret
+  sort_order: 5
+  description: När Jesus visat sig för lärjungarna efter uppståndelsen tillbringade
+    han fyrtio dagar med att undervisa dem. Sedan lämnade Jesus jorden. Lärjungarna
+    blev ensamma kvar, med uppgiften att berätta om vad de varit med om, uppståndelse
+    och nytt liv.
+- name: Kristi himmelfärdsdag
+  kind: occasion
+  parent: Kristi Himmelsfärd
+  sort_order: 501
+  aliases:
+  - Dies sanctus ascensionis Domini
+- name: Pingst
+  kind: occasion
+  parent: Kyrkoåret
+  sort_order: 6
+  description: 'Pingst är påsktidens sista högtid. Vi minns att livet i Jesu efterföljd
+    har en vägledare: Den Heliga Anden – tröstaren, hjälparen och livgivaren som bor
+    i oss.'
+- name: Pingstdagen
+  kind: occasion
+  parent: Pingst
+  sort_order: 601
+- name: Annandag pingst
+  kind: occasion
+  parent: Pingst
+  sort_order: 602
+- name: Trefaldighetstiden
+  kind: occasion
+  parent: Kyrkoåret
+  sort_order: 7
+  description: De olika söndagarnas tema i kyrkoåret lyfter fram händelser i Jesu
+    liv. Händelserna kretsar kring julen och påsken, som var och en har en förberedelsetid
+    och en efterfirningstid. Söndagarna efter trettondedag jul avslutar julen och
+    Kristi himmelsfärd och pingsten är påsktidens slutpunkt. Utöver detta finns övriga
+    helgdagar som bland annat lyfter fram helgon, martyrer och apostlar.
+- name: Heliga Trefaldighets dag eller missionsdagen
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 701
+  aliases:
+  - Trinitatis
+- name: Första söndagen efter trefaldighet
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 702
+- name: Andra söndagen efter trefaldighet
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 703
+- name: Fjärde söndagen efter trefaldighet
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 704
+- name: Apostladagen
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 705
+- name: Sjätte söndagen efter trefaldighet
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 706
+- name: Kristi förklarings dag
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 707
+- name: Åttonde söndagen efter trefaldighet
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 708
+- name: Nionde söndagen efter trefaldighet
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 709
+- name: Tionde söndagen efter trefaldighet
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 710
+- name: Elfte söndagen efter trefaldighet
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 711
+- name: Tolfte söndagen efter trefaldighet
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 712
+- name: Trettonde söndagen efter trefaldighet - diakonins dag
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 713
+- name: Fjortonde söndagen efter trefaldighet
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 714
+- name: Femtonde söndagen efter trefaldighet
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 715
+- name: Sextonde söndagen efter trefaldighet
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 716
+- name: Sjuttonde söndagen efter trefaldighet
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 717
+- name: Tjugonde söndagen efter trefaldighet
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 718
+- name: Tjugoförsta söndagen efter trefaldighet
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 719
+- name: Tjugotredje söndagen efter trefaldighet
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 720
+- name: Söndagen före domssöndagen
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 721
+- name: Domssöndagen
+  kind: occasion
+  parent: Trefaldighetstiden
+  sort_order: 722
+- name: Övriga helgdagar
+  kind: occasion
+  parent: Kyrkoåret
+  sort_order: 8
+  description: De olika söndagarnas tema i kyrkoåret lyfter fram händelser i Jesu
+    liv. Händelserna kretsar kring julen och påsken, som var och en har en förberedelsetid
+    och en efterfirningstid. Söndagarna efter trettondedag jul avslutar julen och
+    Kristi himmelsfärd och pingsten är påsktidens slutpunkt. Utöver detta finns övriga
+    helgdagar som bland annat lyfter fram helgon, martyrer och apostlar.
+- name: Septuagesima
+  kind: occasion
+  parent: Övriga helgdagar
+  sort_order: 801
+  aliases:
+  - Dominica in septuagesima
+- name: Jungfru Marie bebådelsedag
+  kind: occasion
+  parent: Övriga helgdagar
+  sort_order: 802
+- name: Midsommardagen
+  kind: occasion
+  parent: Övriga helgdagar
+  sort_order: 803
+- name: Den helige Johannes döparens dag
+  kind: occasion
+  parent: Övriga helgdagar
+  sort_order: 804
+- name: Den helige Mikaels dag
+  kind: occasion
+  parent: Övriga helgdagar
+  sort_order: 805
+- name: Tacksägelsedagen
+  kind: occasion
+  parent: Övriga helgdagar
+  sort_order: 806
+- name: Alla helgons dag
+  kind: occasion
+  parent: Övriga helgdagar
+  sort_order: 807
+  aliases:
+  - Omnium Sanctorum
+- name: Söndagen efter alla helgons dag eller alla själars dag
+  kind: occasion
+  parent: Övriga helgdagar
+  sort_order: 808

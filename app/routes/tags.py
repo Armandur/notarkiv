@@ -35,7 +35,7 @@ async def list_tags(
             select(PieceTag.tag_id, sqlf.count(PieceTag.piece_id)).group_by(PieceTag.tag_id)
         ).all()
     )
-    tags = session.exec(select(Tag).order_by(Tag.kind, Tag.name)).all()
+    tags = session.exec(select(Tag).order_by(Tag.kind, Tag.sort_order, Tag.name)).all()
 
     # Hämta aliases och gruppera per tagg
     aliases_by_tag: dict[int, list[TagAlias]] = {}

@@ -1159,6 +1159,28 @@ def _descendant_unit_ids(session: Session, root_id: int) -> list[int]:
     return result
 
 
+def _descendant_tag_ids(session: Session, root_ids: set[int]) -> set[int]:
+    """Returnera root_ids plus alla rekursiva barn-tagg-ID:n. In-memory BFS.
+
+    Gör att ett val av en occasion-tagg (t.ex. kyrkoårstiden "Advent") även
+    matchar noter taggade med dess helgdagar ("Första söndagen i advent")."""
+    all_tags = session.exec(select(Tag.id, Tag.parent_id)).all()
+    children_map: dict[int, list[int]] = {}
+    for tid, parent in all_tags:
+        if parent is not None:
+            children_map.setdefault(parent, []).append(tid)
+
+    result = set(root_ids)
+    queue = list(root_ids)
+    while queue:
+        cur = queue.pop()
+        for child in children_map.get(cur, []):
+            if child not in result:
+                result.add(child)
+                queue.append(child)
+    return result
+
+
 def _language_options(codes: list[str]) -> list[dict]:
     """Bygg lista med kod + display-namn (med flagga) för filterval."""
     from app.utils.languages import language_display, language_name_sv
@@ -1202,7 +1224,8 @@ def _apply_filters(stmt, session, tags, voicings, accompaniments, languages, uni
         tag_ids.update(
             session.exec(select(TagAlias.tag_id).where(TagAlias.name.in_(tags))).all()
         )
-        tag_ids = list(tag_ids)
+        # Rulla upp parent -> barn: val av kyrkoårstid matchar dess helgdagar.
+        tag_ids = list(_descendant_tag_ids(session, tag_ids)) if tag_ids else []
         if tag_ids:
             piece_ids_with_tag = list(
                 session.exec(

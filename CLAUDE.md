@@ -226,8 +226,11 @@ notarkiv/
     images/{covers,thumbnails}/
   seed_data/                # YAML för db seed
     tags.yaml, unit_kinds.yaml
+    kyrkoaret.yaml          # GENERERAD: Kyrkoåret > kyrkoårstid > helgdag (occasion-taggar)
     psalms/                 # 1986 + 2003 års svenska psalmbok som referensdata
     (users.yaml, storage_locations.yaml - läggs till av användaren)
+  scripts/
+    fetch_kyrkoaret.py      # Hämtar kyrkoårets helgdagar från svk-API:t -> kyrkoaret.yaml
   snapshots/                # Lokala DB+image-snapshots (gitignored)
   docs/
     datamodell.md, ocr-strategi.md, musicbrainz.md
@@ -490,6 +493,11 @@ Alla filter visas som chips + Tom Select-pickers (se designbeslut 17).
 Occasion är en tagg (många-till-många), inte ett kolumnvärde
 - en not kan användas både i advent och i allmänna gudstjänster.
 
+**Occasion-filtret rullar upp parent -> barn** via `_descendant_tag_ids` i
+`routes/pieces.py`: ett val av en kyrkoårstid ("Advent") matchar även noter
+taggade med dess enskilda helgdagar ("Första söndagen i advent"). Gäller bara
+occasion (`tag`-paramet) i `_apply_filters` - voicing/ackompanjemang är platta.
+
 Sökningen är abstraherad bakom `services/search.py` med en
 `SearchBackend`-protokoll, så att FTS5-implementationen kan bytas mot
 en Postgres-baserad senare utan att route- eller template-kod ändras.
@@ -528,7 +536,10 @@ inte ens täcker allt mellan snapshots. Lokala snapshots ligger i
 
 Seed (`seed_all()`) körs alltid efter `init_db()` och är idempotent.
 Den fyller på baseline-data:
-- Taggar (`seed_data/tags.yaml`) inkl. besättning + ackompanjemang
+- Taggar (`seed_data/tags.yaml`) inkl. besättning + ackompanjemang.
+  `_seed_tags` läser även `seed_data/kyrkoaret.yaml` (genererad) och kör båda
+  genom samma två-pass, så Kyrkoåret-hierarkin (rot > kyrkoårstid > helgdag)
+  länkas över filgränsen.
 - UnitKinds (`seed_data/unit_kinds.yaml`)
 - Initial admin (om `INITIAL_ADMIN_*` är satt i env)
 - Psalmböcker (`seed_data/psalms/*.yaml`) - 1986 + 2003 års psalmbok
