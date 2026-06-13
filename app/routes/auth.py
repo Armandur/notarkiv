@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import RedirectResponse, Response
@@ -36,7 +37,7 @@ async def login_submit(
         flash(request, "Fel användarnamn eller lösenord", "danger")
         return render(request, "auth/login.html", user=None, status_code=400)
 
-    user.last_login_at = datetime.utcnow()
+    user.last_login_at = now_utc()
     session.add(user)
     session.commit()
 

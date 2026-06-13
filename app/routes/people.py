@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import RedirectResponse, Response
@@ -365,7 +366,7 @@ async def edit_person_form(
                         try:
                             person.portrait_image_path = save_uploaded_cover(img_bytes)
                             person.portrait_source_url = image_page_url
-                            person.portrait_fetched_at = datetime.utcnow()
+                            person.portrait_fetched_at = now_utc()
                             session.add(person)
                             session.commit()
                         except Exception as exc:
@@ -436,7 +437,7 @@ async def upload_portrait(
         delete_saved_image(person.portrait_image_path)
 
     person.portrait_image_path = relative_path
-    person.updated_at = datetime.utcnow()
+    person.updated_at = now_utc()
     session.add(person)
     session.commit()
     flash(request, "Porträtt uppdaterat", "success")
@@ -456,7 +457,7 @@ async def delete_portrait(
     if person.portrait_image_path:
         delete_saved_image(person.portrait_image_path)
         person.portrait_image_path = None
-        person.updated_at = datetime.utcnow()
+        person.updated_at = now_utc()
         session.add(person)
         session.commit()
     flash(request, "Porträtt borttaget", "info")
@@ -574,10 +575,10 @@ async def update_person(
         person.biography = new_bio
         if mb_bio_applied == "1":
             # Biografi just applicerades från Wikipedia-förslaget
-            person.biography_fetched_at = datetime.utcnow()
+            person.biography_fetched_at = now_utc()
     person.musicbrainz_artist_id = (musicbrainz_artist_id or "").strip() or None
     person.wikidata_id = (wikidata_id or "").strip() or None
-    person.updated_at = datetime.utcnow()
+    person.updated_at = now_utc()
 
     session.add(person)
     session.commit()
@@ -738,7 +739,7 @@ async def apply_wikidata(
             if bio:
                 person.biography = bio
                 person.biography_source_url = wiki_url
-                person.biography_fetched_at = datetime.utcnow()
+                person.biography_fetched_at = now_utc()
 
     # Portrait via P18 om saknas
     if not person.portrait_image_path:
@@ -751,9 +752,9 @@ async def apply_wikidata(
                 if rel:
                     person.portrait_image_path = rel
                     person.portrait_source_url = thumb_url
-                    person.portrait_fetched_at = datetime.utcnow()
+                    person.portrait_fetched_at = now_utc()
 
-    person.updated_at = datetime.utcnow()
+    person.updated_at = now_utc()
     session.add(person)
     session.commit()
 
@@ -793,7 +794,7 @@ async def clear_mbid(
     if not person:
         raise HTTPException(404)
     person.musicbrainz_artist_id = None
-    person.updated_at = datetime.utcnow()
+    person.updated_at = now_utc()
     session.add(person)
     session.commit()
     flash(request, "Rensade MusicBrainz-koppling", "success")
@@ -811,7 +812,7 @@ async def clear_wikidata_id(
     if not person:
         raise HTTPException(404)
     person.wikidata_id = None
-    person.updated_at = datetime.utcnow()
+    person.updated_at = now_utc()
     session.add(person)
     session.commit()
     flash(request, "Rensade Wikidata-id", "success")
@@ -846,8 +847,8 @@ async def apply_mb_portrait(
     old_path = person.portrait_image_path
     person.portrait_image_path = new_path
     person.portrait_source_url = image_url
-    person.portrait_fetched_at = datetime.utcnow()
-    person.updated_at = datetime.utcnow()
+    person.portrait_fetched_at = now_utc()
+    person.updated_at = now_utc()
     session.add(person)
     session.commit()
     if old_path and old_path != new_path:
@@ -906,7 +907,7 @@ async def refresh_person_mb(
     if wiki_bio:
         person.biography = wiki_bio
         person.biography_source_url = wiki_url
-        person.biography_fetched_at = datetime.utcnow()
+        person.biography_fetched_at = now_utc()
 
     # Skriv över porträtt om MB eller Wikidata har bild
     image_page_url = extract_image_url(artist)
@@ -924,7 +925,7 @@ async def refresh_person_mb(
                     old_path = person.portrait_image_path
                     person.portrait_image_path = new_path
                     person.portrait_source_url = image_page_url
-                    person.portrait_fetched_at = datetime.utcnow()
+                    person.portrait_fetched_at = now_utc()
                     if old_path and old_path != new_path:
                         delete_saved_image(old_path)
                 except Exception as exc:
@@ -951,7 +952,7 @@ async def refresh_person_mb(
     person.death_day = dd
     if artist.get("country"):
         person.country = artist["country"]
-    person.updated_at = datetime.utcnow()
+    person.updated_at = now_utc()
     session.add(person)
 
     # Säkerställ externa länkar
@@ -1034,7 +1035,7 @@ async def apply_person_mb(
                 rel_path = save_uploaded_cover(img_bytes)
                 person.portrait_image_path = rel_path
                 person.portrait_source_url = image_page_url
-                person.portrait_fetched_at = datetime.utcnow()
+                person.portrait_fetched_at = now_utc()
                 break
             except Exception as exc:
                 from loguru import logger as _log

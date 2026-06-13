@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from sqlmodel import Field, SQLModel, UniqueConstraint
 
@@ -18,7 +19,7 @@ class PsalmBook(SQLModel, table=True):
     edition: str | None = None  # t.ex. "1986", "1986-tillägg", "2003"
     description: str | None = None
     sort_order: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)
 
 
 class PsalmEntry(SQLModel, table=True):
@@ -51,4 +52,4 @@ class PiecePsalmRef(SQLModel, table=True):
     book_id: int = Field(foreign_key="psalm_books.id", index=True)
     edition: str | None = None  # t.ex. "1986", "1986-tillägg", "2003"
     number: int
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)

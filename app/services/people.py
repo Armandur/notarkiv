@@ -3,6 +3,7 @@ bygg cache-text för FTS, plus MB-berikning.
 """
 
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from sqlmodel import Session, select
 
@@ -100,7 +101,7 @@ def find_or_create_person(
     if existing:
         if musicbrainz_artist_id and not existing.musicbrainz_artist_id:
             existing.musicbrainz_artist_id = musicbrainz_artist_id
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = now_utc()
             session.add(existing)
         return existing
 
@@ -232,7 +233,7 @@ def enrich_person_from_mb(
     if biography and not person.biography:
         person.biography = biography
         person.biography_source_url = wikipedia_url
-        person.biography_fetched_at = datetime.utcnow()
+        person.biography_fetched_at = now_utc()
         changed = True
 
     if wikipedia_url:
@@ -252,7 +253,7 @@ def enrich_person_from_mb(
             changed = True
 
     if changed:
-        person.updated_at = datetime.utcnow()
+        person.updated_at = now_utc()
         session.add(person)
 
 

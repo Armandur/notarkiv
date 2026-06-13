@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 from io import BytesIO
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
@@ -275,7 +276,7 @@ async def add_loan(
             expected_return_at=_parse_date(expected_return),
             notes=(notes or "").strip() or None,
             registered_by=user.id,
-            picked_up_at=datetime.utcnow(),  # Enskilt lån räknas direkt som hämtat
+            picked_up_at=now_utc(),  # Enskilt lån räknas direkt som hämtat
         )
     )
     session.commit()
@@ -296,7 +297,7 @@ async def return_loan(
     if loan.returned_at:
         flash(request, "Utlånet är redan markerat som återlämnat", "info")
     else:
-        loan.returned_at = datetime.utcnow()
+        loan.returned_at = now_utc()
         session.add(loan)
         session.commit()
         # Om alla i batchen återlämnats - markera batchen som returned
@@ -310,7 +311,7 @@ async def return_loan(
                 ).first()
                 if not remaining:
                     batch.status = LoanBatchStatus.RETURNED
-                    batch.returned_at = datetime.utcnow()
+                    batch.returned_at = now_utc()
                     session.add(batch)
                     session.commit()
         flash(request, f"Återlämnat: {loan.borrower_name}", "success")
@@ -635,7 +636,7 @@ async def cart_checkout(
         flash(request, "Låntagare måste anges", "danger")
         return RedirectResponse("/loans/cart", status.HTTP_302_FOUND)
 
-    now = datetime.utcnow()
+    now = now_utc()
     cart.name = clean_name
     cart.borrower_name = bname
     cart.borrower_user_id = bid
@@ -742,7 +743,7 @@ async def mark_picked_up(
     loan = session.get(Loan, loan_id)
     if not loan or loan.batch_id is None:
         raise HTTPException(404)
-    loan.picked_up_at = datetime.utcnow()
+    loan.picked_up_at = now_utc()
     session.add(loan)
     session.commit()
     return RedirectResponse(f"/loans/batch/{loan.batch_id}/pickup", status.HTTP_302_FOUND)
@@ -785,7 +786,7 @@ async def batch_activate(
             session.delete(la)
 
     batch.status = LoanBatchStatus.ACTIVE
-    batch.activated_at = datetime.utcnow()
+    batch.activated_at = now_utc()
     session.add(batch)
     session.commit()
     flash(request, f'Utlån "{batch.name}" är nu aktivt ({len(picked)} noter)', "success")
@@ -824,7 +825,7 @@ async def batch_return_at_kiosk(
         ).all()
     }
 
-    now = datetime.utcnow()
+    now = now_utc()
     loans = session.exec(
         select(Loan).where(Loan.batch_id == batch.id).where(Loan.returned_at.is_(None))
     ).all()
@@ -872,7 +873,7 @@ async def batch_return_all(
     batch = session.get(LoanBatch, batch_id)
     if not batch or batch.status != LoanBatchStatus.ACTIVE:
         raise HTTPException(404)
-    now = datetime.utcnow()
+    now = now_utc()
     loans = session.exec(
         select(Loan).where(Loan.batch_id == batch.id).where(Loan.returned_at.is_(None))
     ).all()
@@ -1021,7 +1022,7 @@ async def batch_add_more(
             return RedirectResponse(redirect_to, status.HTTP_302_FOUND)
         if avail is not None and requested > capped:
             flash(request, f"Bara {capped} ex lediga - lade till så många", "warning")
-        now = datetime.utcnow()
+        now = now_utc()
         session.add(
             Loan(
                 placement_id=placement_id,
@@ -1064,7 +1065,7 @@ async def batch_pickup_pdf(
         request=request,
         batch=batch,
         groups=groups,
-        generated_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
+        generated_at=now_utc().strftime("%Y-%m-%d %H:%M"),
     )
     pdf_bytes = HTML(string=html).write_pdf()
     buf = BytesIO(pdf_bytes)

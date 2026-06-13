@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from sqlmodel import Field, SQLModel
 
@@ -16,4 +17,4 @@ class ScanSessionImage(SQLModel, table=True):
     )
     image_path: str
     sort_order: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)

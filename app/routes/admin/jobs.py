@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from app.utils.dates import now_utc
 
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import RedirectResponse, Response
@@ -28,7 +29,7 @@ async def jobs_dashboard(
     )
 
     # Pending som är äldre än 5 min anses fastnade
-    threshold = datetime.utcnow() - timedelta(minutes=5)
+    threshold = now_utc() - timedelta(minutes=5)
     stuck = session.exec(
         select(ScanSession)
         .where(ScanSession.status == ScanStatus.PENDING)
@@ -65,7 +66,7 @@ async def requeue_stuck(
     session: Session = Depends(get_session),
 ) -> Response:
     """Re-enqueua alla pending-skanningar som är äldre än 5 min."""
-    threshold = datetime.utcnow() - timedelta(minutes=5)
+    threshold = now_utc() - timedelta(minutes=5)
     stuck = session.exec(
         select(ScanSession)
         .where(ScanSession.status == ScanStatus.PENDING)
@@ -81,7 +82,7 @@ async def requeue_stuck(
     count = 0
     for scan in stuck:
         await pool.enqueue_job(
-            "extract_metadata_job", scan.id, _job_id=f"requeue-{scan.id}-{int(datetime.utcnow().timestamp())}"
+            "extract_metadata_job", scan.id, _job_id=f"requeue-{scan.id}-{int(now_utc().timestamp())}"
         )
         count += 1
 
@@ -111,7 +112,7 @@ async def retry_failed(
         scan.error_message = None
         session.add(scan)
         await pool.enqueue_job(
-            "extract_metadata_job", scan.id, _job_id=f"retry-{scan.id}-{int(datetime.utcnow().timestamp())}"
+            "extract_metadata_job", scan.id, _job_id=f"retry-{scan.id}-{int(now_utc().timestamp())}"
         )
     session.commit()
     flash(request, f"Återstartade {len(failed)} misslyckade skanningar", "success")

@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 from enum import StrEnum
 
 from sqlalchemy import String
@@ -54,8 +55,8 @@ class Person(SQLModel, table=True):
     wikidata_id: str | None = Field(default=None, index=True)
     biography_fetched_at: datetime | None = None
     portrait_fetched_at: datetime | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
 
 
 class PersonLink(SQLModel, table=True):
@@ -73,7 +74,7 @@ class PersonLink(SQLModel, table=True):
     kind: PersonLinkKind = Field(default=PersonLinkKind.OTHER, sa_type=String)
     label: str | None = None  # Frivillig display-text utöver kind
     sort_order: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)
 
 
 class PieceContributor(SQLModel, table=True):

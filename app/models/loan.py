@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from sqlmodel import Field, SQLModel
 
@@ -20,7 +21,7 @@ class Loan(SQLModel, table=True):
     borrower_user_id: int | None = Field(default=None, foreign_key="users.id")
     copies: int = Field(default=1)
     notes: str | None = None
-    borrowed_at: datetime = Field(default_factory=datetime.utcnow)
+    borrowed_at: datetime = Field(default_factory=now_utc)
     expected_return_at: datetime | None = None
     returned_at: datetime | None = None
     registered_by: int | None = Field(default=None, foreign_key="users.id")

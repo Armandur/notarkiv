@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse, Response
@@ -89,7 +90,7 @@ async def create_session(
     # bara ev. tidigare av denna user för att inte spräcka "en per user"-regeln.
     own_active = get_user_default_active_session(session, user.id)
     if own_active:
-        own_active.ended_at = datetime.utcnow()
+        own_active.ended_at = now_utc()
         append_log(own_active, "Avslutad automatiskt - ny session startad", user.username)
         session.add(own_active)
 
@@ -447,7 +448,7 @@ async def end_session(
         flash(request, "Sessionen är redan avslutad", "info")
         return RedirectResponse(f"/inventory/{inv_id}", status.HTTP_302_FOUND)
 
-    inv.ended_at = datetime.utcnow()
+    inv.ended_at = now_utc()
     append_log(inv, "Avslutad", user.username)
     session.add(inv)
     session.commit()

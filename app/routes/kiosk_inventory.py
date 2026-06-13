@@ -3,6 +3,7 @@ att efterföljande piece-skanningar registreras som "found"-checks mot
 den valda InventorySession."""
 
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse, Response
@@ -38,7 +39,7 @@ async def start_inventory(
         flash(request, "Sessionen finns inte eller är redan avslutad", "danger")
         return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
     kiosk.active_inventory_session_id = inv.id
-    kiosk.last_activity_at = datetime.utcnow()
+    kiosk.last_activity_at = now_utc()
     session.add(kiosk)
     append_log(inv, f"Inventeringsläge aktivt på kiosk {kiosk.name}", user.username)
     session.add(inv)

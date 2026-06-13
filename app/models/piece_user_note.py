@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from sqlmodel import Field, SQLModel, UniqueConstraint
 
@@ -17,5 +18,5 @@ class PieceUserNote(SQLModel, table=True):
     piece_id: int = Field(foreign_key="pieces.id", index=True, ondelete="CASCADE")
     user_id: int = Field(foreign_key="users.id", index=True, ondelete="CASCADE")
     text: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)

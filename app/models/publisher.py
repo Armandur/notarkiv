@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 from enum import StrEnum
 
 from sqlalchemy import String
@@ -40,8 +41,8 @@ class Publisher(SQLModel, table=True):
     wikidata_id: str | None = Field(default=None, index=True)
     # Sätts när berikning kört senast (None = aldrig berikad)
     enriched_at: datetime | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
 
 
 class PublisherLink(SQLModel, table=True):
@@ -56,4 +57,4 @@ class PublisherLink(SQLModel, table=True):
     kind: PublisherLinkKind = Field(default=PublisherLinkKind.OTHER, sa_type=String)
     label: str | None = None
     sort_order: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)

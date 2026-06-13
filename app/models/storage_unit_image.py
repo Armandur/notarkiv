@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from sqlmodel import Field, SQLModel
 
@@ -17,4 +18,4 @@ class StorageUnitImage(SQLModel, table=True):
     image_path: str  # Relativ mot IMAGES_PATH
     label: str | None = None
     sort_order: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)

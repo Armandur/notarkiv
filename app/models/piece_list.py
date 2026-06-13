@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from sqlmodel import Field, SQLModel, UniqueConstraint
 
@@ -20,8 +21,8 @@ class PieceList(SQLModel, table=True):
     name: str
     description: str | None = None
     is_favorites: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
 
 
 class PieceListItem(SQLModel, table=True):
@@ -35,4 +36,4 @@ class PieceListItem(SQLModel, table=True):
     list_id: int = Field(foreign_key="piece_lists.id", index=True, ondelete="CASCADE")
     piece_id: int = Field(foreign_key="pieces.id", index=True, ondelete="CASCADE")
     sort_order: int = Field(default=0)
-    added_at: datetime = Field(default_factory=datetime.utcnow)
+    added_at: datetime = Field(default_factory=now_utc)

@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 from enum import StrEnum
 
 from sqlalchemy import String
@@ -27,4 +28,4 @@ class PieceImage(SQLModel, table=True):
     kind: PieceImageKind = Field(default=PieceImageKind.COVER, sa_type=String)
     label: str | None = None
     sort_order: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)

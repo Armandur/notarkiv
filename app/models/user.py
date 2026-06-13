@@ -1,5 +1,6 @@
 import secrets
 from datetime import datetime
+from app.utils.dates import now_utc
 from enum import StrEnum
 
 from sqlalchemy import String
@@ -33,7 +34,7 @@ class User(SQLModel, table=True):
     kiosk_token: str | None = Field(
         default_factory=_new_kiosk_token, unique=True, index=True
     )
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)
     last_login_at: datetime | None = None
 
     @property

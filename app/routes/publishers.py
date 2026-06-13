@@ -1,6 +1,7 @@
 """Routes för Publisher-entiteter - lista, detalj, redigera, radera."""
 
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse, Response
@@ -306,7 +307,7 @@ async def update_publisher(
     pub.description = (description or "").strip() or None
     pub.musicbrainz_label_id = (musicbrainz_label_id or "").strip() or None
     pub.wikidata_id = (wikidata_id or "").strip() or None
-    pub.updated_at = datetime.utcnow()
+    pub.updated_at = now_utc()
     session.add(pub)
     session.commit()
     flash(request, "Förlag uppdaterat", "success")
@@ -491,7 +492,7 @@ async def clear_musicbrainz(
     if not pub:
         raise HTTPException(404)
     pub.musicbrainz_label_id = None
-    pub.updated_at = datetime.utcnow()
+    pub.updated_at = now_utc()
     session.add(pub)
     session.commit()
     flash(request, "MusicBrainz-koppling rensad", "info")

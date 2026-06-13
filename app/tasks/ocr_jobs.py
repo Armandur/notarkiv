@@ -2,6 +2,7 @@
 
 import json
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from loguru import logger
 from sqlmodel import Session
@@ -58,7 +59,7 @@ async def extract_metadata_job(ctx: dict, scan_session_id: int) -> dict:
     with Session(engine) as session:
         scan = session.get(ScanSession, scan_session_id)
         scan.status = ScanStatus.DONE
-        scan.completed_at = datetime.utcnow()
+        scan.completed_at = now_utc()
         scan.musicbrainz_suggestion = json.dumps([s.model_dump() for s in suggestions])
         session.add(scan)
         session.commit()
@@ -72,7 +73,7 @@ def _mark_failed(scan_session_id: int, error: str) -> None:
         if scan:
             scan.status = ScanStatus.FAILED
             scan.error_message = _humanize_error(error)
-            scan.completed_at = datetime.utcnow()
+            scan.completed_at = now_utc()
             session.add(scan)
             session.commit()
 

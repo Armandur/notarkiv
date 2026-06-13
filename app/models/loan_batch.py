@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 from enum import StrEnum
 
 from sqlmodel import Field, SQLModel
@@ -35,7 +36,7 @@ class LoanBatch(SQLModel, table=True):
     expected_return_at: datetime | None = None
     notes: str | None = None
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)
     registered_at: datetime | None = None  # cart -> picking
     activated_at: datetime | None = None   # picking -> active
     returned_at: datetime | None = None    # active -> returned

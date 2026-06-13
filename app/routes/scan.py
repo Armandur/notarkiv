@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import RedirectResponse, Response
@@ -269,7 +270,7 @@ async def discard_scan(
         return RedirectResponse("/scan/queue", status.HTTP_302_FOUND)
 
     scan.discarded = True
-    scan.discarded_at = datetime.utcnow()
+    scan.discarded_at = now_utc()
     scan.discard_reason = (reason or "").strip() or None
     session.add(scan)
 
@@ -922,7 +923,7 @@ async def apply_person_wd(
         if bio:
             person.biography = bio
             person.biography_source_url = wiki_url
-            person.biography_fetched_at = datetime.utcnow()
+            person.biography_fetched_at = now_utc()
 
     if not person.portrait_image_path:
         filename = extract_image_filename(entity)
@@ -933,12 +934,12 @@ async def apply_person_wd(
                 try:
                     person.portrait_image_path = save_uploaded_cover(img_bytes)
                     person.portrait_source_url = thumb_url
-                    person.portrait_fetched_at = datetime.utcnow()
+                    person.portrait_fetched_at = now_utc()
                 except Exception as e:
                     from loguru import logger
                     logger.warning("Kunde inte spara porträtt för {}: {}", person.name, e)
 
-    person.updated_at = datetime.utcnow()
+    person.updated_at = now_utc()
     session.add(person)
     session.commit()
 
@@ -1042,7 +1043,7 @@ async def save_piece(
         piece.edition_number = edition_number or None
         piece.notes = notes or None
         piece.musicbrainz_work_id = musicbrainz_work_id or None
-        piece.updated_at = datetime.utcnow()
+        piece.updated_at = now_utc()
         session.add(piece)
     else:
         piece = Piece(
@@ -1054,7 +1055,7 @@ async def save_piece(
             notes=notes or None,
             musicbrainz_work_id=musicbrainz_work_id or None,
             created_by=user.id,
-            updated_at=datetime.utcnow(),
+            updated_at=now_utc(),
         )
         session.add(piece)
         session.flush()

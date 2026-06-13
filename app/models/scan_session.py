@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 from enum import StrEnum
 
 from sqlalchemy import String
@@ -37,5 +38,5 @@ class ScanSession(SQLModel, table=True):
     discarded: bool = Field(default=False)
     discarded_at: datetime | None = None
     discard_reason: str | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)
     completed_at: datetime | None = None

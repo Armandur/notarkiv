@@ -9,6 +9,7 @@ Att modellera kiosken som en separat entitet (inte som en User) gör att:
 
 import secrets
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from sqlmodel import Field, SQLModel
 
@@ -36,5 +37,5 @@ class Kiosk(SQLModel, table=True):
     active_inventory_session_id: int | None = Field(
         default=None, foreign_key="inventory_sessions.id"
     )
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)
     last_activity_at: datetime | None = None

@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from app.utils.dates import now_utc
 from enum import StrEnum
 
 from sqlalchemy import String
@@ -43,6 +44,6 @@ class Piece(SQLModel, table=True):
     spotify_url: str | None = None
     notes: str | None = None
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
     created_by: int | None = Field(default=None, foreign_key="users.id")

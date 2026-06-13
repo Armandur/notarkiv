@@ -2,6 +2,7 @@
 användare. Listor är alltid privata - ingen synlighet mellan användare."""
 
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse, Response
@@ -193,7 +194,7 @@ async def update_list(
             return RedirectResponse(f"/lists/{list_id}", status.HTTP_302_FOUND)
     ll.name = clean
     ll.description = (description or "").strip() or None
-    ll.updated_at = datetime.utcnow()
+    ll.updated_at = now_utc()
     session.add(ll)
     session.commit()
     flash(request, "Lista uppdaterad", "success")

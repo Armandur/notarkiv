@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 from enum import StrEnum
 
 from sqlalchemy import String
@@ -18,7 +19,7 @@ class StorageLocation(SQLModel, table=True):
     kind: LocationKind = Field(default=LocationKind.PHYSICAL, sa_type=String)
     description: str | None = None
     sort_order: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)
 
 
 class UnitKind(SQLModel, table=True):
@@ -31,7 +32,7 @@ class UnitKind(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)
 
 
 class StorageUnit(SQLModel, table=True):
@@ -45,7 +46,7 @@ class StorageUnit(SQLModel, table=True):
     sort_order: int = Field(default=0)
     archived: bool = Field(default=False)
     notes: str | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)
 
 
 class PiecePlacement(SQLModel, table=True):
@@ -57,4 +58,4 @@ class PiecePlacement(SQLModel, table=True):
     storage_unit_id: int = Field(foreign_key="storage_units.id", index=True)
     copies: int | None = None
     notes: str | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=now_utc)

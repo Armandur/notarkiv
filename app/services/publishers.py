@@ -1,6 +1,7 @@
 """Helpers för Publisher-entiteter: find-or-create + namnnormalisering."""
 
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from sqlmodel import Session, select
 
@@ -170,8 +171,8 @@ def enrich_publisher_from_mb(
         publisher.description = description
         publisher.description_source_url = wikipedia_url
 
-    publisher.enriched_at = datetime.utcnow()
-    publisher.updated_at = datetime.utcnow()
+    publisher.enriched_at = now_utc()
+    publisher.updated_at = now_utc()
     session.add(publisher)
     session.flush()  # ge publisher.id om ny
 

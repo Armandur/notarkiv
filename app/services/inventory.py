@@ -1,6 +1,7 @@
 """Hjälpare för aktiva inventeringstillfällen."""
 
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from sqlmodel import Session, select
 
@@ -54,7 +55,7 @@ def get_user_default_active_session(
 
 def append_log(inv: InventorySession, text: str, user_label: str | None = None) -> None:
     """Lägg till en tidsstämplad rad till loggen. Mutera direkt på instansen."""
-    stamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+    stamp = now_utc().strftime("%Y-%m-%d %H:%M")
     prefix = f"[{stamp}]"
     if user_label:
         prefix += f" {user_label}:"

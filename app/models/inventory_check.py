@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 from enum import StrEnum
 
 from sqlalchemy import String
@@ -30,5 +31,5 @@ class InventoryCheck(SQLModel, table=True):
     status: CheckStatus = Field(default=CheckStatus.NOT_CHECKED, sa_type=String)
     actual_copies: int | None = None
     notes: str | None = None
-    checked_at: datetime = Field(default_factory=datetime.utcnow)
+    checked_at: datetime = Field(default_factory=now_utc)
     checked_by: int | None = Field(default=None, foreign_key="users.id")

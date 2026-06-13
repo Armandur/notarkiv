@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from sqlmodel import Field, SQLModel
 
@@ -21,6 +22,6 @@ class InventorySession(SQLModel, table=True):
     )
     planned_unit_id: int | None = Field(default=None, foreign_key="storage_units.id")
     log: str | None = None  # Append-only fritext med datumstämplar
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=now_utc)
     ended_at: datetime | None = None
     started_by: int | None = Field(default=None, foreign_key="users.id")

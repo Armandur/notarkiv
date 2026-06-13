@@ -3,6 +3,7 @@ from fastapi.responses import RedirectResponse, Response
 from sqlmodel import Session, select
 
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from app.deps import (
     get_session,
@@ -106,14 +107,14 @@ def _kiosk_borrower(request: Request, session: Session) -> User | None:
         if last_active_raw:
             try:
                 last_active = datetime.fromisoformat(last_active_raw)
-                if (datetime.utcnow() - last_active).total_seconds() > timeout_min * 60:
+                if (now_utc() - last_active).total_seconds() > timeout_min * 60:
                     request.session.pop("kiosk_borrower_id", None)
                     request.session.pop("kiosk_borrower_last_active", None)
                     return None
             except (TypeError, ValueError):
                 pass
     # Touch timestamp för nästa request
-    request.session["kiosk_borrower_last_active"] = datetime.utcnow().isoformat()
+    request.session["kiosk_borrower_last_active"] = now_utc().isoformat()
 
     user = session.get(User, bid)
     return user
@@ -254,7 +255,7 @@ async def kiosk_activate(
     # Rensa INTE user_id - admin behöver kunna fortsätta vara inloggad
     # för att navigera tillbaka till t.ex. /admin/kiosks. På en delad
     # produktionskiosk loggar admin ut själv när hen är klar.
-    kiosk.last_activity_at = datetime.utcnow()
+    kiosk.last_activity_at = now_utc()
     session.add(kiosk)
     session.commit()
     return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
@@ -307,7 +308,7 @@ async def kiosk_auth(
 
     reset_kiosk_attempts(ip)
     request.session["kiosk_borrower_id"] = target.id
-    request.session["kiosk_borrower_last_active"] = datetime.utcnow().isoformat()
+    request.session["kiosk_borrower_last_active"] = now_utc().isoformat()
     flash(request, f"Inloggad som {target.username}", "success")
     return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
 
@@ -341,7 +342,7 @@ async def kiosk_qr_auth(
 
     reset_kiosk_attempts(ip)
     request.session["kiosk_borrower_id"] = target.id
-    request.session["kiosk_borrower_last_active"] = datetime.utcnow().isoformat()
+    request.session["kiosk_borrower_last_active"] = now_utc().isoformat()
     flash(request, f"Inloggad som {target.username}", "success")
     return RedirectResponse("/kiosk", status.HTTP_302_FOUND)
 
@@ -397,7 +398,7 @@ async def kiosk_checkout(
         b_user_id = borrower.id
         b_name = borrower.username
 
-    now = datetime.utcnow()
+    now = now_utc()
     expected = _parse_date(expected_return)
 
     # Endast 1 not i korgen → registrera som fristående lån (utan batch).
@@ -791,11 +792,11 @@ async def list_pieces(
     if view == "tree":
         return await _list_tree(request, user, session)
 
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     period_cutoff: datetime | None = None
     if period in {"7", "30", "90"}:
-        period_cutoff = datetime.now(timezone.utc) - timedelta(days=int(period))
+        period_cutoff = now_utc() - timedelta(days=int(period))
 
     def apply_sort(stmt):
         if sort == "created_asc":
@@ -1381,7 +1382,7 @@ async def qr_labels_pdf(
     html = templates_setup.templates.get_template("pieces/qr_labels_pdf.html").render(
         request=request,
         items=items,
-        generated_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
+        generated_at=now_utc().strftime("%Y-%m-%d %H:%M"),
     )
     pdf_bytes = HTML(string=html).write_pdf()
     return Response(
@@ -1480,7 +1481,7 @@ async def new_piece_save(
         musicbrainz_work_id=(musicbrainz_work_id or "").strip() or None,
         spotify_url=(spotify_url or "").strip() or None,
         created_by=user.id,
-        updated_at=datetime.utcnow(),
+        updated_at=now_utc(),
     )
     session.add(piece)
     session.flush()
@@ -1906,7 +1907,7 @@ async def edit_piece_save(
     piece.notes = (notes or "").strip() or None
     piece.musicbrainz_work_id = (musicbrainz_work_id or "").strip() or None
     piece.spotify_url = (spotify_url or "").strip() or None
-    piece.updated_at = datetime.utcnow()
+    piece.updated_at = now_utc()
 
     cache = replace_contributors(
         session,
@@ -1945,7 +1946,7 @@ async def clear_piece_mb_work_id(
     if not piece:
         raise HTTPException(404)
     piece.musicbrainz_work_id = None
-    piece.updated_at = datetime.utcnow()
+    piece.updated_at = now_utc()
     session.add(piece)
     session.commit()
     flash(request, "Rensade MusicBrainz-koppling", "success")
@@ -2225,7 +2226,7 @@ async def apply_musicbrainz(
             person = session.get(Person, existing_comp.person_id)
             if person and person.name != composer:
                 person.name = composer
-                person.updated_at = datetime.utcnow()
+                person.updated_at = now_utc()
                 session.add(person)
         else:
             person = find_or_create_person(session, composer)
@@ -2291,7 +2292,7 @@ async def apply_musicbrainz(
                 cache_parts.append(f"{name} ({role_str})")
         piece.contributors_cache = "; ".join(cache_parts) or None
 
-    piece.updated_at = datetime.utcnow()
+    piece.updated_at = now_utc()
     session.add(piece)
     session.commit()
 
@@ -2632,7 +2633,7 @@ async def upsert_user_note(
 
     if existing:
         existing.text = text
-        existing.updated_at = datetime.utcnow()
+        existing.updated_at = now_utc()
         session.add(existing)
     else:
         session.add(

@@ -1,6 +1,7 @@
 """Runtime-inställningar lagrade i DB. Faller tillbaka till env via app.config."""
 
 from datetime import datetime
+from app.utils.dates import now_utc
 
 from sqlmodel import Session
 
@@ -32,7 +33,7 @@ def set_setting(key: str, value: str | None, user_id: int | None = None) -> None
             row = AppSetting(key=key, value=value, updated_by=user_id)
         else:
             row.value = value
-            row.updated_at = datetime.utcnow()
+            row.updated_at = now_utc()
             row.updated_by = user_id
         session.add(row)
         session.commit()
