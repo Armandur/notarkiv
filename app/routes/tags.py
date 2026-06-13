@@ -69,6 +69,7 @@ async def create_tag(
     kind: str = Form("free"),
     description: str | None = Form(None),
     parent_id: str | None = Form(None),
+    sort_order: str | None = Form(None),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -96,6 +97,7 @@ async def create_tag(
             kind=kind_enum,
             description=(description or "").strip() or None,
             parent_id=pid,
+            sort_order=int(sort_order) if sort_order and sort_order.lstrip("-").isdigit() else 0,
         )
     )
     session.commit()
@@ -149,6 +151,7 @@ async def update_tag(
     kind: str = Form("free"),
     description: str | None = Form(None),
     parent_id: str | None = Form(None),
+    sort_order: str | None = Form(None),
     user: User = Depends(require_editor),
     session: Session = Depends(get_session),
 ) -> Response:
@@ -183,6 +186,8 @@ async def update_tag(
     tag.kind = kind_enum
     tag.description = (description or "").strip() or None
     tag.parent_id = pid
+    if sort_order is not None and sort_order.lstrip("-").isdigit():
+        tag.sort_order = int(sort_order)
     session.add(tag)
     session.commit()
     flash(request, f"Uppdaterade '{tag.name}'", "success")

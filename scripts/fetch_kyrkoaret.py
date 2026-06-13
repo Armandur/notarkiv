@@ -68,6 +68,10 @@ def _build_rows(feasts: list[dict]) -> list[dict]:
 
     season_keys = sorted(parts, key=season_sort_key)
 
+    # Globalt över alla kyrkoårstider: alias-namn (TagAlias.name) måste vara unika,
+    # så en otherName som råkar återkomma i en annan tid får inte dupliceras.
+    seen_alias: set[str] = set()
+
     for rank, pid in enumerate(season_keys, start=1):
         part = parts[pid]
         season_row: dict = {"name": part["name"], "kind": "occasion", "parent": ROOT_NAME, "sort_order": rank}
@@ -75,7 +79,6 @@ def _build_rows(feasts: list[dict]) -> list[dict]:
             season_row["description"] = part["description"].strip()
         rows.append(season_row)
 
-        seen_alias: set[str] = set()
         season_feasts = sorted(part["feasts"], key=feast_date)
         # sort_order = rank*100 + index: helgdagar klustrar under sin kyrkoårstid
         # även i platta listor (t.ex. occasion-pickern), i kronologisk ordning.

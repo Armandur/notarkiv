@@ -651,7 +651,7 @@ async def kiosk_piece(
             select(Tag)
             .join(PieceTag, PieceTag.tag_id == Tag.id)
             .where(PieceTag.piece_id == piece.id)
-            .order_by(Tag.kind, Tag.name)
+            .order_by(Tag.kind, Tag.sort_order, Tag.name)
         ).all()
     )
     psalm_refs = list(
@@ -1181,6 +1181,21 @@ def _descendant_tag_ids(session: Session, root_ids: set[int]) -> set[int]:
     return result
 
 
+def _resolve_filter_tag_ids(session: Session, tag_names: list[str]) -> list[int]:
+    """Lös upp filtervärden (taggnamn eller alias) till tagg-ID:n inklusive
+    rollup av hela hierarkin (parent -> barn). Delas av list-filtret och
+    QR-etikettfiltret så de beter sig likadant."""
+    from app.models import TagAlias
+
+    tag_ids = set(session.exec(select(Tag.id).where(Tag.name.in_(tag_names))).all())
+    tag_ids.update(
+        session.exec(select(TagAlias.tag_id).where(TagAlias.name.in_(tag_names))).all()
+    )
+    if not tag_ids:
+        return []
+    return list(_descendant_tag_ids(session, tag_ids))
+
+
 def _language_options(codes: list[str]) -> list[dict]:
     """Bygg lista med kod + display-namn (med flagga) för filterval."""
     from app.utils.languages import language_display, language_name_sv
@@ -1217,15 +1232,8 @@ def _filter_by_kind_tag_names(stmt, session, names, kind):
 
 def _apply_filters(stmt, session, tags, voicings, accompaniments, languages, unit=None, include_subunits=False):
     if tags:
-        from app.models import TagAlias
-
-        # Matcha tagg-namn OR tagg-alias
-        tag_ids = set(session.exec(select(Tag.id).where(Tag.name.in_(tags))).all())
-        tag_ids.update(
-            session.exec(select(TagAlias.tag_id).where(TagAlias.name.in_(tags))).all()
-        )
-        # Rulla upp parent -> barn: val av kyrkoårstid matchar dess helgdagar.
-        tag_ids = list(_descendant_tag_ids(session, tag_ids)) if tag_ids else []
+        # Matcha taggnamn/alias och rulla upp parent -> barn (kyrkoårstid -> helgdag).
+        tag_ids = _resolve_filter_tag_ids(session, tags)
         if tag_ids:
             piece_ids_with_tag = list(
                 session.exec(
@@ -1292,16 +1300,12 @@ async def qr_labels(
         else:
             stmt = stmt.where(Piece.id == -1)
     if tag:
-        from app.models import TagAlias
-        tag_ids = set(session.exec(select(Tag.id).where(Tag.name.in_(tag))).all())
-        tag_ids.update(
-            session.exec(select(TagAlias.tag_id).where(TagAlias.name.in_(tag))).all()
-        )
+        tag_ids = _resolve_filter_tag_ids(session, tag)
         if tag_ids:
             piece_ids = list(
                 session.exec(
                     select(PieceTag.piece_id)
-                    .where(PieceTag.tag_id.in_(list(tag_ids)))
+                    .where(PieceTag.tag_id.in_(tag_ids))
                     .distinct()
                 ).all()
             )
@@ -1347,16 +1351,12 @@ async def qr_labels_pdf(
         )
         stmt = stmt.where(Piece.id.in_(piece_ids)) if piece_ids else stmt.where(Piece.id == -1)
     if tag:
-        from app.models import TagAlias
-        tag_ids = set(session.exec(select(Tag.id).where(Tag.name.in_(tag))).all())
-        tag_ids.update(
-            session.exec(select(TagAlias.tag_id).where(TagAlias.name.in_(tag))).all()
-        )
+        tag_ids = _resolve_filter_tag_ids(session, tag)
         if tag_ids:
             piece_ids = list(
                 session.exec(
                     select(PieceTag.piece_id)
-                    .where(PieceTag.tag_id.in_(list(tag_ids)))
+                    .where(PieceTag.tag_id.in_(tag_ids))
                     .distinct()
                 ).all()
             )
@@ -1617,7 +1617,7 @@ async def piece_detail(
         select(Tag)
         .join(PieceTag, PieceTag.tag_id == Tag.id)
         .where(PieceTag.piece_id == piece_id)
-        .order_by(Tag.kind, Tag.name)
+        .order_by(Tag.kind, Tag.sort_order, Tag.name)
     ).all()
 
     # Användaranteckningar - min egen + andras
@@ -2264,8 +2264,9 @@ async def apply_musicbrainz(
                                             try:
                                                 person.portrait_image_path = save_uploaded_cover(img_bytes)
                                                 person.portrait_source_url = image_page_url
-                                            except Exception:
-                                                pass
+                                            except Exception as e:
+                                                from loguru import logger
+                                                logger.warning("Kunde inte spara porträtt för {}: {}", person.name, e)
                             enrich_person_from_mb(
                                 session,
                                 person,
@@ -2558,10 +2559,13 @@ async def update_placement(
             .where(PiecePlacement.id != placement_id)
         ).first()
         if other:
-            new_copies = (
-                int(copies) if copies and copies.isdigit() else placement.copies or 0
-            )
-            other.copies = (other.copies or 0) + new_copies
+            # Inkommande antal från formuläret, annars placeringens nuvarande (kan vara None)
+            incoming = int(copies) if copies and copies.isdigit() else placement.copies
+            # Behåll None ("okänt/digitalt") om båda sidor är okända; summera annars.
+            if incoming is None and other.copies is None:
+                other.copies = None
+            else:
+                other.copies = (other.copies or 0) + (incoming or 0)
             if notes:
                 other.notes = ((other.notes or "") + "\n" + notes.strip()).strip()
             session.add(other)

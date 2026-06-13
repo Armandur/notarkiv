@@ -118,6 +118,11 @@
             {% endfor %}
           </select>
         </div>
+        <div class="col-md-4">
+          <label class="form-label">Sorteringsordning</label>
+          <input type="number" name="sort_order" class="form-control" value="0" step="1">
+          <div class="form-text">Lägre först bland syskon.</div>
+        </div>
         <div class="col-12">
           <label class="form-label">Beskrivning (valfri)</label>
           <textarea name="description" class="form-control" rows="2"
@@ -164,6 +169,11 @@
               {% endif %}
             {% endfor %}
           </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Sorteringsordning</label>
+          <input type="number" name="sort_order" class="form-control" value="{{ t.sort_order }}" step="1">
+          <div class="form-text">Lägre först bland syskon.</div>
         </div>
         <div class="col-12">
           <label class="form-label">Beskrivning (valfri)</label>

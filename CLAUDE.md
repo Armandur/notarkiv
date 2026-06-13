@@ -493,10 +493,14 @@ Alla filter visas som chips + Tom Select-pickers (se designbeslut 17).
 Occasion är en tagg (många-till-många), inte ett kolumnvärde
 - en not kan användas både i advent och i allmänna gudstjänster.
 
-**Occasion-filtret rullar upp parent -> barn** via `_descendant_tag_ids` i
+**Tagg-filtret rullar upp parent -> barn** via `_descendant_tag_ids` i
 `routes/pieces.py`: ett val av en kyrkoårstid ("Advent") matchar även noter
-taggade med dess enskilda helgdagar ("Första söndagen i advent"). Gäller bara
-occasion (`tag`-paramet) i `_apply_filters` - voicing/ackompanjemang är platta.
+taggade med dess enskilda helgdagar ("Första söndagen i advent"). Rollupen körs
+på alla taggar som kommer in via `tag`-parametern (occasion/free/liturgical) -
+i praktiken bara occasion som har hierarki idag, men vilken taggtyp som helst
+med barn rullas upp. Besättning/ackompanjemang går via egna parametrar och är
+platta. Den gemensamma upplösningen (namn + alias + rollup) ligger i
+`_resolve_filter_tag_ids` och delas av list-filtret och QR-etikettfiltret.
 
 Sökningen är abstraherad bakom `services/search.py` med en
 `SearchBackend`-protokoll, så att FTS5-implementationen kan bytas mot

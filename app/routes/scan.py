@@ -734,7 +734,11 @@ async def add_placement_to_existing(
             .where(PiecePlacement.storage_unit_id == unit_id)
         ).first()
         if existing:
-            existing.copies = (existing.copies or 0) + (copies or 1)
+            # Behåll None ("okänt/digitalt") om båda är okända; summera annars.
+            if copies is None and existing.copies is None:
+                existing.copies = None
+            else:
+                existing.copies = (existing.copies or 0) + (copies or 0)
             session.add(existing)
         else:
             session.add(
@@ -826,8 +830,9 @@ async def apply_person_mb(
                     try:
                         person.portrait_image_path = save_uploaded_cover(img_bytes)
                         person.portrait_source_url = image_page_url
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        from loguru import logger
+                        logger.warning("Kunde inte spara porträtt för {}: {}", person.name, e)
 
     # Eventuellt uppdatera namn till MB:s kanoniska form
     if artist.get("name") and artist["name"] != person.name:
@@ -929,8 +934,9 @@ async def apply_person_wd(
                     person.portrait_image_path = save_uploaded_cover(img_bytes)
                     person.portrait_source_url = thumb_url
                     person.portrait_fetched_at = datetime.utcnow()
-                except Exception:
-                    pass
+                except Exception as e:
+                    from loguru import logger
+                    logger.warning("Kunde inte spara porträtt för {}: {}", person.name, e)
 
     person.updated_at = datetime.utcnow()
     session.add(person)
@@ -1023,7 +1029,7 @@ async def save_piece(
     if is_update:
         piece = session.get(Piece, scan.target_piece_id)
         if not piece:
-            flash(request, "Målpiecen för omkörning finns inte längre", "danger")
+            flash(request, "Målnoten för omskanningen finns inte längre", "danger")
             return RedirectResponse("/scan/queue", status.HTTP_302_FOUND)
         from app.services.publishers import find_or_create_publisher
 

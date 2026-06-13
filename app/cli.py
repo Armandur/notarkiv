@@ -15,10 +15,58 @@ app = typer.Typer(no_args_is_help=True)
 db = typer.Typer(no_args_is_help=True, help="Databasoperationer")
 users_cli = typer.Typer(no_args_is_help=True, help="Användarhantering")
 psalms_cli = typer.Typer(no_args_is_help=True, help="Psalmreferenser")
+tags_cli = typer.Typer(no_args_is_help=True, help="Tagghantering")
 
 app.add_typer(db, name="db")
 app.add_typer(users_cli, name="users")
 app.add_typer(psalms_cli, name="psalms")
+app.add_typer(tags_cli, name="tags")
+
+# Gamla kyrkoår-taggar (från första tags.yaml) som ersattes av den nya
+# 3-nivåers strukturen i kyrkoaret.yaml. Bara namn som INTE krockar med de nya
+# kyrkoårstiderna (Advent/Jul/Påsk/Pingst återanvänds och utelämnas medvetet).
+_OLD_KYRKOAR_TAGS = [
+    "Trettondedagstid", "Fastlagstid", "Fastan", "Stilla veckan", "Påsktid",
+    "Kristi himmelsfärd", "Trefaldighetstid", "Midsommar", "Mikaelitid",
+    "Allhelgona", "Domsöndag",
+]
+
+
+@tags_cli.command("cleanup-old-kyrkoar")
+def tags_cleanup_old_kyrkoar(
+    dry_run: bool = typer.Option(False, "--dry-run", help="Visa vad som skulle tas bort utan att radera"),
+) -> None:
+    """Engångsstädning: ta bort gamla kyrkoår-taggar som ersattes av den nya
+    3-nivåers strukturen. Säker - raderar bara taggar som är barnlösa OCH inte
+    sitter på någon not. Kör på en DB som hade den gamla tags.yaml (t.ex. efter
+    deploy) så du inte får dubbel taxonomi. Idempotent."""
+    setup_logging()
+    from app.models import PieceTag, Tag, TagAlias
+
+    with Session(engine) as session:
+        removed, skipped = [], []
+        for name in _OLD_KYRKOAR_TAGS:
+            tag = session.exec(
+                select(Tag).where(Tag.name == name).where(Tag.kind == "occasion")
+            ).first()
+            if not tag:
+                continue
+            n_children = len(session.exec(select(Tag).where(Tag.parent_id == tag.id)).all())
+            n_pieces = len(session.exec(select(PieceTag).where(PieceTag.tag_id == tag.id)).all())
+            if n_children or n_pieces:
+                skipped.append(f"{name} (barn: {n_children}, noter: {n_pieces})")
+                continue
+            if not dry_run:
+                for alias in session.exec(select(TagAlias).where(TagAlias.tag_id == tag.id)).all():
+                    session.delete(alias)
+                session.delete(tag)
+            removed.append(name)
+        if not dry_run:
+            session.commit()
+        prefix = "Skulle ta bort" if dry_run else "Tog bort"
+        typer.echo(f"{prefix} {len(removed)}: {', '.join(removed) or '(inga)'}")
+        if skipped:
+            typer.echo(f"Hoppade över (har barn/noter): {', '.join(skipped)}")
 
 
 @psalms_cli.command("seed")

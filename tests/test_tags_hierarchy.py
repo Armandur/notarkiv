@@ -130,6 +130,40 @@ def test_occasion_filter_rolls_up_to_descendants(
     assert r.status_code == 200
     assert "Hosianna Davids son" not in r.text
 
+    # QR-etikettfiltret ska rulla upp likadant som listan
+    r = logged_in_client.get("/pieces/qr-labels?tag=Advent")
+    assert r.status_code == 200
+    assert "Hosianna Davids son" in r.text
+    r = logged_in_client.get("/pieces/qr-labels?tag=Jul")
+    assert r.status_code == 200
+    assert "Hosianna Davids son" not in r.text
+
+
+def test_create_and_update_tag_sort_order(
+    logged_in_client, session: Session, admin_user_setup
+):
+    """sort_order ska gå att sätta vid skapande och ändra vid redigering."""
+    from app.models import Tag
+
+    csrf = get_csrf(logged_in_client, "/tags")
+    r = logged_in_client.post(
+        "/tags",
+        data={"csrf_token": csrf, "name": "Adventstid", "kind": "occasion", "sort_order": "42"},
+    )
+    assert r.status_code in (302, 303)
+    session.expire_all()
+    tag = session.exec(select(Tag).where(Tag.name == "Adventstid")).first()
+    assert tag is not None and tag.sort_order == 42
+
+    r = logged_in_client.post(
+        f"/tags/{tag.id}/update",
+        data={"csrf_token": csrf, "name": "Adventstid", "kind": "occasion", "sort_order": "7"},
+    )
+    assert r.status_code in (302, 303)
+    session.expire_all()
+    refreshed = session.get(Tag, tag.id)
+    assert refreshed.sort_order == 7
+
 
 def test_alias_unique(logged_in_client, session: Session, admin_user_setup):
     """Alias-namn får inte kollidera med taggnamn eller annat alias."""
