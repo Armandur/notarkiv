@@ -155,7 +155,13 @@ notarkiv/
     routes/
       pages.py              # GET / med översikt (sort + senaste noter)
       auth.py               # login/logout/change-password
-      pieces.py             # CRUD, multi-bildhantering, MB-omsökning, taggar, placeringar, PDF-utskrift, psalmreferenser
+      pieces/               # Paket (uppdelat från tidigare pieces.py)
+        _routers.py         # router + public_router + kiosk_router
+        helpers.py          # delade hjälpfunktioner (_apply_filters, _resolve_filter_tag_ids m.fl.)
+        listing.py          # lista, print, QR-etiketter
+        crud.py             # new/detalj/edit/delete, re-OCR, MusicBrainz-modal
+        metadata.py         # placeringar, taggar-på-not, psalmreferenser, bilder, user-notes
+        kiosk.py            # /p/{public_id} + /kiosk-vyn (skannerinput -> piece)
       people.py             # Lista, detalj med biografi (Wikipedia) + portrait (MB/Wikidata) + länkar
       scan.py               # /scan (vanlig), /scan/quick (mobil), /scan/queue, /scan/{id}/*
                             # /scan/{id}/discard|restore för avvisning, manuell MB-sökning
