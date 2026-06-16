@@ -143,6 +143,31 @@ async def create_tag_inline(
     return JSONResponse({"id": tag.id, "name": tag.name, "existing": False})
 
 
+@router.post("/reorder", dependencies=[Depends(verify_csrf)])
+async def reorder_tags(
+    request: Request,
+    ids: str = Form(...),
+    user: User = Depends(require_editor),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Sätt om sort_order för en grupp syskon-taggar enligt ordningen i `ids`
+    (kommaseparerade tag-id). Drivs av drag-och-släpp i /tags-trädet."""
+    id_list = [int(x) for x in ids.split(",") if x.strip().isdigit()]
+    if not id_list:
+        return JSONResponse({"ok": False, "error": "Inga id"}, status_code=400)
+    by_id = {t.id: t for t in session.exec(select(Tag).where(Tag.id.in_(id_list))).all()}
+    if len(by_id) != len(set(id_list)):
+        return JSONResponse({"ok": False, "error": "Okänd tagg"}, status_code=400)
+    # Defensiv: alla måste dela samma förälder (syskon) - drag flyttar inte mellan grupper.
+    if len({by_id[i].parent_id for i in id_list}) != 1:
+        return JSONResponse({"ok": False, "error": "Taggarna har olika förälder"}, status_code=400)
+    for i, tag_id in enumerate(id_list):
+        by_id[tag_id].sort_order = i * 10
+        session.add(by_id[tag_id])
+    session.commit()
+    return JSONResponse({"ok": True})
+
+
 @router.post("/{tag_id}/update", dependencies=[Depends(verify_csrf)])
 async def update_tag(
     request: Request,

@@ -6,9 +6,10 @@
 {% set kind_colors = {'occasion': 'success', 'voicing': 'secondary', 'accompaniment': 'info', 'free': 'secondary'} %}
 
 {% macro render_node(node, kind, color, depth=0) %}
-  <tr>
+  <tr data-tag-id="{{ node.tag.id }}" data-parent-id="{{ node.tag.parent_id or '' }}" data-depth="{{ depth }}">
     <td>
       <div style="padding-left: {{ depth * 1.5 }}em">
+        {% if user.can_edit %}<span class="tag-drag-handle" draggable="true" title="Dra för att ändra ordning bland syskon">⠿</span>{% endif %}
         {% if depth > 0 %}<span class="text-muted me-1">└─</span>{% endif %}
         <a href="/pieces?tag={{ node.tag.name|urlencode }}" class="text-decoration-none">
           <span class="badge bg-{{ color }}">{{ node.tag.name }}</span>
@@ -227,5 +228,94 @@
   </div>
 </div>
 {% endfor %}
+{% endif %}
+
+{% if user.can_edit %}
+<style>
+  .tag-drag-handle { cursor: grab; color: #adb5bd; margin-right: .4em; user-select: none; }
+  .tag-drag-handle:active { cursor: grabbing; }
+  tr.tag-dragging { opacity: .45; }
+  tr.tag-drop-target > td { box-shadow: inset 0 2px 0 var(--bs-primary); }
+</style>
+<script>
+(function () {
+  let dragged = null;   // <tr> som dras
+  let block = [];       // dragna raden + dess ättling-rader (sammanhängande)
+
+  function rowBlock(tr) {
+    const depth = +tr.dataset.depth;
+    const rows = [tr];
+    let n = tr.nextElementSibling;
+    while (n && n.dataset.depth !== undefined && +n.dataset.depth > depth) {
+      rows.push(n);
+      n = n.nextElementSibling;
+    }
+    return rows;
+  }
+
+  function csrf() {
+    return document.querySelector('input[name="csrf_token"]')?.value || '';
+  }
+
+  function siblingIds(parentId) {
+    return [...document.querySelectorAll('tr[data-tag-id]')]
+      .filter(r => r.dataset.parentId === parentId)
+      .map(r => r.dataset.tagId);
+  }
+
+  function persist(parentId) {
+    const fd = new FormData();
+    fd.append('csrf_token', csrf());
+    fd.append('ids', siblingIds(parentId).join(','));
+    fetch('/tags/reorder', { method: 'POST', body: fd })
+      .then(r => { if (!r.ok) throw new Error('reorder'); })
+      .catch(() => { alert('Kunde inte spara ordningen - laddar om.'); location.reload(); });
+  }
+
+  document.querySelectorAll('.tag-drag-handle').forEach(h => {
+    h.addEventListener('dragstart', e => {
+      dragged = h.closest('tr');
+      block = rowBlock(dragged);
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dragged.dataset.tagId);
+      block.forEach(r => r.classList.add('tag-dragging'));
+    });
+    h.addEventListener('dragend', () => {
+      block.forEach(r => r.classList.remove('tag-dragging'));
+      document.querySelectorAll('.tag-drop-target').forEach(r => r.classList.remove('tag-drop-target'));
+      dragged = null; block = [];
+    });
+  });
+
+  function isSiblingTarget(tr) {
+    return dragged && tr.dataset.tagId
+      && tr.dataset.parentId === dragged.dataset.parentId
+      && !block.includes(tr);
+  }
+
+  document.querySelectorAll('tr[data-tag-id]').forEach(tr => {
+    tr.addEventListener('dragover', e => {
+      if (!isSiblingTarget(tr)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      tr.classList.add('tag-drop-target');
+    });
+    tr.addEventListener('dragleave', () => tr.classList.remove('tag-drop-target'));
+    tr.addEventListener('drop', e => {
+      tr.classList.remove('tag-drop-target');
+      if (!isSiblingTarget(tr)) return;
+      e.preventDefault();
+      const targetBlock = rowBlock(tr);
+      const rect = tr.getBoundingClientRect();
+      const after = e.clientY > rect.top + rect.height / 2;
+      const ref = after ? targetBlock[targetBlock.length - 1].nextElementSibling : tr;
+      if (ref && block.includes(ref)) return;  // redan på plats
+      const parent = tr.parentNode;
+      block.forEach(r => parent.insertBefore(r, ref));
+      persist(dragged.dataset.parentId);
+    });
+  });
+})();
+</script>
 {% endif %}
 {% endblock %}

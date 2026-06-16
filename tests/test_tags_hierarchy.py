@@ -165,6 +165,50 @@ def test_create_and_update_tag_sort_order(
     assert refreshed.sort_order == 7
 
 
+def test_reorder_tags_sets_sort_order(
+    logged_in_client, session: Session, admin_user_setup
+):
+    """POST /tags/reorder sätter om sort_order för syskon enligt ordningen,
+    och vägrar om taggarna har olika förälder."""
+    from app.models import Tag
+    from app.models.tag import TagKind
+
+    root = Tag(name="Kyrkoåret", kind=TagKind.OCCASION)
+    session.add(root)
+    session.flush()
+    a = Tag(name="Advent", kind=TagKind.OCCASION, parent_id=root.id, sort_order=10)
+    b = Tag(name="Jul", kind=TagKind.OCCASION, parent_id=root.id, sort_order=20)
+    c = Tag(name="Fasta", kind=TagKind.OCCASION, parent_id=root.id, sort_order=30)
+    session.add(a)
+    session.add(b)
+    session.add(c)
+    session.commit()
+    ids = {"a": a.id, "b": b.id, "c": c.id}
+
+    csrf = get_csrf(logged_in_client, "/tags")
+    # Ny ordning: Fasta, Advent, Jul
+    r = logged_in_client.post(
+        "/tags/reorder",
+        data={"csrf_token": csrf, "ids": f"{ids['c']},{ids['a']},{ids['b']}"},
+    )
+    assert r.status_code == 200 and r.json()["ok"] is True
+
+    session.expire_all()
+    assert session.get(Tag, ids["c"]).sort_order == 0
+    assert session.get(Tag, ids["a"]).sort_order == 10
+    assert session.get(Tag, ids["b"]).sort_order == 20
+
+    # Olika förälder -> avvisas
+    orphan = Tag(name="Lösryckt", kind=TagKind.OCCASION)
+    session.add(orphan)
+    session.commit()
+    r = logged_in_client.post(
+        "/tags/reorder",
+        data={"csrf_token": csrf, "ids": f"{ids['a']},{orphan.id}"},
+    )
+    assert r.status_code == 400
+
+
 def test_alias_unique(logged_in_client, session: Session, admin_user_setup):
     """Alias-namn får inte kollidera med taggnamn eller annat alias."""
     from app.models import Tag
