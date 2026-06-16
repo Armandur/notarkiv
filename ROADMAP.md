@@ -410,6 +410,34 @@ granska -> spara -> hitta igen.
       används konsekvent överallt. Behåll native för korta on/off-listor
       (max 5 alternativ utan sök).
 
+### Förslag från kodgranskning 2026-06-16
+
+Förslag som kom upp efter granskningen (se granskningsrapporten). Bygger
+på den nya kyrkoår-tagghierarkin (rot > kyrkoårstid > helgdag) och svk-API:t.
+
+- [x] **Drag-och-släpp-ordning i taggträdet**: ordna om syskon-taggar
+      genom att dra dem i `/tags`-trädet i stället för att skriva
+      `sort_order`-tal. Särskilt värdefullt för de 75 kyrkoår-taggarna.
+      Native HTML5-drag (ingen ny dependency), ny `/tags/reorder`-endpoint
+      sätter om `sort_order` per syskongrupp.
+- [ ] **"Dagens/kommande tillfälle" på startsidan**: svk-API:t ger datum
+      per helgdag. Visa "Idag: Andra söndagen i advent" + de noter som
+      passar (via rollup på kyrkoårstiden). Gör tagghierarkin aktivt
+      användbar i stället för manuell filtrering. Liten-medel. Högst
+      rekommenderad nytta/arbete.
+- [ ] **Täckningsöversikt (gap-analys)**: vy som visar vilka tillfällen/
+      besättningar som har få eller inga noter ("Pingst: 0 noter,
+      SSA: 2 noter") så körledaren ser var repertoaren är tunn. Ren
+      läsanalys - inte inköpsförslag (det ligger utanför scope). Liten.
+- [ ] **Bibeltexter per helgdag**: lagra dagens texter per årgång från
+      svk-API:t och koppla noter till dem ("noter som passar dagens
+      evangelium"). Medel/stor, rör vid scope-gränsen - diskutera först.
+- [ ] **Export av katalogen**: CSV/PDF-export av hela katalogen eller ett
+      filtrerat urval, för delning utanför appen.
+- [ ] **Vidare uppdelning av `crud.py`** (teknisk skuld, inte funktion):
+      efter pieces.py-splitten är `crud.py` fortfarande ~937 rader. Kan
+      delas vidare (MB-modal/enrich vs ren CRUD) när det blir naturligt.
+
 ## V3 - "Långt fram"
 
 - [ ] **Batch-skanningsläge**: stå framför en hylla och skanna en not
