@@ -7,7 +7,16 @@ from sqlmodel import Session, select
 
 from app.auth import hash_password
 from app.deps import get_session, require_admin, verify_csrf
-from app.models import User
+from app.models import (
+    AppSetting,
+    InventoryCheck,
+    InventorySession,
+    Loan,
+    LoanBatch,
+    Piece,
+    ScanSession,
+    User,
+)
 from app.models.user import Role
 from app.templates_setup import flash, render
 
@@ -126,6 +135,33 @@ async def delete_user_action(
         raise HTTPException(404)
     if target.id == user.id:
         flash(request, "Du kan inte radera ditt eget konto", "danger")
+        return RedirectResponse("/admin/users", status.HTTP_302_FOUND)
+
+    # Blockera radering om användaren refereras av en FK utan ondelete=CASCADE
+    # (skulle annars ge IntegrityError/500). PieceList och PieceUserNote har
+    # CASCADE och städas automatiskt, så de behöver ingen koll här.
+    references = [
+        (LoanBatch, LoanBatch.created_by),
+        (LoanBatch, LoanBatch.borrower_user_id),
+        (Loan, Loan.borrower_user_id),
+        (Loan, Loan.registered_by),
+        (ScanSession, ScanSession.user_id),
+        (Piece, Piece.created_by),
+        (InventorySession, InventorySession.started_by),
+        (InventoryCheck, InventoryCheck.checked_by),
+        (AppSetting, AppSetting.updated_by),
+    ]
+    in_use = any(
+        session.exec(select(model).where(col == user_id).limit(1)).first()
+        for model, col in references
+    )
+    if in_use:
+        flash(
+            request,
+            f"Kan inte radera {target.username} - användaren har skapat lån, "
+            "skanningar, noter eller andra poster",
+            "danger",
+        )
         return RedirectResponse("/admin/users", status.HTTP_302_FOUND)
 
     session.delete(target)

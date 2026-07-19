@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse, Response
 from sqlmodel import Session, select
 
 from app.deps import get_session, require_admin, verify_csrf
-from app.models import PiecePsalmRef, PsalmBook, User
+from app.models import PiecePsalmRef, PsalmBook, PsalmEntry, User
 from app.templates_setup import flash, render
 
 router = APIRouter(prefix="/admin/psalmbooks", tags=["admin"])
@@ -132,6 +132,17 @@ async def delete_psalmbook(
         flash(
             request,
             f"'{book.name}' används av minst en not - ta bort referenserna först",
+            "danger",
+        )
+        return RedirectResponse("/admin/psalmbooks", status.HTTP_302_FOUND)
+
+    has_entries = session.exec(
+        select(PsalmEntry).where(PsalmEntry.book_id == book_id).limit(1)
+    ).first()
+    if has_entries:
+        flash(
+            request,
+            f"'{book.name}' har registrerade psalmnummer - ta bort dem först",
             "danger",
         )
         return RedirectResponse("/admin/psalmbooks", status.HTTP_302_FOUND)
