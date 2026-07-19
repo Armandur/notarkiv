@@ -3,6 +3,7 @@
 import asyncio
 import time
 from functools import lru_cache
+from urllib.parse import urlparse
 
 import httpx
 from loguru import logger
@@ -252,8 +253,10 @@ def extract_wikipedia_url(artist: dict) -> str | None:
     for rel in artist.get("relations", []):
         if rel.get("type") == "wikipedia":
             url = rel.get("url", {}).get("resource")
-            if url and "wikipedia.org" in url:
-                return url
+            if url:
+                hostname = (urlparse(url).hostname or "").lower()
+                if hostname == "wikipedia.org" or hostname.endswith(".wikipedia.org"):
+                    return url
     return None
 
 
