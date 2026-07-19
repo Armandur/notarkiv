@@ -326,6 +326,28 @@ def _filter_by_kind_tag_names(stmt, session, names, kind):
     return stmt.where(Piece.id.in_(piece_ids))
 
 
+def _fts_match_query(q: str) -> str:
+    """Bygg en säker MATCH-sträng för SQLite FTS5 av en fritextsökning.
+
+    Tokeniserar på whitespace och omger varje token med dubbla citattecken
+    (fras-token), med eventuella inbäddade citattecken dubblerade enligt
+    FTS5:s escape-regel (" -> ""). Det gör att specialtecken som annars
+    tolkas som FTS5-operatorer (t.ex. ledande "-" eller ett ensamt ")
+    behandlas som vanlig text i stället för att ge syntaxfel.
+
+    Sista token får ett "*" efter det stängande citattecknet för att
+    bevara prefix-sökning på sista ordet, precis som tidigare beteende.
+
+    Returnerar tom sträng om q saknar tokens efter strip - anropande kod
+    ska då falla tillbaka på "ingen sökterm" (samma som tomt q)."""
+    tokens = q.split()
+    if not tokens:
+        return ""
+    quoted = ['"' + t.replace('"', '""') + '"' for t in tokens]
+    quoted[-1] += "*"
+    return " ".join(quoted)
+
+
 def _apply_filters(stmt, session, tags, voicings, accompaniments, languages, unit=None, include_subunits=False):
     if tags:
         # Matcha taggnamn/alias och rulla upp parent -> barn (kyrkoårstid -> helgdag).

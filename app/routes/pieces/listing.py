@@ -27,6 +27,7 @@ from app.utils.images import (
 from app.routes.pieces._routers import router
 from app.routes.pieces.helpers import (
     _covers_by_piece,
+    _fts_match_query,
     _list_tree,
     _resolve_filter_tag_ids,
     _language_options,
@@ -73,7 +74,8 @@ async def list_pieces(
         return stmt.order_by(Piece.created_at.desc())
 
     # Bygg basquery - använd FTS om q givet, annars vanlig select
-    if q:
+    match_query = _fts_match_query(q) if q else ""
+    if match_query:
         from sqlalchemy import text
 
         fts_rows = session.exec(
@@ -81,7 +83,7 @@ async def list_pieces(
                 "SELECT id FROM pieces_fts JOIN pieces ON pieces.id = pieces_fts.rowid "
                 "WHERE pieces_fts MATCH :q ORDER BY rank LIMIT 300"
             ),
-            params={"q": q + "*"},
+            params={"q": match_query},
         ).all()
         candidate_ids = [r[0] for r in fts_rows]
         if not candidate_ids:
@@ -209,7 +211,8 @@ async def print_list(
     session: Session = Depends(get_session),
 ) -> Response:
     """Utskriftsvänlig vy med samma filter som /pieces."""
-    if q:
+    match_query = _fts_match_query(q) if q else ""
+    if match_query:
         from sqlalchemy import text
 
         fts_rows = session.exec(
@@ -217,7 +220,7 @@ async def print_list(
                 "SELECT id FROM pieces_fts JOIN pieces ON pieces.id = pieces_fts.rowid "
                 "WHERE pieces_fts MATCH :q ORDER BY rank LIMIT 1000"
             ),
-            params={"q": q + "*"},
+            params={"q": match_query},
         ).all()
         candidate_ids = [r[0] for r in fts_rows]
         stmt = select(Piece).where(Piece.id.in_(candidate_ids)) if candidate_ids else None
@@ -290,7 +293,8 @@ async def print_pdf(
 
     from weasyprint import HTML
 
-    if q:
+    match_query = _fts_match_query(q) if q else ""
+    if match_query:
         from sqlalchemy import text
 
         fts_rows = session.exec(
@@ -298,7 +302,7 @@ async def print_pdf(
                 "SELECT id FROM pieces_fts JOIN pieces ON pieces.id = pieces_fts.rowid "
                 "WHERE pieces_fts MATCH :q ORDER BY rank LIMIT 1000"
             ),
-            params={"q": q + "*"},
+            params={"q": match_query},
         ).all()
         candidate_ids = [r[0] for r in fts_rows]
         stmt = select(Piece).where(Piece.id.in_(candidate_ids)) if candidate_ids else None
