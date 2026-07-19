@@ -127,3 +127,186 @@ def test_refresh_person_mb_bevarar_manuella_datum(
     refreshed = session.get(Person, pid)
     assert refreshed.birth_year == 1637
     assert refreshed.death_year == 1707
+
+
+def test_fts_match_query_undviker_syntaxfel():
+    """TASK-69: sökningar med FTS5-specialtecken (ledande '-', ensamt '\"')
+    ska bli säkra MATCH-strängar utan syntaxfel, och prefix-sök ska funka."""
+    import sqlite3
+
+    from app.routes.pieces.helpers import _fts_match_query
+
+    con = sqlite3.connect(":memory:")
+    con.execute("CREATE VIRTUAL TABLE fts USING fts5(body)")
+    con.execute("INSERT INTO fts(body) VALUES ('trollet dansar')")
+
+    for term in ["-troll", '"', 'a"b', "räv troll", "   ", "AND OR NOT"]:
+        mq = _fts_match_query(term)
+        if mq:
+            # Får inte kasta sqlite3.OperationalError (fts5 syntax error)
+            con.execute("SELECT rowid FROM fts WHERE fts MATCH ?", (mq,)).fetchall()
+
+    # Prefix-sök på sista ordet ska fortfarande hitta raden
+    mq = _fts_match_query("troll")
+    rows = con.execute("SELECT rowid FROM fts WHERE fts MATCH ?", (mq,)).fetchall()
+    assert len(rows) == 1
+    con.close()
+
+
+def test_delete_user_blockeras_vid_fk_referens(
+    logged_in_client, session: Session, admin_user
+):
+    """TASK-62: en användare som skapat en not (eller annan FK-referens) ska
+    inte gå att radera - vänligt fel i stället för IntegrityError/500."""
+    from app.auth import hash_password
+    from app.models import Piece, User
+    from app.models.user import Role
+
+    target = User(username="skapare", password_hash=hash_password("x"), role=Role.EDITOR)
+    session.add(target)
+    session.flush()
+    session.add(Piece(title="Not av skaparen", created_by=target.id))
+    session.commit()
+    target_id = target.id
+
+    csrf = get_csrf(logged_in_client, "/pieces")
+    r = logged_in_client.post(
+        f"/admin/users/{target_id}/delete", data={"csrf_token": csrf}
+    )
+    assert r.status_code in (302, 303)
+    session.expire_all()
+    assert session.get(User, target_id) is not None, "användaren ska inte ha raderats"
+
+
+def test_delete_user_utan_referens_gar_bra(
+    logged_in_client, session: Session, admin_user
+):
+    """TASK-62: en användare utan FK-referenser ska fortfarande kunna raderas."""
+    from app.auth import hash_password
+    from app.models import User
+    from app.models.user import Role
+
+    target = User(username="oanvand", password_hash=hash_password("x"), role=Role.READER)
+    session.add(target)
+    session.commit()
+    target_id = target.id
+
+    csrf = get_csrf(logged_in_client, "/pieces")
+    r = logged_in_client.post(
+        f"/admin/users/{target_id}/delete", data={"csrf_token": csrf}
+    )
+    assert r.status_code in (302, 303)
+    session.expire_all()
+    assert session.get(User, target_id) is None
+
+
+def test_mark_not_found_avvisar_hamtad_rad(
+    logged_in_client, session: Session, admin_user
+):
+    """TASK-68: not-found på en redan hämtad rad i en active batch ska ge 404
+    och inte radera raden (noten är fysiskt utlånad)."""
+    from app.models import (
+        Loan,
+        LoanBatch,
+        LoanBatchStatus,
+        Piece,
+        PiecePlacement,
+        StorageLocation,
+        StorageUnit,
+    )
+    from app.utils.dates import now_utc
+
+    loc = StorageLocation(name="Arkiv", kind="physical")
+    session.add(loc)
+    session.flush()
+    unit = StorageUnit(location_id=loc.id, name="Pärm")
+    session.add(unit)
+    session.flush()
+    piece = Piece(title="Not", created_by=admin_user.id)
+    session.add(piece)
+    session.flush()
+    pl = PiecePlacement(piece_id=piece.id, storage_unit_id=unit.id, copies=2)
+    session.add(pl)
+    session.flush()
+    batch = LoanBatch(created_by=admin_user.id, status=LoanBatchStatus.ACTIVE, name="Konsert")
+    session.add(batch)
+    session.flush()
+    loan = Loan(
+        placement_id=pl.id,
+        borrower_name="Låntagare",
+        copies=1,
+        batch_id=batch.id,
+        picked_up_at=now_utc(),
+    )
+    session.add(loan)
+    session.commit()
+    loan_id = loan.id
+
+    csrf = get_csrf(logged_in_client, "/pieces")
+    r = logged_in_client.post(
+        f"/loans/{loan_id}/not-found", data={"csrf_token": csrf}
+    )
+    assert r.status_code == 404
+    session.expire_all()
+    assert session.get(Loan, loan_id) is not None
+
+
+def test_cart_update_tar_bort_rad_nar_inget_ledigt(
+    logged_in_client, session: Session, admin_user
+):
+    """TASK-66: när inget är ledigt (capped=0) ska cart-raden tas bort, inte
+    tvingas till 1 exemplar (annars permanent överbokning)."""
+    from app.models import (
+        Loan,
+        LoanBatch,
+        LoanBatchStatus,
+        Piece,
+        PiecePlacement,
+        StorageLocation,
+        StorageUnit,
+    )
+    from app.utils.dates import now_utc
+
+    loc = StorageLocation(name="Arkiv2", kind="physical")
+    session.add(loc)
+    session.flush()
+    unit = StorageUnit(location_id=loc.id, name="Låda")
+    session.add(unit)
+    session.flush()
+    piece = Piece(title="Not2", created_by=admin_user.id)
+    session.add(piece)
+    session.flush()
+    pl = PiecePlacement(piece_id=piece.id, storage_unit_id=unit.id, copies=1)
+    session.add(pl)
+    session.flush()
+
+    # Aktiv batch som reserverar hela placeringen (1 av 1)
+    active = LoanBatch(created_by=admin_user.id, status=LoanBatchStatus.ACTIVE, name="Aktiv")
+    session.add(active)
+    session.flush()
+    session.add(
+        Loan(
+            placement_id=pl.id,
+            borrower_name="Annan",
+            copies=1,
+            batch_id=active.id,
+            picked_up_at=now_utc(),
+        )
+    )
+    # Egen cart-batch med en rad på samma placering
+    cart = LoanBatch(created_by=admin_user.id, status=LoanBatchStatus.CART)
+    session.add(cart)
+    session.flush()
+    cart_loan = Loan(placement_id=pl.id, borrower_name="", copies=1, batch_id=cart.id)
+    session.add(cart_loan)
+    session.commit()
+    cart_loan_id = cart_loan.id
+
+    csrf = get_csrf(logged_in_client, "/pieces")
+    r = logged_in_client.post(
+        f"/loans/cart/{cart_loan_id}/update",
+        data={"csrf_token": csrf, "copies": 1},
+    )
+    assert r.status_code in (302, 303)
+    session.expire_all()
+    assert session.get(Loan, cart_loan_id) is None, "raden ska tas bort, inte floras till 1"
