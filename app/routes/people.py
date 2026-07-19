@@ -943,13 +943,15 @@ async def refresh_person_mb(
     from app.services.people import parse_partial_date
 
     by, bm, bd = parse_partial_date(life_span.get("begin") or "")
-    person.birth_year = by
-    person.birth_month = bm
-    person.birth_day = bd
+    if by is not None:
+        person.birth_year = by
+        person.birth_month = bm
+        person.birth_day = bd
     dy, dm, dd = parse_partial_date(life_span.get("end") or "")
-    person.death_year = dy
-    person.death_month = dm
-    person.death_day = dd
+    if dy is not None:
+        person.death_year = dy
+        person.death_month = dm
+        person.death_day = dd
     if artist.get("country"):
         person.country = artist["country"]
     person.updated_at = now_utc()
