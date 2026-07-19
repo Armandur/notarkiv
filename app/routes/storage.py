@@ -58,6 +58,22 @@ def _load_tree(session: Session) -> list[dict]:
     ]
 
 
+def _safe_return_to(return_to: str, fallback: str) -> str:
+    """Validera return_to som redirect-mål.
+
+    Tillåt bara riktiga lokala sökvägar - en enda inledande "/" och inte
+    "//" eller "/\\", som webbläsare kan tolka som protokoll-relativ (extern)
+    redirect.
+    """
+    if (
+        return_to.startswith("/")
+        and not return_to.startswith("//")
+        and not return_to.startswith("/\\")
+    ):
+        return return_to
+    return fallback
+
+
 @router.get("")
 async def storage_index(
     request: Request,
@@ -288,7 +304,7 @@ async def update_unit(
     session.add(unit)
     session.commit()
     flash(request, f"Uppdaterade '{unit.name}'", "success")
-    dest = return_to if return_to.startswith("/") else f"/storage/units/{unit_id}"
+    dest = _safe_return_to(return_to, f"/storage/units/{unit_id}")
     return RedirectResponse(dest, status.HTTP_302_FOUND)
 
 
