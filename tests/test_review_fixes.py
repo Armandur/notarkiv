@@ -5,6 +5,7 @@ Ett test per åtgärdat fynd som har observerbart beteende värt att låsa fast.
 
 from __future__ import annotations
 
+import pytest
 from sqlmodel import Session, select
 
 from tests.conftest import get_csrf
@@ -329,3 +330,26 @@ def test_markdown_filter_sanerar_xss():
     # Legitim formatering ska överleva saneringen
     assert "<strong>" in _markdown("**fet**")
     assert "<table>" in _markdown("| A | B |\n|---|---|\n| 1 | 2 |")
+
+
+def test_session_secret_kravs_i_produktion():
+    """TASK-56: appen ska vägra köra i produktion med det publika default-
+    värdet på SESSION_SECRET, men tillåta det i development (lokal körning)."""
+    from pydantic import ValidationError
+
+    from app.config import DEFAULT_SESSION_SECRET, Settings
+
+    with pytest.raises(ValidationError):
+        Settings(
+            _env_file=None,
+            app_env="production",
+            session_secret=DEFAULT_SESSION_SECRET,
+        )
+
+    prod_ok = Settings(_env_file=None, app_env="production", session_secret="a" * 32)
+    assert prod_ok.session_secret == "a" * 32
+
+    dev_ok = Settings(
+        _env_file=None, app_env="development", session_secret=DEFAULT_SESSION_SECRET
+    )
+    assert dev_ok.app_env == "development"

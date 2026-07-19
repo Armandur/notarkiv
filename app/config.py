@@ -1,14 +1,19 @@
 from pathlib import Path
 from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Publikt default-värde (finns i repot/.env.example). Får aldrig användas i
+# produktion - då kan vem som helst signera egna sessionscookies.
+DEFAULT_SESSION_SECRET = "byt-detta-i-prod-tack"
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_env: Literal["development", "production"] = "development"
-    session_secret: str = "byt-detta-i-prod-tack"
+    session_secret: str = DEFAULT_SESSION_SECRET
     database_path: Path = Path("./data/notarkiv.db")
     images_path: Path = Path("./data/images")
 
@@ -26,6 +31,17 @@ class Settings(BaseSettings):
 
     initial_admin_username: str | None = None
     initial_admin_password: str | None = None
+
+    @model_validator(mode="after")
+    def _kraev_riktig_secret_i_prod(self) -> "Settings":
+        if self.app_env == "production" and self.session_secret == DEFAULT_SESSION_SECRET:
+            raise ValueError(
+                "SESSION_SECRET måste sättas till ett unikt slumpat värde i "
+                "produktion (t.ex. `python -c \"import secrets; "
+                "print(secrets.token_hex(32))\"`). Default-värdet är publikt och "
+                "gör sessionscookies förfalskningsbara."
+            )
+        return self
 
     @property
     def database_url(self) -> str:
