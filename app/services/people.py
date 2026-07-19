@@ -5,7 +5,7 @@ bygg cache-text för FTS, plus MB-berikning.
 from datetime import datetime
 from app.utils.dates import now_utc
 
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from app.models import ContributorRole, Person, PieceContributor
 
@@ -95,8 +95,10 @@ def find_or_create_person(
         if existing:
             return existing
 
+    # Exakt skiftlägesokänslig matchning - ilike skulle tolka % och _ som
+    # SQL-wildcards och kunna matcha fel person av misstag.
     existing = session.exec(
-        select(Person).where(Person.name.ilike(name))
+        select(Person).where(func.lower(Person.name) == func.lower(name))
     ).first()
     if existing:
         if musicbrainz_artist_id and not existing.musicbrainz_artist_id:
