@@ -11,6 +11,20 @@ from sqlmodel import Session, select
 from tests.conftest import get_csrf
 
 
+def _login_as(client, username: str, password: str) -> None:
+    """Logga in en TestClient som en godtycklig användare."""
+    import re
+
+    r = client.get("/login")
+    m = re.search(r'name="csrf_token"\s+value="([^"]+)"', r.text)
+    assert m
+    r = client.post(
+        "/login",
+        data={"username": username, "password": password, "csrf_token": m.group(1)},
+    )
+    assert r.status_code in (302, 303)
+
+
 def test_extract_wikipedia_url_avvisar_spoofad_doman():
     """TASK-78: host-kontroll, inte substräng. wikipedia.org.evil.example
     ska avvisas, sv.wikipedia.org ska godkännas."""
@@ -419,3 +433,78 @@ def test_kiosk_borrower_timeout_pa_alla_routes(monkeypatch):
         }
     )
     assert kiosk_borrower_id_if_active(fresh) == 7
+
+
+def _loan_setup(session, borrower_user_id, admin_user):
+    """Skapa piece + placering + ett aktivt lån med given borrower_user_id."""
+    from app.models import (
+        Loan,
+        Piece,
+        PiecePlacement,
+        StorageLocation,
+        StorageUnit,
+    )
+    from app.utils.dates import now_utc
+
+    loc = StorageLocation(name="Arkiv-idor", kind="physical")
+    session.add(loc)
+    session.flush()
+    unit = StorageUnit(location_id=loc.id, name="Pärm")
+    session.add(unit)
+    session.flush()
+    piece = Piece(title="Not", created_by=admin_user.id)
+    session.add(piece)
+    session.flush()
+    pl = PiecePlacement(piece_id=piece.id, storage_unit_id=unit.id, copies=1)
+    session.add(pl)
+    session.flush()
+    loan = Loan(
+        placement_id=pl.id,
+        borrower_name="X",
+        borrower_user_id=borrower_user_id,
+        copies=1,
+        picked_up_at=now_utc(),
+    )
+    session.add(loan)
+    session.commit()
+    return loan.id
+
+
+def test_return_loan_idor_blockeras(client, session: Session, admin_user):
+    """TASK-57: en låntagare (reader) får inte återlämna någon annans lån."""
+    from app.auth import hash_password
+    from app.models import Loan, User
+    from app.models.user import Role
+
+    reader = User(username="lantagare1", password_hash=hash_password("pw123"), role=Role.READER)
+    session.add(reader)
+    session.commit()
+    # Lån som tillhör admin_user, inte reader
+    loan_id = _loan_setup(session, admin_user.id, admin_user)
+
+    _login_as(client, "lantagare1", "pw123")
+    csrf = get_csrf(client, "/pieces")
+    r = client.post(f"/loans/{loan_id}/return", data={"csrf_token": csrf})
+    assert r.status_code == 403
+    session.expire_all()
+    assert session.get(Loan, loan_id).returned_at is None
+
+
+def test_return_loan_egen_tillaten(client, session: Session, admin_user):
+    """TASK-57: en låntagare får återlämna sitt EGET lån (kiosk-självbetjäning)."""
+    from app.auth import hash_password
+    from app.models import Loan, User
+    from app.models.user import Role
+
+    reader = User(username="lantagare2", password_hash=hash_password("pw123"), role=Role.READER)
+    session.add(reader)
+    session.commit()
+    reader_id = reader.id
+    loan_id = _loan_setup(session, reader_id, admin_user)
+
+    _login_as(client, "lantagare2", "pw123")
+    csrf = get_csrf(client, "/pieces")
+    r = client.post(f"/loans/{loan_id}/return", data={"csrf_token": csrf})
+    assert r.status_code in (302, 303)
+    session.expire_all()
+    assert session.get(Loan, loan_id).returned_at is not None

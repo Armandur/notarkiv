@@ -294,6 +294,16 @@ async def return_loan(
     loan = session.get(Loan, loan_id)
     if not loan:
         raise HTTPException(404)
+    # Ägarkontroll: editor/admin får återlämna vilket lån som helst (biblioteks-
+    # hantering från /loans och batch-vyn). En låntagare (t.ex. PIN-autentiserad
+    # i kiosken) får bara återlämna sina egna lån - annars kan vem som helst
+    # återlämna andras via loan_id.
+    if not user.can_edit and loan.borrower_user_id != user.id:
+        batch = session.get(LoanBatch, loan.batch_id) if loan.batch_id else None
+        if not (batch and batch.borrower_user_id == user.id):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, "Du kan bara återlämna dina egna lån"
+            )
     if loan.returned_at:
         flash(request, "Utlånet är redan markerat som återlämnat", "info")
     else:
