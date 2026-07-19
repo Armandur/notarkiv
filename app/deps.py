@@ -74,6 +74,39 @@ def current_kiosk(
     return session.get(Kiosk, kid)
 
 
+def kiosk_borrower_id_if_active(request: Request) -> int | None:
+    """Returnera kiosk_borrower_id om det finns och inte gått ut på inaktivitet.
+
+    Rensar sessionen och returnerar None om idle-timeouten (admin-konfigurerbar)
+    passerats, annars touchas last-active-stämpeln. Detta är den enda källan
+    till timeout-logiken - både _kiosk_borrower (GET-vyer) och cart/kiosk-
+    dependencies nedan (POST) går via denna, så POST-routes inte kan agera
+    efter att sessionen egentligen borde ha loggats ut."""
+    bid = request.session.get("kiosk_borrower_id")
+    if not bid:
+        return None
+
+    from datetime import datetime
+
+    from app.services.app_settings import get_kiosk_idle_timeout_minutes
+    from app.utils.dates import now_utc
+
+    timeout_min = get_kiosk_idle_timeout_minutes()
+    if timeout_min > 0:
+        last_active_raw = request.session.get("kiosk_borrower_last_active")
+        if last_active_raw:
+            try:
+                last_active = datetime.fromisoformat(last_active_raw)
+                if (now_utc() - last_active).total_seconds() > timeout_min * 60:
+                    request.session.pop("kiosk_borrower_id", None)
+                    request.session.pop("kiosk_borrower_last_active", None)
+                    return None
+            except (TypeError, ValueError):
+                pass
+    request.session["kiosk_borrower_last_active"] = now_utc().isoformat()
+    return bid
+
+
 def require_cart_actor(
     request: Request,
     session: Session = Depends(get_session),
@@ -83,7 +116,7 @@ def require_cart_actor(
     låntagaren. Annars den inloggade användaren. Alla auth:ade roller
     räcker - utlåning är inte en redigerande operation och alla i
     körlaget ska kunna låna noter."""
-    user_id = request.session.get("user_id") or request.session.get("kiosk_borrower_id")
+    user_id = request.session.get("user_id") or kiosk_borrower_id_if_active(request)
     if not user_id:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
@@ -102,7 +135,7 @@ def require_kiosk_editor(
 ) -> User:
     """Editor som agerar i en kiosk-session. Antingen browser-inloggad
     user eller PIN-autentiserad kiosk_borrower. Båda måste ha can_edit."""
-    user_id = request.session.get("user_id") or request.session.get("kiosk_borrower_id")
+    user_id = request.session.get("user_id") or kiosk_borrower_id_if_active(request)
     if not user_id:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,

@@ -2,9 +2,6 @@ from fastapi import HTTPException, Request
 from fastapi.responses import Response
 from sqlmodel import Session, select
 
-from datetime import datetime
-from app.utils.dates import now_utc
-
 from app.models import (
     Piece,
     PieceImage,
@@ -23,31 +20,14 @@ from app.templates_setup import render
 
 def _kiosk_borrower(request: Request, session: Session) -> User | None:
     """Den autentiserade låntagaren för aktuell kiosk-session (via PIN).
-    Rensar sessionen om inaktivitet > timeout (admin-konfigurerbart)."""
-    bid = request.session.get("kiosk_borrower_id")
+    Timeout-logiken (rensa vid inaktivitet, touch-stämpel) delas med
+    cart/kiosk-dependencies via deps.kiosk_borrower_id_if_active."""
+    from app.deps import kiosk_borrower_id_if_active
+
+    bid = kiosk_borrower_id_if_active(request)
     if not bid:
         return None
-
-    # Timeout-check: jämför last_activity-timestamp mot konfigurerad gräns
-    from app.services.app_settings import get_kiosk_idle_timeout_minutes
-
-    timeout_min = get_kiosk_idle_timeout_minutes()
-    if timeout_min > 0:
-        last_active_raw = request.session.get("kiosk_borrower_last_active")
-        if last_active_raw:
-            try:
-                last_active = datetime.fromisoformat(last_active_raw)
-                if (now_utc() - last_active).total_seconds() > timeout_min * 60:
-                    request.session.pop("kiosk_borrower_id", None)
-                    request.session.pop("kiosk_borrower_last_active", None)
-                    return None
-            except (TypeError, ValueError):
-                pass
-    # Touch timestamp för nästa request
-    request.session["kiosk_borrower_last_active"] = now_utc().isoformat()
-
-    user = session.get(User, bid)
-    return user
+    return session.get(User, bid)
 
 
 def _kiosk_context(request: Request, session: Session, kiosk) -> dict:
