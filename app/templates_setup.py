@@ -37,16 +37,24 @@ def to_paragraphs(text: str | None) -> list[dict]:
 
 
 def _markdown(text: str | None) -> str:
-    """Rendera markdown till HTML. Tom sträng om None."""
+    """Rendera markdown till HTML och sanera resultatet. Tom sträng om None.
+
+    Resultatet renderas med `| safe` i mallarna, så det MÅSTE saneras här:
+    python-markdown släpper igenom rå HTML oförändrat, vilket annars ger
+    lagrad XSS via editor-redigerbara fält (piece.notes, person.biography,
+    publisher.description). nh3 (ammonia) tar bort script/event-handlers och
+    javascript:-URL:er men behåller vanlig formatering, länkar och tabeller."""
     if not text:
         return ""
     import markdown as md
+    import nh3
 
-    return md.markdown(
+    html = md.markdown(
         text,
         extensions=["nl2br", "sane_lists", "tables"],
         output_format="html",
     )
+    return nh3.clean(html)
 
 
 templates = Jinja2Templates(directory="app/templates")

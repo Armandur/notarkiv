@@ -310,3 +310,22 @@ def test_cart_update_tar_bort_rad_nar_inget_ledigt(
     assert r.status_code in (302, 303)
     session.expire_all()
     assert session.get(Loan, cart_loan_id) is None, "raden ska tas bort, inte floras till 1"
+
+
+def test_markdown_filter_sanerar_xss():
+    """TASK-58: markdown-filtern renderas med | safe, så den måste sanera bort
+    XSS-vektorer men behålla vanlig formatering."""
+    from app.templates_setup import _markdown
+
+    farligt = _markdown(
+        "<img src=x onerror=alert(document.cookie)> <script>alert(1)</script>"
+    )
+    assert "onerror" not in farligt
+    assert "<script" not in farligt
+
+    assert "javascript:" not in _markdown("[klicka](javascript:alert(1))")
+    assert "onclick" not in _markdown("<a href='#' onclick='steal()'>x</a>")
+
+    # Legitim formatering ska överleva saneringen
+    assert "<strong>" in _markdown("**fet**")
+    assert "<table>" in _markdown("| A | B |\n|---|---|\n| 1 | 2 |")
