@@ -397,12 +397,16 @@ async def cart_add(
         capped, avail = _cap_to_available(
             session, placement_id, new_total, exclude_loan_id=existing.id
         )
-        if avail is not None and new_total > capped:
-            flash(request, f"Bara {capped} ex tillgängliga - antalet sattes till max", "warning")
+        if capped == 0:
+            session.delete(existing)
+            flash(request, "Inga lediga exemplar - togs bort ur korgen", "warning")
         else:
-            flash(request, "Antal uppdaterat i utlåningskorgen", "success")
-        existing.copies = max(1, capped)
-        session.add(existing)
+            if avail is not None and new_total > capped:
+                flash(request, f"Bara {capped} ex tillgängliga - antalet sattes till max", "warning")
+            else:
+                flash(request, "Antal uppdaterat i utlåningskorgen", "success")
+            existing.copies = capped
+            session.add(existing)
     else:
         capped, avail = _cap_to_available(session, placement_id, requested)
         if avail is not None and capped == 0:
@@ -548,10 +552,14 @@ async def cart_update(
     capped, avail = _cap_to_available(
         session, loan.placement_id, requested, exclude_loan_id=loan.id
     )
-    if avail is not None and requested > capped:
-        flash(request, f"Bara {capped} ex tillgängliga - antalet sattes till max", "warning")
-    loan.copies = max(1, capped)
-    session.add(loan)
+    if capped == 0:
+        session.delete(loan)
+        flash(request, "Inga lediga exemplar - togs bort ur korgen", "warning")
+    else:
+        if avail is not None and requested > capped:
+            flash(request, f"Bara {capped} ex tillgängliga - antalet sattes till max", "warning")
+        loan.copies = capped
+        session.add(loan)
     session.commit()
     return RedirectResponse("/loans/cart", status.HTTP_302_FOUND)
 
@@ -757,6 +765,9 @@ async def mark_not_found(
 ) -> Response:
     loan = session.get(Loan, loan_id)
     if not loan or loan.batch_id is None:
+        raise HTTPException(404)
+    batch = session.get(LoanBatch, loan.batch_id)
+    if not batch or batch.status != LoanBatchStatus.PICKING or loan.picked_up_at is not None:
         raise HTTPException(404)
     batch_id = loan.batch_id
     session.delete(loan)
@@ -1001,20 +1012,36 @@ async def batch_add_more(
         capped, avail = _cap_to_available(
             session, placement_id, new_total, exclude_loan_id=existing.id
         )
-        if avail is not None and new_total > capped:
-            flash(
-                request,
-                f"Bara {capped} ex tillgängliga - antalet sattes till max på {title} i {batch.name}",
-                "warning",
-            )
+        if capped == 0:
+            if existing.picked_up_at is not None:
+                # Redan fysiskt hämtad rad raderas aldrig - behåll antalet.
+                flash(
+                    request,
+                    f"Inga lediga exemplar - kunde inte öka antalet på {title} i {batch.name}",
+                    "warning",
+                )
+            else:
+                session.delete(existing)
+                flash(
+                    request,
+                    f"Inga lediga exemplar - {title} togs bort ur {batch.name}",
+                    "warning",
+                )
         else:
-            flash(
-                request,
-                f"Ökade antal till {capped} på {title} i {batch.name}",
-                "success",
-            )
-        existing.copies = max(1, capped)
-        session.add(existing)
+            if avail is not None and new_total > capped:
+                flash(
+                    request,
+                    f"Bara {capped} ex tillgängliga - antalet sattes till max på {title} i {batch.name}",
+                    "warning",
+                )
+            else:
+                flash(
+                    request,
+                    f"Ökade antal till {capped} på {title} i {batch.name}",
+                    "success",
+                )
+            existing.copies = capped
+            session.add(existing)
     else:
         capped, avail = _cap_to_available(session, placement_id, requested)
         if avail is not None and capped == 0:
