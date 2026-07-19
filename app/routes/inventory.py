@@ -371,7 +371,7 @@ async def check_item(
 ) -> Response:
     inv = session.get(InventorySession, inv_id)
     placement = session.get(PiecePlacement, placement_id)
-    if not inv or not placement or placement.storage_unit_id != unit_id:
+    if not inv or inv.ended_at or not placement or placement.storage_unit_id != unit_id:
         raise HTTPException(404)
     try:
         status_enum = CheckStatus(status_val)
