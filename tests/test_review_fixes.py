@@ -353,3 +353,69 @@ def test_session_secret_kravs_i_produktion():
         _env_file=None, app_env="development", session_secret=DEFAULT_SESSION_SECRET
     )
     assert dev_ok.app_env == "development"
+
+
+async def test_extract_job_markerar_failed_vid_cancel(
+    session: Session, test_engine, admin_user, monkeypatch
+):
+    """TASK-60: en timeout/cancel (CancelledError) mitt i jobbet ska markera
+    scanen failed - inte lämna den fast i extracting - och re-raisa."""
+    import asyncio
+
+    import app.tasks.ocr_jobs as ocr_jobs
+    from app.models import ScanSession
+    from app.models.scan_session import ScanStatus
+
+    monkeypatch.setattr(ocr_jobs, "engine", test_engine)
+    monkeypatch.setattr(ocr_jobs, "read_cover_for_ocr", lambda p: b"fake")
+
+    class _CancelProvider:
+        async def extract(self, image_bytes):
+            raise asyncio.CancelledError()
+
+    monkeypatch.setattr(ocr_jobs, "get_provider", lambda name: _CancelProvider())
+
+    scan = ScanSession(
+        image_path="x.jpg", ocr_provider="claude_vision", user_id=admin_user.id
+    )
+    session.add(scan)
+    session.commit()
+    sid = scan.id
+
+    with pytest.raises(asyncio.CancelledError):
+        await ocr_jobs.extract_metadata_job({}, sid)
+
+    session.expire_all()
+    assert session.get(ScanSession, sid).status == ScanStatus.FAILED
+
+
+def test_kiosk_borrower_timeout_pa_alla_routes(monkeypatch):
+    """TASK-64: kiosk_borrower_id_if_active (som cart/kiosk-POST-dependencies
+    använder) rensar sessionen vid utgången inaktivitet och touchar annars."""
+    import types
+    from datetime import timedelta
+
+    import app.services.app_settings as app_settings
+    from app.deps import kiosk_borrower_id_if_active
+    from app.utils.dates import now_utc
+
+    monkeypatch.setattr(app_settings, "get_kiosk_idle_timeout_minutes", lambda: 60)
+
+    # Utgången (2h sedan, gräns 60 min) -> None + sessionen rensad
+    stale = types.SimpleNamespace(
+        session={
+            "kiosk_borrower_id": 5,
+            "kiosk_borrower_last_active": (now_utc() - timedelta(hours=2)).isoformat(),
+        }
+    )
+    assert kiosk_borrower_id_if_active(stale) is None
+    assert "kiosk_borrower_id" not in stale.session
+
+    # Nyligen aktiv -> id kvar, stämpel touchad
+    fresh = types.SimpleNamespace(
+        session={
+            "kiosk_borrower_id": 7,
+            "kiosk_borrower_last_active": now_utc().isoformat(),
+        }
+    )
+    assert kiosk_borrower_id_if_active(fresh) == 7
