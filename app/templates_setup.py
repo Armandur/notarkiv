@@ -85,6 +85,7 @@ def render(
 
 def _active_inventory(user_id: int):
     """Användarens egen aktiva inventering (om någon) - för navbar-prick."""
+    from loguru import logger
     from sqlmodel import Session
 
     from app.db import engine
@@ -93,11 +94,13 @@ def _active_inventory(user_id: int):
     try:
         with Session(engine) as session:
             return get_user_default_active_session(session, user_id)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Kunde inte beräkna aktiv inventering för navbar: {}", exc)
         return None
 
 
 def _active_loans_count() -> int:
+    from loguru import logger
     from sqlalchemy import func as sqlf
     from sqlmodel import Session, select
 
@@ -109,12 +112,14 @@ def _active_loans_count() -> int:
             return session.exec(
                 select(sqlf.count(Loan.id)).where(Loan.returned_at.is_(None))
             ).one()
-    except Exception:
+    except Exception as exc:
+        logger.warning("Kunde inte beräkna antal aktiva lån för navbar: {}", exc)
         return 0
 
 
 def _cart_count(user_id: int) -> int:
     """Antal Loan-rader i användarens cart-batch."""
+    from loguru import logger
     from sqlalchemy import func as sqlf
     from sqlmodel import Session, select
 
@@ -133,12 +138,14 @@ def _cart_count(user_id: int) -> int:
             return session.exec(
                 select(sqlf.count(Loan.id)).where(Loan.batch_id == cart.id)
             ).one()
-    except Exception:
+    except Exception as exc:
+        logger.warning("Kunde inte beräkna antal noter i utlåningskorg för navbar: {}", exc)
         return 0
 
 
 def _pending_review_count() -> int:
     """Globalt antal skanningar som väntar på granskning - för navbar-badge."""
+    from loguru import logger
     from sqlalchemy import func as sqlf
     from sqlmodel import Session, select
 
@@ -152,7 +159,8 @@ def _pending_review_count() -> int:
                 .where(ScanSession.resulting_piece_id.is_(None))
                 .where(ScanSession.discarded == False)  # noqa: E712
             ).one()
-    except Exception:
+    except Exception as exc:
+        logger.warning("Kunde inte beräkna antal väntande granskningar för navbar: {}", exc)
         return 0
 
 
