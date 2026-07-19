@@ -193,6 +193,7 @@ async def adjust_piece(
     piece_public_id: str,
     delta: int = Form(0),
     kiosk: Kiosk = Depends(require_kiosk_session),
+    user: User = Depends(require_kiosk_editor),
     session: Session = Depends(get_session),
 ) -> Response:
     """Manuell +/- på piecens kvittering. Används från knapparna i
@@ -202,9 +203,7 @@ async def adjust_piece(
     piece = session.exec(select(Piece).where(Piece.public_id == piece_public_id)).first()
     if not piece:
         raise HTTPException(404)
-    # Använd kioskens nuvarande borrower som "checked_by"
-    borrower_id = request.session.get("kiosk_borrower_id")
-    check_piece_for_kiosk(session, kiosk, piece.id, borrower_id, delta=delta)
+    check_piece_for_kiosk(session, kiosk, piece.id, user.id, delta=delta)
     return RedirectResponse(f"/kiosk/{piece_public_id}", status.HTTP_302_FOUND)
 
 
