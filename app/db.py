@@ -140,12 +140,10 @@ def _ensure_column_guards() -> None:
         ],
         "tags": [
             ("description", "VARCHAR"),
+            ("parent_id", "INTEGER REFERENCES tags(id)"),
         ],
         "scan_sessions": [
             ("target_piece_id", "INTEGER REFERENCES pieces(id)"),
-        ],
-        "tags": [
-            ("parent_id", "INTEGER REFERENCES tags(id)"),
         ],
         "users": [
             ("pin_hash", "VARCHAR"),
