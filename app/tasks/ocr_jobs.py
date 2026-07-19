@@ -1,5 +1,6 @@
 """Bakgrundsjobb: extrahera metadata och berika med MusicBrainz."""
 
+import asyncio
 import json
 from datetime import datetime
 from app.utils.dates import now_utc
@@ -29,42 +30,53 @@ async def extract_metadata_job(ctx: dict, scan_session_id: int) -> dict:
         image_path = scan.image_path
         provider_name = scan.ocr_provider
 
+    # CancelledError ärver BaseException och fångas INTE av except Exception.
+    # Utan denna yttre guard skulle en timeout (job_timeout) eller worker-
+    # shutdown mitt i ett await lämna scanen fast i extracting/enriching.
     try:
-        image_bytes = read_cover_for_ocr(image_path)
-        provider = get_provider(provider_name)
-        metadata = await provider.extract(image_bytes)
-    except Exception as exc:
-        logger.exception("OCR-extraktion misslyckades")
-        _mark_failed(scan_session_id, str(exc))
-        return {"status": "failed", "error": str(exc)}
-
-    # Spara extraherade data och gå vidare till MB-berikning
-    with Session(engine) as session:
-        scan = session.get(ScanSession, scan_session_id)
-        scan.raw_response = metadata.model_dump_json()
-        scan.status = ScanStatus.ENRICHING
-        session.add(scan)
-        session.commit()
-
-    suggestions = []
-    if metadata.title:
         try:
-            mb_client = get_client()
-            works = await mb_client.search_work(metadata.title, metadata.composer)
-            suggestions = to_suggestions(works, metadata.title, metadata.composer)
-            logger.info("MB returnerade {} förslag", len(suggestions))
+            image_bytes = read_cover_for_ocr(image_path)
+            provider = get_provider(provider_name)
+            metadata = await provider.extract(image_bytes)
         except Exception as exc:
-            logger.warning("MusicBrainz-anrop misslyckades: {}", exc)
+            logger.exception("OCR-extraktion misslyckades")
+            _mark_failed(scan_session_id, str(exc))
+            return {"status": "failed", "error": str(exc)}
 
-    with Session(engine) as session:
-        scan = session.get(ScanSession, scan_session_id)
-        scan.status = ScanStatus.DONE
-        scan.completed_at = now_utc()
-        scan.musicbrainz_suggestion = json.dumps([s.model_dump() for s in suggestions])
-        session.add(scan)
-        session.commit()
+        # Spara extraherade data och gå vidare till MB-berikning
+        with Session(engine) as session:
+            scan = session.get(ScanSession, scan_session_id)
+            scan.raw_response = metadata.model_dump_json()
+            scan.status = ScanStatus.ENRICHING
+            session.add(scan)
+            session.commit()
 
-    return {"status": "done", "scan_session_id": scan_session_id}
+        suggestions = []
+        if metadata.title:
+            try:
+                mb_client = get_client()
+                works = await mb_client.search_work(metadata.title, metadata.composer)
+                suggestions = to_suggestions(works, metadata.title, metadata.composer)
+                logger.info("MB returnerade {} förslag", len(suggestions))
+            except Exception as exc:
+                logger.warning("MusicBrainz-anrop misslyckades: {}", exc)
+
+        with Session(engine) as session:
+            scan = session.get(ScanSession, scan_session_id)
+            scan.status = ScanStatus.DONE
+            scan.completed_at = now_utc()
+            scan.musicbrainz_suggestion = json.dumps([s.model_dump() for s in suggestions])
+            session.add(scan)
+            session.commit()
+
+        return {"status": "done", "scan_session_id": scan_session_id}
+    except asyncio.CancelledError:
+        logger.warning(
+            "extract_metadata_job avbröts (timeout/shutdown) för scan={}",
+            scan_session_id,
+        )
+        _mark_failed(scan_session_id, "Tidsgräns nådd - jobbet avbröts. Försök igen.")
+        raise
 
 
 def _mark_failed(scan_session_id: int, error: str) -> None:
